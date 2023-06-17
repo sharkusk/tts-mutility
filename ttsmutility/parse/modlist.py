@@ -44,7 +44,7 @@ class ModList():
         
         return mod
 
-    def get_mods(self) -> list:
+    def get_mods(self, init=False) -> list:
         """
         Returns list of dictionary in following format:
         [{
@@ -59,6 +59,9 @@ class ModList():
             updated_db = False
             for f in glob("*.json", root_dir=self.dir_path):
                 if f == "WorkshopFileInfos.json" or f == "SaveFileInfos.json":
+                    continue
+                if init:
+                    mods.append(f)
                     continue
                 mod = self._check_mod_in_db(f)
                 file_path = os.path.join(self.dir_path, f)

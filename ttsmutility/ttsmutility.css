@@ -12,6 +12,17 @@ Screen {
     width: 60;
 }
 
+#loading {
+    align: center middle;
+    height: 1fr;
+}
+
+#status {
+    height: 0.5fr;
+    text-align: center;
+    width: 100%;
+}
+
 ContentSwitcher {
     background: $panel;
     border: round $primary;

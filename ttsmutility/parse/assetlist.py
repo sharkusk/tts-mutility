@@ -145,7 +145,7 @@ class AssetList():
                         done.add(url)
                         yield (newtrail, url)
     
-    def parse_assets(self, filename: str) -> list:
+    def parse_assets(self, filename: str, init=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, filename)
         modified_db = False
@@ -169,28 +169,30 @@ class AssetList():
                                     (url, "", "", trail_string))
                 self.cursor.execute("REPLACE INTO tts_mod_assets VALUES (?, ?)",
                                     (url, filename,))
-                assets.append({
-                    "url": url,
-                    "asset_filename": "",
-                    "sha1": "",
-                    "trail": trail_string
-                    })
+                if not init:
+                    assets.append({
+                        "url": url,
+                        "asset_filename": "",
+                        "sha1": "",
+                        "trail": trail_string
+                        })
             if modified_db:
                 self.conn.commit()
         else:
-            self.cursor.execute(("""
-                SELECT
-                    * FROM tts_assets
-                INNER JOIN tts_mod_assets
-                    ON tts_mod_assets.url=tts_assets.url
-                    WHERE tts_mod_assets.mod_filename=?
-                """),(filename,))
-            results = self.cursor.fetchall()
-            for result in results:
-                assets.append({
-                    "url": result[URL_INDEX],
-                    "asset_filename": result[ASSET_FILENAME_INDEX],
-                    "sha1": result[SHA1_INDEX],
-                    "trail": result[TRAIL_INDEX]
-                    })
+            if not init:
+                self.cursor.execute(("""
+                    SELECT
+                        * FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.url=tts_assets.url
+                        WHERE tts_mod_assets.mod_filename=?
+                    """),(filename,))
+                results = self.cursor.fetchall()
+                for result in results:
+                    assets.append({
+                        "url": result[URL_INDEX],
+                        "asset_filename": result[ASSET_FILENAME_INDEX],
+                        "sha1": result[SHA1_INDEX],
+                        "trail": result[TRAIL_INDEX]
+                        })
         return assets

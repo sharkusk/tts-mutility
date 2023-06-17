@@ -80,6 +80,9 @@ class AssetListScreen(Screen):
 
         event.data_table.sort(event.column_key, reverse=reverse)
     
+    def init_db(self, filename):
+        pass
+    
 class ModListScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
@@ -183,19 +186,46 @@ class TTSMutility(App):
         def __init__(self, i: int) -> None:
             self.i = i
             super().__init__()
+
+    class InitProcessing(Message):
+        def __init__(self, status: str) -> None:
+            self.status = status
+            super().__init__()
         
     def compose(self) -> ComposeResult:
-        yield LoadingIndicator()
+        yield Header()
+        yield LoadingIndicator(id="loading")
+        yield Static(id="status")
+        self.run_worker(self.initialize_database)
 
     def initialize_database(self) -> None:
-        time.sleep(5)
+        self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
+        mod_list = modlist.ModList(MOD_DIR)
+        mods = mod_list.get_mods(init=True)
+        self.post_message(self.InitProcessing(f"Loading Save Mods"))
+        save_list = modlist.ModList(SAVE_DIR)
+        saves = save_list.get_mods(init=True)
+
+        mod_asset_list = assetlist.AssetList(MOD_DIR)
+        save_asset_list = assetlist.AssetList(SAVE_DIR)
+
+        for mod in mods:
+            self.post_message(self.InitProcessing(f"Finding assets in {mod}"))
+            mod_asset_list.parse_assets(mod, init=True)
+        for mod in saves:
+            self.post_message(self.InitProcessing(f"Finding assets in {mod}"))
+            save_asset_list.parse_assets(mod, init=True)
+
+        self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
+        time.sleep(0.1)
         self.post_message(self.InitComplete(0))
 
     def on_ttsmutility_init_complete(self):
         self.push_screen(ModListScreen())
-
-    def on_mount(self) -> None:
-        self.run_worker(self.initialize_database)
     
+    def on_ttsmutility_init_processing(self, event: InitProcessing):
+        static = next(self.query("#status").results(Static))
+        static.update(event.status)
+
     def on_mod_list_screen_selected(self, event: ModListScreen.Selected):
         self.push_screen(event.screen)
