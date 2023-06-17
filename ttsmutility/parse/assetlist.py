@@ -55,6 +55,17 @@ class AssetList():
     def _close_connection(self):
         self.cursor.close()
         self.conn.close()
+
+    def url_reformat(self, url):
+        replacements = [
+            ('http://', ''),
+            ('https://', ''),
+            ('cloud-3.steamusercontent.com/ugc', '.steamuser.'),
+            ('www.dropbox.com/s', '.dropbox.'),
+            ]
+        for x, y in replacements:
+            url = url.replace(x, y)
+        return url
     
     def urls_from_save(self, mod_path):
         with open(mod_path, "r", encoding="utf-8") as infile:

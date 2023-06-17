@@ -2,8 +2,8 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, DataTable
 from textual.message import Message
 from textual.containers import Horizontal
-from textual.widgets import TabbedContent, TabPane, Static, LoadingIndicator
-from textual.screen import Screen
+from textual.widgets import TabbedContent, TabPane, Static, LoadingIndicator, MarkdownViewer
+from textual.screen import Screen, ModalScreen
 
 from ttsmutility.parse import modlist
 from ttsmutility.parse import assetlist
@@ -15,9 +15,48 @@ SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator\
 
 SCREEN_PARAMETERS = {}
 
+ASSET_DETAIL_MD = """
+URL
+---
+{url}
+
+Filename
+--------
+{filename}
+
+SHA1
+----
+{sha1}
+
+JSON Trail
+----------
+{trail}
+"""
+
+class AssetDetailScreen(ModalScreen):
+    BINDINGS = [("escape", "app.pop_screen", "OK")]
+
+    def compose(self) -> ComposeResult:
+        yield Footer()
+        yield Static(id="asset_detail")
+
+    def on_mount(self) -> None:
+        static = next(self.query("#asset_detail").results(Static))
+        static.update(ASSET_DETAIL_MD.format(
+            url=SCREEN_PARAMETERS['url'],
+            filename=SCREEN_PARAMETERS['asset_filename'],
+            trail=SCREEN_PARAMETERS['trail'],
+            sha1=SCREEN_PARAMETERS['sha1'],
+            ))
+
 class AssetListScreen(Screen):
 
     BINDINGS = [("escape", "app.pop_screen", "OK")]
+
+    class Selected(Message):
+        def __init__(self, screen: Screen) -> None:
+            self.screen = screen
+            super().__init__()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -58,16 +97,20 @@ class AssetListScreen(Screen):
         table.add_column("SHA1", key="sha1")
         table.add_column("filename", key="filename")
 
-        assets = self.asset_list.parse_assets(self.mod_filename)
+        self.assets = self.asset_list.parse_assets(self.mod_filename)
 
-        for i, asset in enumerate(assets):
-            table.add_row(asset['url'], asset['trail'], asset['sha1'], asset['asset_filename'], key=i)
+        for i, asset in enumerate(self.assets):
+            table.add_row(self.asset_list.url_reformat(asset['url']), asset['trail'], asset['sha1'], asset['asset_filename'], key=i)
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order['url'])
         self.last_sort_key = 'url'
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        return
+        SCREEN_PARAMETERS['url'] = self.assets[event.row_key.value]['url']
+        SCREEN_PARAMETERS['asset_filename'] = self.assets[event.row_key.value]['asset_filename']
+        SCREEN_PARAMETERS['trail'] = self.assets[event.row_key.value]['trail']
+        SCREEN_PARAMETERS['sha1'] = self.assets[event.row_key.value]['sha1']
+        self.post_message(self.Selected(AssetDetailScreen()))
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -228,4 +271,7 @@ class TTSMutility(App):
         static.update(event.status)
 
     def on_mod_list_screen_selected(self, event: ModListScreen.Selected):
+        self.push_screen(event.screen)
+
+    def on_asset_list_screen_selected(self, event: AssetListScreen.Selected):
         self.push_screen(event.screen)

@@ -1,20 +1,24 @@
 Screen {
     align: center middle;
     padding: 0;
+    margin: 0;
 }
 
-#buttons {
-    height: 2;
-    width: auto;
-}
-
-#buttons #assets-list{
-    width: 60;
+DataTable#name {
+    width: 10;
 }
 
 #loading {
     align: center middle;
     height: 1fr;
+}
+
+#asset_detail {
+    border: round blue 75%;
+    align: center middle;
+    width: 0.9fr;
+    background: $panel;
+    padding: 1;
 }
 
 #status {
@@ -24,20 +28,15 @@ Screen {
 }
 
 ContentSwitcher {
-    background: $panel;
-    border: round $primary;
-    width: 100%;
+    width: 1fr;
     height: 1fr;
+}
+
+TabPane {
+    padding: 0;
 }
 
 DataTable {
     background: $panel;
     height: 1fr;
-}
-
-MarkdownH2 {
-    background: $primary;
-    color: yellow;
-    border: none;
-    padding: 0;
 }
