@@ -1,0 +1,28 @@
+Screen {
+    align: center middle;
+    padding: 1;
+}
+
+#buttons {
+    height: 3;
+    width: auto;
+}
+
+ContentSwitcher {
+    background: $panel;
+    border: round $primary;
+    width: 90%;
+    height: 1fr;
+}
+
+DataTable {
+    background: $panel;
+    height: 1fr;
+}
+
+MarkdownH2 {
+    background: $primary;
+    color: yellow;
+    border: none;
+    padding: 0;
+}

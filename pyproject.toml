@@ -1,0 +1,27 @@
+[build-system]
+requires = [ "setuptools>=42", "versioningit", ]
+build-backend = "setuptools.build_meta"
+
+[tool.versioningit]
+
+[project]
+name="ttsmutility"
+authors = [
+    {name = "Marcus Kellerman", email="sharkus@gmail.com"},
+    {name = "Sebastian Reuße", email="seb@wirrsal.net"},
+]
+description = ""
+readme = "README.md"
+requires-python = ">=3.8"
+dynamic = ["version"]
+license = {text = "GPLv3"}
+dependencies = [
+    "textual",
+]
+
+[project.urls]
+Repository = "https://github.com/sharkusk/ttsmutility"
+
+[project.optional-dependencies]
+dev = [
+]
