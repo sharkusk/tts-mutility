@@ -4,7 +4,7 @@ from glob import glob
 import sqlite3
 import atexit
 
-from ttsmutility import DB_NAME
+from ttsmutility import *
 
 
 class ModList():
@@ -15,7 +15,7 @@ class ModList():
         self.cursor = self.conn.cursor()
 
         # TODO: Get this to work (it doesn't seem to be called)
-        atexit.register(self._close_connection)
+        #atexit.register(self._close_connection)
     
     def _close_connection(self):
         self.cursor.close()
@@ -28,14 +28,19 @@ class ModList():
 
     def _check_mod_in_db(self, filename: str) -> dict or None:
         mod = None
-        self.cursor.execute("SELECT * FROM tts_mods WHERE filename=?", (filename,));
+        self.cursor.execute("SELECT * FROM tts_mods WHERE mod_filename=?", (filename,));
         result = self.cursor.fetchall()
         if len(result) > 0:
             mod = {
-                'filename': result[0][0],
-                'name': result[0][1],
-                'modification_time': result[0][3],
+                'filename': result[0][MOD_FILENAME_INDEX],
+                'name': result[0][MOD_NAME_INDEX],
+                'modification_time': result[0][MOD_TIME_INDEX],
             }
+        self.cursor.execute("SELECT COUNT(url) FROM tts_mod_assets WHERE mod_filename=?", (filename,));
+        result = self.cursor.fetchone()
+
+        if mod is not None:
+            mod['total_assets'] = result[0]
         
         return mod
 

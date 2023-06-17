@@ -8,6 +8,10 @@ Screen {
     width: auto;
 }
 
+#buttons #assets-list{
+    width: 60;
+}
+
 ContentSwitcher {
     background: $panel;
     border: round $primary;

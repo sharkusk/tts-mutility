@@ -2,16 +2,15 @@ from textual.app import App, ComposeResult
 from textual.message import Message
 from textual.widgets import Footer, Header, DataTable
 from textual.containers import Horizontal, VerticalScroll, HorizontalScroll
-from textual.widgets import Button, ContentSwitcher, Markdown
+from textual.widgets import Button, ContentSwitcher, Pretty
 
 from ttsmutility.parse import modlist
+from ttsmutility.parse import assetlist
 
 import time
 
 
-MARKDOWN_EXAMPLE = """
-## {mod_name}
-"""
+PRETTY_EXAMPLE = {"intro": "hello world"}
 
 class TTSMutility(App):
 
@@ -21,13 +20,12 @@ class TTSMutility(App):
         #yield Header()
 
         with Horizontal(id="buttons"):
-            yield Button("DataTable", id="mod-list")
-            yield Button("Markdown", id="files")
+            yield Button("TTS Mods", id="mod-list")
+            yield Button("Assets", id="assets-list")
         
         with ContentSwitcher(initial="mod-list"):
             yield DataTable(id="mod-list")
-            with VerticalScroll(id="files"):
-                yield Markdown(MARKDOWN_EXAMPLE.format(mod_name="Hello"))
+            yield DataTable(id="assets-list")
 
         #yield Footer()
     
@@ -37,7 +35,7 @@ class TTSMutility(App):
     
     def on_mount(self) -> None:
         mod_dir = "C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop"
-        table = self.query_one(DataTable)
+        table = next(self.query('#mod-list').results(DataTable))
         table.focus()
 
         # TODO: Generate column names and keys in outside module
@@ -53,22 +51,53 @@ class TTSMutility(App):
             "total_assets": False,
             "total_missing": False,
             "filename": False,
+            "url": False,
+            "trail": False,
+            "sha1": False,
+            "asset_filename": False,
             }
 
+        self.asset_list = assetlist.AssetList(mod_dir)
         self.mod_list = modlist.ModList(mod_dir)
         self.mods = self.mod_list.get_mods()
         for i, mod in enumerate(self.mods):
-            table.add_row(mod['name'].ljust(35), time.strftime("%Y-%m-%d %H:%M", time.localtime(mod['modification_time'])), '0', '0', mod['filename'], key=i)
+            table.add_row(mod['name'].ljust(35), time.strftime("%Y-%m-%d %H:%M", time.localtime(mod['modification_time'])), mod['total_assets'], '0', mod['filename'], key=i)
         table.cursor_type = "row"
         table.sort("name", reverse=self.sort_order['name'])
         self.last_sort_key = 'name'
     
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        #table = event.data_table
-        #mod_name = table.get_cell(*table.coordinate_to_cell_key((event.cursor_row, 0))).strip()
-        mod_name = self.mods[event.row_key.value]['name']
-        self.query_one(ContentSwitcher).current = "files"
-        self.query_one(Markdown).update(MARKDOWN_EXAMPLE.format(mod_name=mod_name))
+        if event.data_table.id == "assets-list":
+            return
+        mod_filename = self.mods[event.row_key.value]['filename']
+        self.query_one(ContentSwitcher).current = "assets-list"
+        table = next(self.query('#assets-list').results(DataTable))
+        button = next(self.query('#assets-list').results(Button))
+        button.label = self.mods[event.row_key.value]['name']
+        #TODO: Add columns universally to allow columns to not be cleared
+        table.clear(columns=True)
+        table.focus()
+
+        # TODO: Generate column names and keys in outside module
+        table.add_column("URL", key="url")
+        table.add_column("Trail", key="trail")
+        table.add_column("SHA1", key="sha1")
+        table.add_column("filename", key="filename")
+
+        self.sort_order = {
+            "url": False,
+            "trail": False,
+            "sha1": False,
+            "filename": False,
+            }
+
+        assets = self.asset_list.parse_assets(mod_filename)
+
+        for i, asset in enumerate(assets):
+            table.add_row(asset['url'], asset['trail'], asset['sha1'], asset['asset_filename'], key=i)
+        table.cursor_type = "row"
+        table.sort("url", reverse=self.sort_order['url'])
+        self.last_sort_key = 'url'
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
