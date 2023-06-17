@@ -56,10 +56,10 @@ class ModList():
                 if f == "WorkshopFileInfos.json":
                     continue
                 mod = self._check_mod_in_db(f)
+                file_path = os.path.join(self.dir_path, f)
+                mtime = os.path.getmtime(file_path)
                 if mod is None:
-                    file_path = os.path.join(self.dir_path, f)
                     name = self.get_mod_name(file_path)
-                    mtime = os.path.getmtime(file_path)
                     self.cursor.execute("INSERT INTO tts_mods VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (f, name, file_path, mtime, 0, 0, 0, 0))
                     mod = {
                         "filename": f,
@@ -67,6 +67,10 @@ class ModList():
                         "modification_time": mtime,
                     }
                     updated_db = True
+                elif mod['modification_time'] != mtime:
+                    self.cursor.execute("UPDATE tts_mods SET mod_time=? WHERE filename=?", (mtime, f,))
+                    updated_db = True
+
                 mods.append(mod)
             if updated_db:
                 self.conn.commit()

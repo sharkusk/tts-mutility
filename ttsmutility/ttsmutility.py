@@ -6,6 +6,8 @@ from textual.widgets import Button, ContentSwitcher, Markdown
 
 from ttsmutility.parse import modlist
 
+import time
+
 
 MARKDOWN_EXAMPLE = """
 ## {mod_name}
@@ -32,7 +34,7 @@ class TTSMutility(App):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.query_one(ContentSwitcher).current = event.button.id
-
+    
     def on_mount(self) -> None:
         mod_dir = "C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop"
         table = self.query_one(DataTable)
@@ -56,7 +58,7 @@ class TTSMutility(App):
         self.mod_list = modlist.ModList(mod_dir)
         self.mods = self.mod_list.get_mods()
         for i, mod in enumerate(self.mods):
-            table.add_row(mod['name'].ljust(35), str(mod['modification_time']), '0', '0', mod['filename'], key=i)
+            table.add_row(mod['name'].ljust(35), time.strftime("%Y-%m-%d %H:%M", time.localtime(mod['modification_time'])), '0', '0', mod['filename'], key=i)
         table.cursor_type = "row"
         table.sort("name", reverse=self.sort_order['name'])
         self.last_sort_key = 'name'
