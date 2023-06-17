@@ -1,7 +1,8 @@
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, DataTable
+from textual.message import Message
 from textual.containers import Horizontal
-from textual.widgets import TabbedContent, TabPane, Static, Label
+from textual.widgets import TabbedContent, TabPane, Static, LoadingIndicator
 from textual.screen import Screen
 
 from ttsmutility.parse import modlist
@@ -64,11 +65,22 @@ class AssetListScreen(Screen):
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order['url'])
         self.last_sort_key = 'url'
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected):
+        return
     
-class TTSMutility(App):
+    def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
+        if self.last_sort_key == event.column_key.value:
+            self.sort_order[event.column_key.value] = not self.sort_order[event.column_key.value]
+        else:
+            self.sort_order[event.column_key.value] = False
 
-    CSS_PATH = "ttsmutility.css"
+        reverse = self.sort_order[event.column_key.value]
+        self.last_sort_key = event.column_key.value
 
+        event.data_table.sort(event.column_key, reverse=reverse)
+    
+class ModListScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
@@ -78,7 +90,12 @@ class TTSMutility(App):
                 yield DataTable(id="mod-list")
             with TabPane("Saves", id="saves"):
                 yield DataTable(id="save-list")
-    
+
+    class Selected(Message):
+        def __init__(self, screen: Screen) -> None:
+            self.screen = screen
+            super().__init__()
+
     def on_mount(self) -> None:
         self.sort_order = {
             "name": False,
@@ -145,7 +162,7 @@ class TTSMutility(App):
             SCREEN_PARAMETERS['mod_dir'] = SAVE_DIR
         SCREEN_PARAMETERS['mod_filename'] = mod_filename
         SCREEN_PARAMETERS['mod_name'] = mod_name
-        self.push_screen(AssetListScreen())
+        self.post_message(self.Selected(AssetListScreen()))
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -157,3 +174,28 @@ class TTSMutility(App):
         self.last_sort_key = event.column_key.value
 
         event.data_table.sort(event.column_key, reverse=reverse)
+
+class TTSMutility(App):
+
+    CSS_PATH = "ttsmutility.css"
+
+    class InitComplete(Message):
+        def __init__(self, i: int) -> None:
+            self.i = i
+            super().__init__()
+        
+    def compose(self) -> ComposeResult:
+        yield LoadingIndicator()
+
+    def initialize_database(self) -> None:
+        time.sleep(5)
+        self.post_message(self.InitComplete(0))
+
+    def on_ttsmutility_init_complete(self):
+        self.push_screen(ModListScreen())
+
+    def on_mount(self) -> None:
+        self.run_worker(self.initialize_database)
+    
+    def on_mod_list_screen_selected(self, event: ModListScreen.Selected):
+        self.push_screen(event.screen)
