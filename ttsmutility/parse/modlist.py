@@ -58,7 +58,7 @@ class ModList():
             mods = []
             updated_db = False
             for f in glob("*.json", root_dir=self.dir_path):
-                if f == "WorkshopFileInfos.json":
+                if f == "WorkshopFileInfos.json" or f == "SaveFileInfos.json":
                     continue
                 mod = self._check_mod_in_db(f)
                 file_path = os.path.join(self.dir_path, f)
