@@ -4,7 +4,7 @@ from textual.widgets import Footer, Header, DataTable
 from textual.containers import Horizontal, VerticalScroll, HorizontalScroll
 from textual.widgets import Button, ContentSwitcher, Markdown
 
-from parse import modlist
+from ttsmutility.parse import modlist
 
 
 MARKDOWN_EXAMPLE = """
@@ -53,7 +53,8 @@ class TTSMutility(App):
             "filename": False,
             }
 
-        self.mods = modlist.mods_in_directory(mod_dir)
+        self.mod_list = modlist.ModList(mod_dir)
+        self.mods = self.mod_list.get_mods()
         for i, mod in enumerate(self.mods):
             table.add_row(mod['name'].ljust(35), str(mod['modification_time']), '0', '0', mod['filename'], key=i)
         table.cursor_type = "row"
@@ -77,7 +78,3 @@ class TTSMutility(App):
         self.last_sort_key = event.column_key.value
 
         event.data_table.sort(event.column_key, reverse=reverse)
-
-if __name__ == "__main__":
-    app = TTSMutility()
-    app.run()
