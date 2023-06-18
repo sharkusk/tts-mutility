@@ -3,12 +3,12 @@ import os.path
 import re
 
 
-IMGPATH = os.path.join("Mods", "Images")
-OBJPATH = os.path.join("Mods", "Models")
-BUNDLEPATH = os.path.join("Mods", "Assetbundles")
-AUDIOPATH = os.path.join("Mods", "Audio")
-PDFPATH = os.path.join("Mods", "PDF")
-TXTPATH = os.path.join("Mods", "Text")
+IMGPATH = "Images"
+OBJPATH = "Models"
+BUNDLEPATH = "Assetbundles"
+AUDIOPATH = "Audio"
+PDFPATH = "PDF"
+TXTPATH = "Text"
 
 AUDIO_EXTS = ['.mp3', '.wav', '.ogv', '.ogg']
 IMG_EXTS = ['.png', '.jpg', '.mp4', '.m4v', '.webm', '.mov', '.unity3d']

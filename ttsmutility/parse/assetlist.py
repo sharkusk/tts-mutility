@@ -9,8 +9,6 @@ import sys
 from ttsmutility import *
 from ttsmutility.parse.filefinder import ALL_VALID_EXTS, find_file
 
-DATA_DIR = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Tabletop Simulator\\Tabletop Simulator_Data"
-
 class IllegalSavegameException(ValueError):
     def __init__(self):
         super().__init__("not a Tabletop Simulator savegame")
@@ -143,13 +141,26 @@ class AssetList():
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
         modified_db = False
-        self.cursor.execute("SELECT EXISTS (SELECT 1 FROM tts_mod_assets WHERE mod_filename=?)", (mod_filename,));
+        self.cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.rowid
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.rowid
+                WHERE mod_filename=?
+            )""", (mod_filename,));
         result = self.cursor.fetchone()
         parse_file = False
         if result[0] == 0:
             parse_file = True
         else:
-            self.cursor.execute("SELECT mtime FROM tts_mods WHERE mod_filename=?", (mod_filename,))
+            self.cursor.execute("""
+                SELECT mod_mtime
+                FROM tts_mods
+                WHERE mod_filename=?
+                """, (mod_filename,))
             result = self.cursor.fetchone()
             if result is not None:
                 if os.path.getmtime(mod_path) > result[0]:
@@ -157,14 +168,24 @@ class AssetList():
         
         if parse_file:
             old_dir = os.getcwd()
-            os.chdir(DATA_DIR)
+            os.chdir(self.dir_path)
             for trail, url in self.urls_from_save(mod_path):
                 asset_filename, mtime = find_file(url, trail)
                 trail_string = '->'.join(['%s']*len(trail)) % tuple(trail)
-                self.cursor.execute("REPLACE INTO tts_assets VALUES (?, ?, ?, ?)",
-                                    (url, asset_filename, "", mtime))
-                self.cursor.execute("REPLACE INTO tts_mod_assets VALUES (?, ?, ?)",
-                                    (url, mod_filename, trail_string))
+                self.cursor.execute("""
+                    REPLACE INTO tts_assets
+                        (asset_url, asset_filepath, asset_sha1, asset_mtime)
+                    VALUES
+                        (?, ?, ?, ?)
+                    """, (url, asset_filename, "", mtime))
+                self.cursor.execute("""
+                    REPLACE INTO tts_mod_assets
+                        (asset_id_fk, mod_id_fk, mod_asset_trail)
+                    VALUES (
+                        (SELECT tts_assets.rowid FROM tts_assets WHERE asset_url=?),
+                        (SELECT tts_mods.rowid FROM tts_mods WHERE mod_filename=?),
+                        ?)
+                    """, (url, mod_filename, trail_string))
                 if not init:
                     assets.append({
                         "url": url,
@@ -173,19 +194,25 @@ class AssetList():
                         "mtime": mtime,
                         "trail": trail_string,
                         })
-            self.cursor.execute("UPDATE tts_mods SET mtime=? WHERE mod_filename=?", (os.path.getmtime(mod_path), mod_filename))
+            self.cursor.execute("""
+                UPDATE tts_mods
+                SET mod_mtime=?
+                WHERE mod_filename=?
+                """, (os.path.getmtime(mod_path), mod_filename))
             modified_db = True
             os.chdir(old_dir)
         else:
             if not init:
                 old_dir = os.getcwd()
-                os.chdir(DATA_DIR)
+                os.chdir(self.dir_path)
                 self.cursor.execute(("""
-                    SELECT tts_assets.url, asset_filename, mtime, sha1, trail
-                        FROM tts_assets
-                    INNER JOIN tts_mod_assets
-                        ON tts_mod_assets.url=tts_assets.url
-                        WHERE tts_mod_assets.mod_filename=?
+                    SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail
+                    FROM tts_assets
+                        INNER JOIN tts_mod_assets
+                            ON tts_mod_assets.asset_id_fk=tts_assets.rowid
+                        INNER JOIN tts_mods
+                            ON tts_mod_assets.mod_id_fk=tts_mods.rowid
+                    WHERE mod_filename=?
                     """),(mod_filename,))
                 results = self.cursor.fetchall()
                 for result in results:
@@ -193,8 +220,10 @@ class AssetList():
                         asset_filename, mtime = find_file(result[0], result[4].split('->'))
                         if asset_filename != "":
                             modified_db = True
-                            self.cursor.execute("REPLACE INTO tts_assets VALUES (?, ?, ?, ?)",
-                                                (result[0], asset_filename, "", mtime))
+                            self.cursor.execute("""
+                                REPLACE INTO tts_assets
+                                VALUES (?, ?, ?, ?)
+                                """, (result[0], asset_filename, "", mtime))
 
                     else:
                         asset_filename = result[1]

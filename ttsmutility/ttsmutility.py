@@ -8,10 +8,12 @@ from textual.screen import Screen, ModalScreen
 from ttsmutility.parse import modlist
 from ttsmutility.parse import assetlist
 
+from ttsmutility import FIRST_PASS
+
 import time
 
-MOD_DIR = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Tabletop Simulator\\Tabletop Simulator_Data\\Mods\\Workshop"
-SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator\\Saves"
+MOD_DIR = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Tabletop Simulator\\Tabletop Simulator_Data\\Mods"
+SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator"
 
 SCREEN_PARAMETERS = {}
 
@@ -194,7 +196,7 @@ class ModListScreen(Screen):
                 self.mods = self.mod_list.get_mods()
                 mods = self.mods
             else:
-                self.save_list = modlist.ModList(SAVE_DIR)
+                self.save_list = modlist.ModList(SAVE_DIR, is_save=True)
                 self.saves = self.save_list.get_mods()
                 mods = self.saves
             for i, mod in enumerate(mods):
@@ -270,13 +272,15 @@ class TTSMutility(App):
 
     def initialize_database(self) -> None:
         # Wait for DB to be created on first pass
-        time.sleep(0.5)
+        if FIRST_PASS:
+            self.post_message(self.InitProcessing(f"Creating Database"))
+            time.sleep(2)
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = modlist.ModList(MOD_DIR)
-        mods = mod_list.get_mods(init=True)
+        mods = mod_list.get_mods(init=False if FIRST_PASS else True)
         self.post_message(self.InitProcessing(f"Loading Save Mods"))
         save_list = modlist.ModList(SAVE_DIR)
-        saves = save_list.get_mods(init=True)
+        saves = save_list.get_mods(init=False if FIRST_PASS else True)
 
         mod_asset_list = assetlist.AssetList(MOD_DIR)
         save_asset_list = assetlist.AssetList(SAVE_DIR)
