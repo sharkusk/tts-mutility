@@ -24,6 +24,10 @@ Filename
 --------
 {filename}
 
+Modified Time
+-------------
+{mtime}
+
 SHA1
 ----
 {sha1}
@@ -32,6 +36,12 @@ JSON Trail
 ----------
 {trail}
 """
+
+def format_time(mtime: float) -> str:
+    if mtime == 0:
+        return "File not found."
+    else:
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime))
 
 class AssetDetailScreen(ModalScreen):
     BINDINGS = [("escape", "app.pop_screen", "OK")]
@@ -47,6 +57,7 @@ class AssetDetailScreen(ModalScreen):
             filename=SCREEN_PARAMETERS['asset_filename'],
             trail=SCREEN_PARAMETERS['trail'],
             sha1=SCREEN_PARAMETERS['sha1'],
+            mtime=SCREEN_PARAMETERS['mtime'],
             ))
 
 class AssetListScreen(Screen):
@@ -70,6 +81,7 @@ class AssetListScreen(Screen):
             "trail": False,
             "sha1": False,
             "filename": False,
+            "mtime": False,
             }
         self.last_sort_key = 'url'
         self.asset_list = assetlist.AssetList(SCREEN_PARAMETERS["mod_dir"])
@@ -92,15 +104,23 @@ class AssetListScreen(Screen):
         table.focus()
 
         # TODO: Generate column names and keys in outside module
-        table.add_column("URL", key="url")
-        table.add_column("Trail", key="trail")
-        table.add_column("SHA1", key="sha1")
-        table.add_column("filename", key="filename")
+        table.add_column("URL", width=40, key="url")
+        table.add_column("Modified", key="mtime")
+        table.add_column("Trail", width=40, key="trail")
+        table.add_column("Filepath", width=40, key="filename")
+        table.add_column("SHA1", width=40, key="sha1")
 
         self.assets = self.asset_list.parse_assets(self.mod_filename)
 
         for i, asset in enumerate(self.assets):
-            table.add_row(self.asset_list.url_reformat(asset['url']), asset['trail'], asset['sha1'], asset['asset_filename'], key=i)
+            table.add_row(
+                self.asset_list.url_reformat(asset['url']),
+                format_time(asset['mtime']),
+                self.asset_list.trail_reformat(asset['trail']),
+                asset['asset_filename'],
+                '..'+asset['sha1'][15:],
+                key=i
+                )
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order['url'])
         self.last_sort_key = 'url'
@@ -110,6 +130,7 @@ class AssetListScreen(Screen):
         SCREEN_PARAMETERS['asset_filename'] = self.assets[event.row_key.value]['asset_filename']
         SCREEN_PARAMETERS['trail'] = self.assets[event.row_key.value]['trail']
         SCREEN_PARAMETERS['sha1'] = self.assets[event.row_key.value]['sha1']
+        SCREEN_PARAMETERS['mtime'] = self.assets[event.row_key.value]['mtime']
         self.post_message(self.Selected(AssetDetailScreen()))
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
@@ -177,7 +198,13 @@ class ModListScreen(Screen):
                 self.saves = self.save_list.get_mods()
                 mods = self.saves
             for i, mod in enumerate(mods):
-                table.add_row(mod['name'].ljust(35), time.strftime("%Y-%m-%d %H:%M", time.localtime(mod['modification_time'])), mod['total_assets'], '0', mod['filename'], key=i)
+                table.add_row(
+                    mod['name'].ljust(35),
+                    format_time(mod['mtime']),
+                    mod['total_assets'],
+                    mod['missing_assets'],
+                    mod['filename'],
+                    key=i)
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order['name'])
             self.last_sort_key = 'name'
@@ -242,6 +269,8 @@ class TTSMutility(App):
         self.run_worker(self.initialize_database)
 
     def initialize_database(self) -> None:
+        # Wait for DB to be created on first pass
+        time.sleep(0.5)
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = modlist.ModList(MOD_DIR)
         mods = mod_list.get_mods(init=True)
@@ -252,12 +281,14 @@ class TTSMutility(App):
         mod_asset_list = assetlist.AssetList(MOD_DIR)
         save_asset_list = assetlist.AssetList(SAVE_DIR)
 
-        for mod in mods:
-            self.post_message(self.InitProcessing(f"Finding assets in {mod}"))
-            mod_asset_list.parse_assets(mod, init=True)
+        for i, mod in enumerate(mods):
+            mod_filename = mod['filename']
+            self.post_message(self.InitProcessing(f"Finding assets in {mod_filename} ({i}/{len(mods)})"))
+            mod_asset_list.parse_assets(mod_filename, init=True)
         for mod in saves:
-            self.post_message(self.InitProcessing(f"Finding assets in {mod}"))
-            save_asset_list.parse_assets(mod, init=True)
+            mod_filename = mod['filename']
+            self.post_message(self.InitProcessing(f"Finding assets in {mod_filename} ({i}/{len(mods)})"))
+            save_asset_list.parse_assets(mod_filename, init=True)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)

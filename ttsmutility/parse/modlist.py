@@ -26,21 +26,28 @@ class ModList():
             save = json.load(infile)
         return save["SaveName"]
 
-    def _check_mod_in_db(self, filename: str) -> dict or None:
+    def _get_mod_from_db(self, filename: str) -> dict or None:
         mod = None
-        self.cursor.execute("SELECT * FROM tts_mods WHERE mod_filename=?", (filename,));
+        self.cursor.execute("SELECT mod_filename, mod_name, mtime FROM tts_mods WHERE mod_filename=?", (filename,));
         result = self.cursor.fetchall()
         if len(result) > 0:
             mod = {
-                'filename': result[0][MOD_FILENAME_INDEX],
-                'name': result[0][MOD_NAME_INDEX],
-                'modification_time': result[0][MOD_TIME_INDEX],
+                'filename': result[0][0],
+                'name': result[0][1],
+                'mtime': result[0][2],
             }
-        self.cursor.execute("SELECT COUNT(url) FROM tts_mod_assets WHERE mod_filename=?", (filename,));
-        result = self.cursor.fetchone()
+            self.cursor.execute("SELECT COUNT(url) FROM tts_mod_assets WHERE mod_filename=?", (filename,));
+            result = self.cursor.fetchone()
+            total_assets = result[0]
 
-        if mod is not None:
-            mod['total_assets'] = result[0]
+            query = ("""SELECT COUNT(tts_assets.url) FROM tts_assets
+                        INNER JOIN tts_mod_assets ON tts_mod_assets.url=tts_assets.url
+                        WHERE (tts_mod_assets.mod_filename=? AND tts_assets.mtime=?)""")
+            self.cursor.execute(query, (filename,0))
+            result = self.cursor.fetchone()
+
+            mod['total_assets'] = total_assets
+            mod['missing_assets'] = result[0]
         
         return mod
 
@@ -50,7 +57,7 @@ class ModList():
         [{
             "filename": filename,
             "name": name,
-            "mod_time": mod_time,
+            "mtime": mtime,
             etc (TBD)...
         },]
         """
@@ -61,23 +68,17 @@ class ModList():
                 if f == "WorkshopFileInfos.json" or f == "SaveFileInfos.json":
                     continue
                 if init:
-                    mods.append(f)
+                    mods.append({"filename": f})
                     continue
-                mod = self._check_mod_in_db(f)
-                file_path = os.path.join(self.dir_path, f)
-                mtime = os.path.getmtime(file_path)
+                mod = self._get_mod_from_db(f)
                 if mod is None:
+                    file_path = os.path.join(self.dir_path, f)
                     name = self.get_mod_name(file_path)
-                    self.cursor.execute("INSERT INTO tts_mods VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (f, name, file_path, mtime, 0, 0, 0, 0))
-                    mod = {
-                        "filename": f,
-                        "name": name,
-                        "modification_time": mtime,
-                    }
+                    # Set mtime to be zero in the DB, it will get updated when we scan our assets the first time
+                    self.cursor.execute("INSERT INTO tts_mods VALUES (?, ?, ?, ?, ?, ?)", (f, name, file_path, 0, 0, 0,))
                     updated_db = True
-                elif mod['modification_time'] != mtime:
-                    self.cursor.execute("UPDATE tts_mods SET mod_time=? WHERE filename=?", (mtime, f,))
-                    updated_db = True
+                    # Now that the mod is in the db, extract the data...
+                    mod = self._get_mod_from_db(f)
 
                 mods.append(mod)
             if updated_db:
