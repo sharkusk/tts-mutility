@@ -293,6 +293,15 @@ class TTSMutility(App):
             mod_filename = mod['filename']
             self.post_message(self.InitProcessing(f"Finding assets in {mod_filename} ({i}/{len(mods)})"))
             save_asset_list.parse_assets(mod_filename, init=True)
+        
+        if FIRST_PASS:
+            for x in [mods, saves]:
+                for i, mod in enumerate(x):
+                    mod_filename = mod['filename']
+                    self.post_message(self.InitProcessing(f"Calculating missing assets in {mod_filename} ({i}/{len(mods)})"))
+                    mod_list.count_missing_assets(mod_filename)
+                    self.post_message(self.InitProcessing(f"Calculating total number of assets in {mod_filename} ({i}/{len(mods)})"))
+                    mod_list.count_total_assets(mod_filename)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)

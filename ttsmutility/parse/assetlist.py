@@ -7,7 +7,7 @@ import re
 import sys
 
 from ttsmutility import *
-from ttsmutility.parse.filefinder import ALL_VALID_EXTS, find_file
+from ttsmutility.parse.filefinder import ALL_VALID_EXTS, find_file, recodeURL
 
 class IllegalSavegameException(ValueError):
     def __init__(self):
@@ -78,9 +78,10 @@ class AssetList():
                         # It appears that AudioLibrary items are mappings of form
                         # “Item1” → URL, “Item2” → audio title.
                         url = elem["Item1"]
-                        if url in done:
+                        record = recodeURL(url)
+                        if recode in done:
                             continue
-                        done.add(url)
+                        done.add(recode)
                         yield (newtrail, url)
                     except KeyError:
                         raise NotImplementedError(
@@ -108,9 +109,10 @@ class AssetList():
                 # Deck art URLs can contain metadata in curly braces
                 # (yikes).
                 v = re.sub(r"{.*}", "", v)
-                if v in done:
+                recode = recodeURL(v)
+                if recode in done:
                     continue
-                done.add(v)
+                done.add(recode)
                 yield (newtrail, v)
 
             elif k == "LuaScript":
@@ -132,24 +134,12 @@ class AssetList():
                                 break
 
                     if valid_url:
-                        if url in done:
+                        recode = recodeURL(url)
+                        if recode in done:
                             continue
-                        done.add(url)
+                        done.add(recode)
                         yield (newtrail, url)
-    
-    def _if_url_exists(self, url):
-        self.cursor.execute("""
-            SELECT EXISTS (
-                SELECT 1
-                FROM tts_assets
-                WHERE asset_url=?
-            )""", (url,));
-        result = self.cursor.fetchone()
-        if result[0] == 0:
-            return False
-        else:
-            return True
-    
+
     def parse_assets(self, mod_filename: str, init=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
@@ -191,26 +181,28 @@ class AssetList():
                     asset_filename = None
 
                 # Does this URL already exist in our asset table?
+                # Use asset_url_recode to capture all of the possible ways the URL may be formatted, yet
+                # still result in the same filename being on the disk, thus the asset being the same
                 self.cursor.execute("""
                     SELECT EXISTS (
                         SELECT 1
                         FROM tts_assets
-                        WHERE asset_url=?
-                    )""", (url,));
+                        WHERE asset_url_recode=?
+                    )""", (recodeURL(url),));
                 result = self.cursor.fetchone()
                 if result[0] == 0:
                     self.cursor.execute("""
                         INSERT INTO tts_assets
-                            (asset_url, asset_filepath, asset_sha1, asset_mtime)
+                            (asset_url, asset_url_recode, asset_filepath, asset_sha1, asset_mtime)
                         VALUES
-                            (?, ?, ?, ?)
-                        """, (url, asset_filename, "", mtime))
+                            (?, ?, ?, ?, ?)
+                        """, (url, recodeURL(url), asset_filename, "", mtime))
                 else:
                     self.cursor.execute("""
                         UPDATE tts_assets
                         SET asset_mtime=?
-                        WHERE asset_url=?
-                        """, (mtime, url))
+                        WHERE asset_url_recode=?
+                        """, (mtime, recodeURL(url)))
 
                 # Do we already have an association between this asset and the mod?
                 self.cursor.execute("""
@@ -218,21 +210,21 @@ class AssetList():
                         SELECT 1
                         FROM tts_mod_assets
                         WHERE asset_id_fk=(
-                            SELECT tts_assets.id FROM tts_assets WHERE asset_url=?
+                            SELECT tts_assets.id FROM tts_assets WHERE asset_url_recode=?
                         ) AND mod_id_fk=(
                             SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?
                         )
-                    )""", (url, mod_filename));
+                    )""", (recodeURL(url), mod_filename));
                 result = self.cursor.fetchone()
                 if result[0] == 0:
                     self.cursor.execute("""
                         INSERT INTO tts_mod_assets
                             (asset_id_fk, mod_id_fk, mod_asset_trail)
                         VALUES (
-                            (SELECT tts_assets.id FROM tts_assets WHERE asset_url=?),
+                            (SELECT tts_assets.id FROM tts_assets WHERE asset_url_recode=?),
                             (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
                             ?)
-                        """, (url, mod_filename, trail_string))
+                        """, (recodeURL(url), mod_filename, trail_string))
                 if not init:
                     assets.append({
                         "url": url,

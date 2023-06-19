@@ -22,10 +22,46 @@ class ModList():
         self.cursor.close()
         self.conn.close()
 
-    def get_mod_name(self, file_path: str) -> str:
+    def get_mod_name(self, filename: str) -> str:
+        file_path = os.path.join(self.dir_path, filename)
         with open(file_path, "r", encoding="utf-8") as infile:
             save = json.load(infile)
         return save["SaveName"]
+    
+    def count_total_assets(self, filename: str) -> int:
+        self.cursor.execute("""
+        SELECT COUNT(asset_id_fk)
+        FROM tts_mod_assets
+        WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+        """, (filename,));
+        result = self.cursor.fetchone()
+        self.cursor.execute("""
+            UPDATE tts_stats
+            SET total_assets=?
+            WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+            """, (result[0], filename))
+        self.conn.commit()
+        return result[0]
+    
+    def count_missing_assets(self, filename: str) -> int:
+        query = ("""
+        SELECT COUNT(asset_id_fk)
+        FROM tts_mod_assets
+            WHERE (
+                mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+                AND 
+                asset_id_fk IN (SELECT id FROM tts_assets WHERE asset_mtime=?)
+            )
+        """)
+        self.cursor.execute(query, (filename,0))
+        result = self.cursor.fetchone()
+        self.cursor.execute("""
+            UPDATE tts_stats
+            SET missing_assets=?
+            WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+            """, (result[0], filename))
+        self.conn.commit()
+        return result[0]
 
     def _get_mod_from_db(self, filename: str) -> dict or None:
         mod = None
@@ -46,21 +82,6 @@ class ModList():
                 'total_assets': result[2],
                 'missing_assets': result[3]
             }
-
-            #TODO: These are too slow, use another table to auto increment/decrement
-            if False:
-                self.cursor.execute("SELECT COUNT(mod_filename) FROM tts_mod_assets WHERE mod_filename=?", (filename,));
-                result = self.cursor.fetchone()
-                total_assets = result[0]
-
-                query = ("""SELECT COUNT(tts_mod_assets.mod_filename)
-                            FROM tts_assets
-                            INNER JOIN tts_mod_assets ON tts_mod_assets.url=tts_assets.url
-                            WHERE (tts_mod_assets.mod_filename=? AND tts_assets.mtime=?)""")
-                self.cursor.execute(query, (filename,0))
-                result = self.cursor.fetchone()
-                missing_assets = result[0]
-
         return mod
 
     def get_mods(self, init=False) -> list:
@@ -82,14 +103,14 @@ class ModList():
             else:
                 base_dir = "Workshop"
 
-            i = 0
-            for f in glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path):
-                i += 1
-                if i > 50:
-                    break
-
+            max_mods = 50
+            for i, f in enumerate(glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)):
                 if "WorkshopFileInfos.json" in f or "SaveFileInfos.json" in f:
                     continue
+
+                if i >= max_mods:
+                    break
+
                 if init:
                     mods.append({"filename": f})
                     continue
@@ -97,8 +118,7 @@ class ModList():
                 # directories.
                 mod = self._get_mod_from_db(f)
                 if mod is None:
-                    file_path = os.path.join(self.dir_path, f)
-                    name = self.get_mod_name(file_path)
+                    name = self.get_mod_name(f)
                     # Set mtime to be zero in the DB, it will get updated when we scan our assets the first time
                     query = ("""
                     INSERT INTO tts_mods
