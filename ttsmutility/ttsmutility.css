@@ -21,6 +21,14 @@ DataTable#name {
     padding: 1;
 }
 
+#asset_detail.fs {
+    align: center middle;
+    background: $panel;
+    padding: 0;
+    border: none;
+    width: 100%;
+}
+
 #status {
     height: 0.5fr;
     text-align: center;

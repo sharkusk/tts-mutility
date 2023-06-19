@@ -7,6 +7,9 @@ from textual.widgets import Static
 from ttsmutility.parse import AssetList
 from ttsmutility.util import format_time
 
+import os.path
+import pathlib
+
 class AssetListScreen(Screen):
 
     BINDINGS = [("escape", "app.pop_screen", "OK")]
@@ -75,9 +78,12 @@ class AssetListScreen(Screen):
         self.last_sort_key = 'url'
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
+        filepath = os.path.join(self.mod_dir, self.assets[event.row_key.value]['asset_filename'])
+
         asset_detail = {
             'url': self.assets[event.row_key.value]['url'],
-            'asset_filename': self.assets[event.row_key.value]['asset_filename'],
+            'filename': self.assets[event.row_key.value]['asset_filename'],
+            'uri': pathlib.Path(filepath).as_uri(),
             'trail': self.assets[event.row_key.value]['trail'],
             'sha1': self.assets[event.row_key.value]['sha1'],
             'mtime': self.assets[event.row_key.value]['mtime'],
