@@ -7,7 +7,7 @@ import re
 import sys
 
 from ttsmutility import *
-from ttsmutility.parse.filefinder import ALL_VALID_EXTS, find_file, recodeURL
+from ttsmutility.parse.FileFinder import ALL_VALID_EXTS, find_file, recodeURL
 
 class IllegalSavegameException(ValueError):
     def __init__(self):
