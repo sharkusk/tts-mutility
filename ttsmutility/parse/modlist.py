@@ -30,7 +30,7 @@ class ModList():
     def _get_mod_from_db(self, filename: str) -> dict or None:
         mod = None
         self.cursor.execute("""
-            SELECT mod_name, mod_mtime, total_assets
+            SELECT mod_name, mod_mtime, total_assets, missing_assets
             FROM tts_mods
                 INNER JOIN tts_stats
                     ON tts_stats.mod_id_fk=tts_mods.id
@@ -44,7 +44,7 @@ class ModList():
                 'name': result[0],
                 'mtime': result[1],
                 'total_assets': result[2],
-                'missing_assets': 0
+                'missing_assets': result[3]
             }
 
             #TODO: These are too slow, use another table to auto increment/decrement

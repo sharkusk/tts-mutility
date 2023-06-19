@@ -54,6 +54,7 @@ if _init_table:
                 );
             """)
             
+            # When we insert a mod, add a new entry for the mod stats (if one doesn't already exist)
             cursor.execute("""
             CREATE TRIGGER insert_total_assets
                 AFTER INSERT ON tts_mods
@@ -67,6 +68,7 @@ if _init_table:
                 END;
             """)
 
+            # When we insert a MOD's asset, increment the number of assets associated with the associated mod
             cursor.execute("""
             CREATE TRIGGER update_total_assets
                 AFTER INSERT ON tts_mod_assets
@@ -76,5 +78,47 @@ if _init_table:
                     WHERE mod_id_fk=NEW.mod_id_fk;
                 END;
             """)
+
+            # When we insert a MOD's asset, increment the number of missing assets associated with the associated mod
+            # unless that asset has a modification time (in which case it has been downloaded)
+            cursor.execute("""
+                CREATE TRIGGER increment_missing_assets_trigger 
+                AFTER INSERT ON tts_mod_assets
+                FOR EACH ROW
+                BEGIN
+                    UPDATE tts_stats
+                    SET missing_assets = missing_assets + 1
+                    WHERE tts_stats.mod_id_fk IN (
+                        SELECT mod_id_fk
+                        FROM tts_mod_assets
+                        WHERE tts_mod_assets.mod_id_fk = NEW.mod_id_fk
+                    )
+                    AND EXISTS (
+                        SELECT 1
+                        FROM tts_assets
+                        WHERE tts_assets.id = NEW.asset_id_fk
+                        AND tts_assets.asset_mtime = 0
+                    );
+                END;
+            """)
     
+            # When an assets modification time is changed from 0, decrement the missing asset count for all mods containing that
+            # asset.
+
+            cursor.execute("""
+                CREATE TRIGGER decrement_missing_assets_trigger 
+                AFTER UPDATE ON tts_assets
+                FOR EACH ROW
+                WHEN OLD.asset_mtime = 0 AND NEW.asset_mtime != 0
+                BEGIN
+                    UPDATE tts_stats
+                    SET missing_assets = missing_assets - 1
+                    WHERE mod_id_fk IN (
+                        SELECT mod_id_fk
+                        FROM tts_mod_assets
+                        WHERE asset_id_fk = NEW.id
+                    );
+                END;
+            """)
+
         conn.commit()
