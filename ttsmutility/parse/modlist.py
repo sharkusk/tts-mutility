@@ -28,6 +28,19 @@ class ModList():
             save = json.load(infile)
         return save["SaveName"]
     
+    def get_mods_needing_asset_refresh(self):
+        self.cursor.execute("""
+            SELECT mod_filename
+            FROM tts_mods
+            WHERE (total_assets=-1 OR missing_assets=-1)""",
+        );
+        result = self.cursor.fetchall()
+        # Results are returned as a list of tuples, unzip to a list of mod_filename's
+        if len(result) > 0:
+            return list(zip(*result))[0]
+        else:
+            return []
+    
     def count_total_assets(self, filename: str) -> int:
         self.cursor.execute("""
         SELECT COUNT(asset_id_fk)
@@ -36,9 +49,9 @@ class ModList():
         """, (filename,));
         result = self.cursor.fetchone()
         self.cursor.execute("""
-            UPDATE tts_stats
+            UPDATE tts_mods
             SET total_assets=?
-            WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+            WHERE mod_filename=?
             """, (result[0], filename))
         self.conn.commit()
         return result[0]
@@ -56,9 +69,9 @@ class ModList():
         self.cursor.execute(query, (filename,0))
         result = self.cursor.fetchone()
         self.cursor.execute("""
-            UPDATE tts_stats
+            UPDATE tts_mods
             SET missing_assets=?
-            WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+            WHERE mod_filename=?
             """, (result[0], filename))
         self.conn.commit()
         return result[0]
@@ -68,8 +81,6 @@ class ModList():
         self.cursor.execute("""
             SELECT mod_name, mod_mtime, total_assets, missing_assets
             FROM tts_mods
-                INNER JOIN tts_stats
-                    ON tts_stats.mod_id_fk=tts_mods.id
             WHERE mod_filename=?""",
             (filename,)
         );
@@ -84,7 +95,7 @@ class ModList():
             }
         return mod
 
-    def get_mods(self, init=False) -> list:
+    def get_mods(self) -> list:
         """
         Returns list of dictionary in following format:
         [{
@@ -103,17 +114,14 @@ class ModList():
             else:
                 base_dir = "Workshop"
 
-            max_mods = 50
+            max_mods = -1  # Debug with fewer mods...
             for i, f in enumerate(glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)):
                 if "WorkshopFileInfos.json" in f or "SaveFileInfos.json" in f:
                     continue
 
-                if i >= max_mods:
+                if max_mods != -1 and i >= max_mods:
                     break
 
-                if init:
-                    mods.append({"filename": f})
-                    continue
                 # We could have the same mod filename in both the Save and Workshop
                 # directories.
                 mod = self._get_mod_from_db(f)
@@ -122,11 +130,11 @@ class ModList():
                     # Set mtime to be zero in the DB, it will get updated when we scan our assets the first time
                     query = ("""
                     INSERT INTO tts_mods
-                        (mod_filename, mod_name, mod_mtime, mod_fetch_time, mod_backup_time)
+                        (mod_filename, mod_name, mod_mtime, mod_fetch_time, mod_backup_time, total_assets, missing_assets)
                     VALUES
-                        (?, ?, ?, ?, ?) 
+                        (?, ?, ?, ?, ?, ?, ?) 
                     """)
-                    self.cursor.execute(query, (f, name, 0, 0, 0,))
+                    self.cursor.execute(query, (f, name, 0, 0, 0, -1, -1))
                     updated_db = True
                     # Now that the mod is in the db, extract the data...
                     mod = self._get_mod_from_db(f)

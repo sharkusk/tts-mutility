@@ -277,10 +277,10 @@ class TTSMutility(App):
             time.sleep(2)
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = modlist.ModList(MOD_DIR)
-        mods = mod_list.get_mods(init=False if FIRST_PASS else True)
+        mods = mod_list.get_mods()
         self.post_message(self.InitProcessing(f"Loading Save Mods"))
         save_list = modlist.ModList(SAVE_DIR)
-        saves = save_list.get_mods(init=False if FIRST_PASS else True)
+        saves = save_list.get_mods()
 
         mod_asset_list = assetlist.AssetList(MOD_DIR)
         save_asset_list = assetlist.AssetList(SAVE_DIR)
@@ -288,20 +288,18 @@ class TTSMutility(App):
         for i, mod in enumerate(mods):
             mod_filename = mod['filename']
             self.post_message(self.InitProcessing(f"Finding assets in {mod_filename} ({i}/{len(mods)})"))
-            mod_asset_list.parse_assets(mod_filename, init=True)
+            mod_asset_list.parse_assets(mod_filename, parse_only=True)
         for mod in saves:
             mod_filename = mod['filename']
             self.post_message(self.InitProcessing(f"Finding assets in {mod_filename} ({i}/{len(mods)})"))
-            save_asset_list.parse_assets(mod_filename, init=True)
+            save_asset_list.parse_assets(mod_filename, parse_only=True)
         
-        if FIRST_PASS:
-            for x in [mods, saves]:
-                for i, mod in enumerate(x):
-                    mod_filename = mod['filename']
-                    self.post_message(self.InitProcessing(f"Calculating missing assets in {mod_filename} ({i}/{len(mods)})"))
-                    mod_list.count_missing_assets(mod_filename)
-                    self.post_message(self.InitProcessing(f"Calculating total number of assets in {mod_filename} ({i}/{len(mods)})"))
-                    mod_list.count_total_assets(mod_filename)
+        results = mod_list.get_mods_needing_asset_refresh()
+        for i, mod_filename in enumerate(results):
+            if i % 5:
+                self.post_message(self.InitProcessing(f"Calculating asset counts ({i/len(results):.0%})"))
+            mod_list.count_missing_assets(mod_filename)
+            mod_list.count_total_assets(mod_filename)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)

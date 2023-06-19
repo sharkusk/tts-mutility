@@ -140,7 +140,7 @@ class AssetList():
                         done.add(recode)
                         yield (newtrail, url)
 
-    def parse_assets(self, mod_filename: str, init=False) -> list:
+    def parse_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
         modified_db = False
@@ -176,6 +176,8 @@ class AssetList():
             assets_i = []
             mod_assets_i = []
 
+            mods_changed = set()
+
             for trail, url in self.urls_from_save(mod_path):
                 asset_filename, mtime = find_file(url, trail)
                 trail_string = '->'.join(['%s']*len(trail)) % tuple(trail)
@@ -185,7 +187,7 @@ class AssetList():
                 if asset_filename == "":
                     asset_filename = None
 
-                if not init:
+                if not parse_only:
                     assets.append({
                         "url": url,
                         "asset_filename": asset_filename,
@@ -196,6 +198,8 @@ class AssetList():
 
                 assets_i.append((url, recodeURL(url), asset_filename, "", mtime))
                 mod_assets_i.append((recodeURL(url), mod_filename, trail_string))
+
+                mods_changed.add(mod_filename)
             
             self.cursor.executemany("""
                 INSERT OR IGNORE INTO tts_assets
@@ -218,10 +222,18 @@ class AssetList():
                 SET mod_mtime=?
                 WHERE mod_filename=?
                 """, (os.path.getmtime(mod_path), mod_filename))
+
+            if len(mods_changed) > 0:
+                self.cursor.executemany("""
+                    UPDATE tts_mods
+                    SET total_assets=-1, missing_assets=-1
+                    WHERE mod_filename=?
+                    """, [tuple(mods_changed)])
+
             modified_db = True
             os.chdir(old_dir)
         else:
-            if not init:
+            if not parse_only:
                 old_dir = os.getcwd()
                 os.chdir(self.dir_path)
                 self.cursor.execute(("""
@@ -235,15 +247,16 @@ class AssetList():
                     """),(mod_filename,))
                 results = self.cursor.fetchall()
                 for result in results:
-                    #TODO: Fix this to not use Replace!
                     if result[1] == "":
+                        # Check if this file happens to exist in the filesystem
                         asset_filename, mtime = find_file(result[0], result[4].split('->'))
                         if asset_filename != "":
                             modified_db = True
                             self.cursor.execute("""
-                                REPLACE INTO tts_assets
-                                VALUES (?, ?, ?, ?)
-                                """, (result[0], asset_filename, "", mtime))
+                                UPDATE INTO tts_assets
+                                SET asset_filepath=?, asset_sha1=?, asset_mtime=?
+                                WHERE asset_url=?
+                                """, (asset_filename, "", mtime, result[0]))
 
                     else:
                         asset_filename = result[1]
