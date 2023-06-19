@@ -4,6 +4,7 @@ from textual.message import Message
 from textual.containers import Horizontal
 from textual.widgets import TabbedContent, TabPane, Static, LoadingIndicator, MarkdownViewer
 from textual.screen import Screen, ModalScreen
+from textual.reactive import reactive
 
 from ttsmutility.parse import modlist
 from ttsmutility.parse import assetlist
@@ -14,8 +15,6 @@ import time
 
 MOD_DIR = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Tabletop Simulator\\Tabletop Simulator_Data\\Mods"
 SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator"
-
-SCREEN_PARAMETERS = {}
 
 ASSET_DETAIL_MD = """
 URL
@@ -48,28 +47,38 @@ def format_time(mtime: float) -> str:
 class AssetDetailScreen(ModalScreen):
     BINDINGS = [("escape", "app.pop_screen", "OK")]
 
+    def __init__(self, asset_detail: dict) -> None:
+        self.asset_detail = asset_detail
+        super().__init__()
+
     def compose(self) -> ComposeResult:
         yield Footer()
         yield Static(id="asset_detail")
-
+    
     def on_mount(self) -> None:
         static = next(self.query("#asset_detail").results(Static))
         static.update(ASSET_DETAIL_MD.format(
-            url=SCREEN_PARAMETERS['url'],
-            filename=SCREEN_PARAMETERS['asset_filename'],
-            trail=SCREEN_PARAMETERS['trail'],
-            sha1=SCREEN_PARAMETERS['sha1'],
-            mtime=SCREEN_PARAMETERS['mtime'],
+            url=self.asset_detail['url'],
+            filename=self.asset_detail['asset_filename'],
+            trail=self.asset_detail['trail'],
+            sha1=self.asset_detail['sha1'],
+            mtime=self.asset_detail['mtime'],
             ))
 
 class AssetListScreen(Screen):
 
     BINDINGS = [("escape", "app.pop_screen", "OK")]
 
-    class Selected(Message):
-        def __init__(self, screen: Screen) -> None:
-            self.screen = screen
+    class AssetSelected(Message):
+        def __init__(self, asset_detail: dict) -> None:
+            self.asset_detail = asset_detail
             super().__init__()
+    
+    def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+        self.mod_dir = mod_dir
+        self.mod_name = mod_name
+        self.mod_filename = mod_filename
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -86,7 +95,7 @@ class AssetListScreen(Screen):
             "mtime": False,
             }
         self.last_sort_key = 'url'
-        self.asset_list = assetlist.AssetList(SCREEN_PARAMETERS["mod_dir"])
+        self.asset_list = assetlist.AssetList(self.mod_dir)
 
         table = next(self.query('#asset-list').results(DataTable))
         table.focus()
@@ -94,10 +103,6 @@ class AssetListScreen(Screen):
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order['url'])
     
-        #TODO: Better way than globals for sharing data across screens?
-        self.mod_filename = SCREEN_PARAMETERS['mod_filename']
-        self.mod_name = SCREEN_PARAMETERS['mod_name']
-
         static = next(self.query("#mod_name").results(Static))
         static.update(self.mod_name)
 
@@ -128,12 +133,14 @@ class AssetListScreen(Screen):
         self.last_sort_key = 'url'
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        SCREEN_PARAMETERS['url'] = self.assets[event.row_key.value]['url']
-        SCREEN_PARAMETERS['asset_filename'] = self.assets[event.row_key.value]['asset_filename']
-        SCREEN_PARAMETERS['trail'] = self.assets[event.row_key.value]['trail']
-        SCREEN_PARAMETERS['sha1'] = self.assets[event.row_key.value]['sha1']
-        SCREEN_PARAMETERS['mtime'] = self.assets[event.row_key.value]['mtime']
-        self.post_message(self.Selected(AssetDetailScreen()))
+        asset_detail = {
+            'url': self.assets[event.row_key.value]['url'],
+            'asset_filename': self.assets[event.row_key.value]['asset_filename'],
+            'trail': self.assets[event.row_key.value]['trail'],
+            'sha1': self.assets[event.row_key.value]['sha1'],
+            'mtime': self.assets[event.row_key.value]['mtime'],
+        }
+        self.post_message(self.AssetSelected(asset_detail))
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -150,6 +157,12 @@ class AssetListScreen(Screen):
         pass
     
 class ModListScreen(Screen):
+
+    def __init__(self, mod_dir: str, save_dir: str) -> None:
+        self.mod_dir = mod_dir
+        self.save_dir = save_dir
+        super().__init__()
+
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
@@ -160,9 +173,11 @@ class ModListScreen(Screen):
             with TabPane("Saves", id="saves"):
                 yield DataTable(id="save-list")
 
-    class Selected(Message):
-        def __init__(self, screen: Screen) -> None:
-            self.screen = screen
+    class ModSelected(Message):
+        def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+            self.mod_filename = mod_filename
+            self.mod_name = mod_name
+            self.mod_dir = mod_dir
             super().__init__()
 
     def on_mount(self) -> None:
@@ -192,11 +207,11 @@ class ModListScreen(Screen):
             table.add_column("Filename", key="filename")
 
             if id == "#mod-list":
-                self.mod_list = modlist.ModList(MOD_DIR)
+                self.mod_list = modlist.ModList(self.mod_dir)
                 self.mods = self.mod_list.get_mods()
                 mods = self.mods
             else:
-                self.save_list = modlist.ModList(SAVE_DIR, is_save=True)
+                self.save_list = modlist.ModList(self.save_dir, is_save=True)
                 self.saves = self.save_list.get_mods()
                 mods = self.saves
             for i, mod in enumerate(mods):
@@ -230,14 +245,12 @@ class ModListScreen(Screen):
         if event.data_table.id == "mod-list":
             mod_filename = self.mods[event.row_key.value]['filename']
             mod_name = self.mods[event.row_key.value]['name']
-            SCREEN_PARAMETERS['mod_dir'] = MOD_DIR
+            mod_dir = MOD_DIR
         else:
             mod_filename = self.saves[event.row_key.value]['filename']
             mod_name = self.saves[event.row_key.value]['name']
-            SCREEN_PARAMETERS['mod_dir'] = SAVE_DIR
-        SCREEN_PARAMETERS['mod_filename'] = mod_filename
-        SCREEN_PARAMETERS['mod_name'] = mod_name
-        self.post_message(self.Selected(AssetListScreen()))
+            mod_dir = SAVE_DIR
+        self.post_message(self.ModSelected(mod_filename, mod_name, mod_dir))
     
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -255,8 +268,7 @@ class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
 
     class InitComplete(Message):
-        def __init__(self, i: int) -> None:
-            self.i = i
+        def __init__(self) -> None:
             super().__init__()
 
     class InitProcessing(Message):
@@ -303,17 +315,17 @@ class TTSMutility(App):
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)
-        self.post_message(self.InitComplete(0))
+        self.post_message(self.InitComplete())
 
     def on_ttsmutility_init_complete(self):
-        self.push_screen(ModListScreen())
+        self.push_screen(ModListScreen(MOD_DIR, SAVE_DIR))
     
     def on_ttsmutility_init_processing(self, event: InitProcessing):
         static = next(self.query("#status").results(Static))
         static.update(event.status)
 
-    def on_mod_list_screen_selected(self, event: ModListScreen.Selected):
-        self.push_screen(event.screen)
+    def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
+        self.push_screen(AssetListScreen(event.mod_filename, event.mod_name, event.mod_dir))
 
-    def on_asset_list_screen_selected(self, event: AssetListScreen.Selected):
-        self.push_screen(event.screen)
+    def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
+        self.push_screen(AssetDetailScreen(event.asset_detail))
