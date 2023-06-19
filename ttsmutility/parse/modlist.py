@@ -30,15 +30,22 @@ class ModList():
     def _get_mod_from_db(self, filename: str) -> dict or None:
         mod = None
         self.cursor.execute("""
-            SELECT mod_name, mod_mtime
+            SELECT mod_name, mod_mtime, total_assets
             FROM tts_mods
+                INNER JOIN tts_stats
+                    ON tts_stats.mod_id_fk=tts_mods.id
             WHERE mod_filename=?""",
             (filename,)
         );
         result = self.cursor.fetchone()
         if result is not None:
-            name = result[0]
-            mtime = result[1]
+            mod = {
+                'filename': filename,
+                'name': result[0],
+                'mtime': result[1],
+                'total_assets': result[2],
+                'missing_assets': 0
+            }
 
             #TODO: These are too slow, use another table to auto increment/decrement
             if False:
@@ -53,17 +60,7 @@ class ModList():
                 self.cursor.execute(query, (filename,0))
                 result = self.cursor.fetchone()
                 missing_assets = result[0]
-            else:
-                total_assets = 0
-                missing_assets = 0
 
-            mod = {
-                'filename': filename,
-                'name': name,
-                'mtime': mtime,
-                'total_assets': total_assets,
-                'missing_assets': missing_assets
-            }
         return mod
 
     def get_mods(self, init=False) -> list:
@@ -84,7 +81,13 @@ class ModList():
                 base_dir = "Saves"
             else:
                 base_dir = "Workshop"
+
+            i = 0
             for f in glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path):
+                i += 1
+                if i > 50:
+                    break
+
                 if "WorkshopFileInfos.json" in f or "SaveFileInfos.json" in f:
                     continue
                 if init:

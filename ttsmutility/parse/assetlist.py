@@ -137,6 +137,19 @@ class AssetList():
                         done.add(url)
                         yield (newtrail, url)
     
+    def _if_url_exists(self, url):
+        self.cursor.execute("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM tts_assets
+                WHERE asset_url=?
+            )""", (url,));
+        result = self.cursor.fetchone()
+        if result[0] == 0:
+            return False
+        else:
+            return True
+    
     def parse_assets(self, mod_filename: str, init=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
@@ -146,9 +159,9 @@ class AssetList():
                 SELECT 1
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
-                        ON tts_mod_assets.asset_id_fk=tts_assets.rowid
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
                     INNER JOIN tts_mods
-                        ON tts_mod_assets.mod_id_fk=tts_mods.rowid
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
                 WHERE mod_filename=?
             )""", (mod_filename,));
         result = self.cursor.fetchone()
@@ -172,20 +185,54 @@ class AssetList():
             for trail, url in self.urls_from_save(mod_path):
                 asset_filename, mtime = find_file(url, trail)
                 trail_string = '->'.join(['%s']*len(trail)) % tuple(trail)
+
+                # This is assumed to be unique, but can be not found so in that case it is NULL
+                if asset_filename == "":
+                    asset_filename = None
+
+                # Does this URL already exist in our asset table?
                 self.cursor.execute("""
-                    REPLACE INTO tts_assets
-                        (asset_url, asset_filepath, asset_sha1, asset_mtime)
-                    VALUES
-                        (?, ?, ?, ?)
-                    """, (url, asset_filename, "", mtime))
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM tts_assets
+                        WHERE asset_url=?
+                    )""", (url,));
+                result = self.cursor.fetchone()
+                if result[0] == 0:
+                    self.cursor.execute("""
+                        INSERT INTO tts_assets
+                            (asset_url, asset_filepath, asset_sha1, asset_mtime)
+                        VALUES
+                            (?, ?, ?, ?)
+                        """, (url, asset_filename, "", mtime))
+                else:
+                    self.cursor.execute("""
+                        UPDATE tts_assets
+                        SET asset_mtime=?
+                        WHERE asset_url=?
+                        """, (mtime, url))
+
+                # Do we already have an association between this asset and the mod?
                 self.cursor.execute("""
-                    REPLACE INTO tts_mod_assets
-                        (asset_id_fk, mod_id_fk, mod_asset_trail)
-                    VALUES (
-                        (SELECT tts_assets.rowid FROM tts_assets WHERE asset_url=?),
-                        (SELECT tts_mods.rowid FROM tts_mods WHERE mod_filename=?),
-                        ?)
-                    """, (url, mod_filename, trail_string))
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM tts_mod_assets
+                        WHERE asset_id_fk=(
+                            SELECT tts_assets.id FROM tts_assets WHERE asset_url=?
+                        ) AND mod_id_fk=(
+                            SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?
+                        )
+                    )""", (url, mod_filename));
+                result = self.cursor.fetchone()
+                if result[0] == 0:
+                    self.cursor.execute("""
+                        INSERT INTO tts_mod_assets
+                            (asset_id_fk, mod_id_fk, mod_asset_trail)
+                        VALUES (
+                            (SELECT tts_assets.id FROM tts_assets WHERE asset_url=?),
+                            (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
+                            ?)
+                        """, (url, mod_filename, trail_string))
                 if not init:
                     assets.append({
                         "url": url,
@@ -194,6 +241,7 @@ class AssetList():
                         "mtime": mtime,
                         "trail": trail_string,
                         })
+
             self.cursor.execute("""
                 UPDATE tts_mods
                 SET mod_mtime=?
@@ -209,9 +257,9 @@ class AssetList():
                     SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
-                            ON tts_mod_assets.asset_id_fk=tts_assets.rowid
+                            ON tts_mod_assets.asset_id_fk=tts_assets.id
                         INNER JOIN tts_mods
-                            ON tts_mod_assets.mod_id_fk=tts_mods.rowid
+                            ON tts_mod_assets.mod_id_fk=tts_mods.id
                     WHERE mod_filename=?
                     """),(mod_filename,))
                 results = self.cursor.fetchall()
