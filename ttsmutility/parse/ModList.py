@@ -14,10 +14,7 @@ class ModList:
         self.cursor = self.conn.cursor()
         self.is_save = is_save
 
-        # TODO: Get this to work (it doesn't seem to be called)
-        # atexit.register(self._close_connection)
-
-    def _close_connection(self):
+    def __del__(self):
         self.cursor.close()
         self.conn.close()
 

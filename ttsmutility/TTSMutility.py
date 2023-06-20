@@ -5,9 +5,11 @@ from textual.widgets import Header
 from textual.message import Message
 from textual.widgets import Static, LoadingIndicator
 
-from ttsmutility.screens.AssetDetail import AssetDetailScreen
-from ttsmutility.screens.AssetList import AssetListScreen
-from ttsmutility.screens.ModList import ModListScreen
+from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
+from ttsmutility.screens.AssetListScreen import AssetListScreen
+from ttsmutility.screens.ModListScreen import ModListScreen
+from ttsmutility.screens.Sha1ScanScreen import Sha1ScanScreen
+
 from ttsmutility.parse import ModList
 from ttsmutility.parse import AssetList
 
@@ -96,3 +98,9 @@ class TTSMutility(App):
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
+
+    def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
+        self.push_screen(Sha1ScanScreen(event.mod_dir))
+
+    def on_sha1scan_screen_scan_complete(self):
+        self.pop_screen()

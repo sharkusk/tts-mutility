@@ -18,12 +18,14 @@ if _init_table:
             cursor.execute(
                 """
             CREATE TABLE tts_assets(
-                id              INTEGER PRIMARY KEY,
-                asset_url       VARCHAR(255)    NOT NULL UNIQUE,
-                asset_url_recode  VARCHAR(255)  NOT NULL UNIQUE,
-                asset_filepath  VARCHAR(255)    UNIQUE,
-                asset_sha1      CHAR(40),
-                asset_mtime     TIMESTAMP
+                id                  INTEGER PRIMARY KEY,
+                asset_url           VARCHAR(255)  NOT NULL UNIQUE,
+                asset_url_recode    VARCHAR(255)  NOT NULL UNIQUE,
+                asset_filepath      VARCHAR(255)  UNIQUE,
+                asset_sha1          CHAR(40),
+                asset_steam_sha1    CHAR(40),
+                asset_mtime         TIMESTAMP,
+                asset_sha1_mtime    TIMESTAMP
                 )
             """
             )

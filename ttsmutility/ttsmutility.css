@@ -4,13 +4,27 @@ Screen {
     margin: 0;
 }
 
-DataTable#name {
-    width: 10;
-}
-
 #loading {
     align: center middle;
     height: 1fr;
+}
+
+#sha1screen {
+    align: center middle;
+    height: 0.5fr;
+    width: auto;
+    padding: 1;
+    border: round blue 75%
+}
+
+#sha1output {
+    align: center middle;
+    height: 50%;
+}
+
+#sha1progress {
+    align: center middle;
+    height: 50%;
 }
 
 #asset_detail {

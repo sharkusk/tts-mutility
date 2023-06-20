@@ -21,12 +21,12 @@ class AssetList:
         self.conn = sqlite3.connect(DB_NAME)
         self.cursor = self.conn.cursor()
 
-        # TODO: Get this to work (it doesn't seem to be called)
-        # atexit.register(self._close_connection)
-
-    def _close_connection(self):
+    def __del__(self):
         self.cursor.close()
         self.conn.close()
+
+    def commit(self):
+        self.conn.commit()
 
     def url_reformat(self, url):
         replacements = [
@@ -149,6 +149,38 @@ class AssetList:
                         done.add(recode)
                         yield (newtrail, url)
 
+    def get_sha1_info(self, filepath: str) -> None:
+        # return sha1, steam_sha1, sha1_mtime
+        self.cursor.execute(
+            """
+            SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime
+            FROM tts_assets
+            WHERE asset_filepath=?
+            """,
+            (filepath,),
+        )
+        result = self.cursor.fetchone()
+        if result is not None:
+            return {
+                "sha1": result[0],
+                "steam_sha1": result[1],
+                "sha1_mtime": result[2],
+                "mtime": result[3],
+            }
+        return None
+
+    def sha1_scan_done(
+        self, filepath: str, sha1: str, steam_sha1: str, sha1_mtime: float
+    ) -> None:
+        self.cursor.execute(
+            """
+            UPDATE tts_assets
+            SET asset_sha1=?, asset_steam_sha1=?, asset_sha1_mtime=?
+            WHERE asset_filepath=?
+            """,
+            (sha1, steam_sha1, sha1_mtime, filepath),
+        )
+
     def parse_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
@@ -213,7 +245,7 @@ class AssetList:
                         }
                     )
 
-                assets_i.append((url, recodeURL(url), asset_filename, "", mtime))
+                assets_i.append((url, recodeURL(url), asset_filename, "", mtime, "", 0))
                 mod_assets_i.append((recodeURL(url), mod_filename, trail_string))
 
                 mods_changed.add(mod_filename)
@@ -221,9 +253,9 @@ class AssetList:
             self.cursor.executemany(
                 """
                 INSERT OR IGNORE INTO tts_assets
-                    (asset_url, asset_url_recode, asset_filepath, asset_sha1, asset_mtime)
+                    (asset_url, asset_url_recode, asset_filepath, asset_sha1, asset_mtime, asset_steam_sha1, asset_sha1_mtime)
                 VALUES
-                    (?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?)
                 """,
                 assets_i,
             )

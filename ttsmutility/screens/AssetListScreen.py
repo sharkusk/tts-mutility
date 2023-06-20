@@ -40,7 +40,7 @@ class AssetListScreen(Screen):
             "mtime": False,
         }
         self.last_sort_key = "url"
-        self.asset_list = AssetList.AssetList(self.mod_dir)
+        asset_list = AssetList.AssetList(self.mod_dir)
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -62,13 +62,13 @@ class AssetListScreen(Screen):
         table.add_column("Filepath", width=40, key="filename")
         table.add_column("SHA1", width=40, key="sha1")
 
-        self.assets = self.asset_list.parse_assets(self.mod_filename)
+        self.assets = asset_list.parse_assets(self.mod_filename)
 
         for i, asset in enumerate(self.assets):
             table.add_row(
-                self.asset_list.url_reformat(asset["url"]),
+                asset_list.url_reformat(asset["url"]),
                 format_time(asset["mtime"]),
-                self.asset_list.trail_reformat(asset["trail"]),
+                asset_list.trail_reformat(asset["trail"]),
                 asset["asset_filename"],
                 ".." + asset["sha1"][15:],
                 key=i,

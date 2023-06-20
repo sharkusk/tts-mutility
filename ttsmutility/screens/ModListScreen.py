@@ -9,6 +9,10 @@ from ttsmutility.util import format_time
 
 
 class ModListScreen(Screen):
+    BINDINGS = [
+        ("s", "scan_sha1", "Scan SHA1s"),
+    ]
+
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
         self.save_dir = save_dir
@@ -28,6 +32,11 @@ class ModListScreen(Screen):
         def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
             self.mod_filename = mod_filename
             self.mod_name = mod_name
+            self.mod_dir = mod_dir
+            super().__init__()
+
+    class Sha1Selected(Message):
+        def __init__(self, mod_dir: str) -> None:
             self.mod_dir = mod_dir
             super().__init__()
 
@@ -118,3 +127,6 @@ class ModListScreen(Screen):
         self.last_sort_key = event.column_key.value
 
         event.data_table.sort(event.column_key, reverse=reverse)
+
+    def action_scan_sha1(self) -> None:
+        self.post_message(self.Sha1Selected(self.mod_dir))
