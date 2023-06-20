@@ -181,6 +181,67 @@ class AssetList:
             (sha1, steam_sha1, sha1_mtime, filepath),
         )
 
+    def download_done(
+        self, url: str, filepath: str, mtime: float, size: int, dl_status: str
+    ) -> None:
+        self.cursor.execute(
+            """
+            UPDATE tts_assets
+            SET asset_filepath=?, asset_mtime=?, asset_size=?, asset_dl_status=?
+            WHERE asset_url=?
+            """,
+            (filepath, mtime, size, dl_status, url),
+        )
+
+        # Set mod asset counts containing this asset to -1 to represent an update to the system
+        self.cursor.execute(
+            """
+            UPDATE tts_mods
+            SET total_assets=-1, missing_assets=-1
+            WHERE id IN (
+                SELECT mod_id_fk
+                FROM tts_mod_assets
+                WHERE asset_id_fk IN (
+                    SELECT id FROM tts_assets
+                    WHERE asset_url=?
+                )
+            )
+            """,
+            (url,),
+        )
+
+    def get_missing_assets(self, mod_filename: str) -> list:
+        assets = []
+        self.cursor.execute(
+            """
+            SELECT asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail
+            FROM tts_assets
+                INNER JOIN tts_mod_assets
+                    ON tts_mod_assets.asset_id_fk=tts_assets.id
+                INNER JOIN tts_mods
+                    ON tts_mod_assets.mod_id_fk=tts_mods.id
+            WHERE mod_filename=?
+            """,
+            (mod_filename,),
+        )
+        results = self.cursor.fetchall()
+        urls = []
+        for result in results:
+            skip = True
+            # Has this file already been downloaded, if so we generally skip it
+            if result[1] != 0:
+                # Check if SHA1 computed from file contents matches steam filename SHA1
+                if result[2] != "" and result[3] != "":
+                    if result[2] != result[3]:
+                        # We have a SHA1 mismatch so re-download
+                        skip = False
+            else:
+                # File doesn't exist, so download it
+                skip = False
+            if not skip:
+                urls.append((result[0], result[4]))
+        return urls
+
     def parse_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
         mod_path = os.path.join(self.dir_path, mod_filename)
@@ -245,7 +306,9 @@ class AssetList:
                         }
                     )
 
-                assets_i.append((url, recodeURL(url), asset_filename, "", mtime, "", 0))
+                assets_i.append(
+                    (url, recodeURL(url), asset_filename, "", mtime, "", 0, "")
+                )
                 mod_assets_i.append((recodeURL(url), mod_filename, trail_string))
 
                 mods_changed.add(mod_filename)
@@ -253,9 +316,11 @@ class AssetList:
             self.cursor.executemany(
                 """
                 INSERT OR IGNORE INTO tts_assets
-                    (asset_url, asset_url_recode, asset_filepath, asset_sha1, asset_mtime, asset_steam_sha1, asset_sha1_mtime)
+                    (asset_url, asset_url_recode, asset_filepath, asset_sha1,
+                     asset_mtime, asset_steam_sha1, asset_sha1_mtime, asset_dl_status)
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?,
+                     ?, ?, ?, ?)
                 """,
                 assets_i,
             )
@@ -300,7 +365,7 @@ class AssetList:
                 self.cursor.execute(
                     (
                         """
-                    SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail
+                    SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -314,7 +379,8 @@ class AssetList:
                 results = self.cursor.fetchall()
                 for result in results:
                     if result[1] == "":
-                        # Check if this file happens to exist in the filesystem
+                        # No filepath exists in the DB, but check if this file happens to exist in the filesystem
+                        # (maybe it was added recently)
                         asset_filename, mtime = find_file(
                             result[0], result[4].split("->")
                         )
@@ -322,7 +388,7 @@ class AssetList:
                             modified_db = True
                             self.cursor.execute(
                                 """
-                                UPDATE INTO tts_assets
+                                UPDATE tts_assets
                                 SET asset_filepath=?, asset_sha1=?, asset_mtime=?
                                 WHERE asset_url=?
                                 """,
@@ -339,6 +405,7 @@ class AssetList:
                             "mtime": result[2],
                             "sha1": result[3],
                             "trail": result[4],
+                            "dl_status": result[5],
                         }
                     )
                 os.chdir(old_dir)

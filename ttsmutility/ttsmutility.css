@@ -34,6 +34,30 @@ Screen {
     visibility: visible;
 }
 
+#downloadscreen {
+    height: 20;
+    width: auto;
+    padding: 1;
+    padding-bottom: 0;
+    border: round blue 75%
+}
+
+#downloadoutput {
+    padding: 1;
+    text-align: center;
+}
+
+#downloadprogress {
+}
+
+#downloadscreen Footer {
+    visibility: hidden;
+}
+
+#downloadscreen.unhide Footer {
+    visibility: visible;
+}
+
 #asset_detail {
     border: round blue 75%;
     align: center middle;

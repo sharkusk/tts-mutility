@@ -9,6 +9,7 @@ from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
 from ttsmutility.screens.AssetListScreen import AssetListScreen
 from ttsmutility.screens.ModListScreen import ModListScreen
 from ttsmutility.screens.Sha1ScanScreen import Sha1ScanScreen
+from ttsmutility.screens.AssetDownloadScreen import AssetDownloadScreen
 
 from ttsmutility.parse import ModList
 from ttsmutility.parse import AssetList
@@ -96,8 +97,18 @@ class TTSMutility(App):
             AssetListScreen(event.mod_filename, event.mod_name, event.mod_dir)
         )
 
+    def on_mod_list_screen_download_selected(
+        self, event: ModListScreen.DownloadSelected
+    ):
+        self.push_screen(AssetDownloadScreen(event.mod_dir, event.mod_filename))
+
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
+
+    def on_asset_list_screen_download_selected(
+        self, event: AssetListScreen.DownloadSelected
+    ):
+        self.push_screen(AssetDownloadScreen(event.mod_dir, event.assets))
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.push_screen(Sha1ScanScreen(event.mod_dir))

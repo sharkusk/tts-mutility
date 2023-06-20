@@ -11,6 +11,7 @@ from ttsmutility.util import format_time
 class ModListScreen(Screen):
     BINDINGS = [
         ("s", "scan_sha1", "Scan SHA1s"),
+        ("d", "download_assets", "Download Assets"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -38,6 +39,13 @@ class ModListScreen(Screen):
     class Sha1Selected(Message):
         def __init__(self, mod_dir: str) -> None:
             self.mod_dir = mod_dir
+            super().__init__()
+
+    class DownloadSelected(Message):
+        def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+            self.mod_dir = mod_dir
+            self.mod_filename = mod_filename
+            self.mod_name = mod_name
             super().__init__()
 
     def on_mount(self) -> None:
@@ -102,18 +110,20 @@ class ModListScreen(Screen):
         table.sort("name", reverse=self.sort_order["name"])
         self.last_sort_key = "name"
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        if event.data_table.id == "asset-list":
-            return
-        if event.data_table.id == "mod-list":
-            mod_filename = self.mods[event.row_key.value]["filename"]
-            mod_name = self.mods[event.row_key.value]["name"]
+    def get_mod_by_row(self, id: str, row_key) -> tuple:
+        if id == "mod-list":
+            mod_filename = self.mods[row_key.value]["filename"]
+            mod_name = self.mods[row_key.value]["name"]
             mod_dir = self.mod_dir
         else:
-            mod_filename = self.saves[event.row_key.value]["filename"]
-            mod_name = self.saves[event.row_key.value]["name"]
+            mod_filename = self.saves[row_key.value]["filename"]
+            mod_name = self.saves[row_key.value]["name"]
             mod_dir = self.save_dir
-        self.post_message(self.ModSelected(mod_filename, mod_name, mod_dir))
+        return (mod_filename, mod_name, mod_dir)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected):
+        args = self.get_mod_by_row(event.data_table.id, event.row_key)
+        self.post_message(self.ModSelected(*args))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -130,3 +140,14 @@ class ModListScreen(Screen):
 
     def action_scan_sha1(self) -> None:
         self.post_message(self.Sha1Selected(self.mod_dir))
+
+    def action_download_assets(self) -> None:
+        tabbed = self.query_one(TabbedContent)
+        if tabbed.active == "workshop":
+            id = "mod-list"
+        else:
+            id = "save-list"
+        table = next(self.query("#" + id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        args = self.get_mod_by_row(id, row_key)
+        self.post_message(self.DownloadSelected(*args))

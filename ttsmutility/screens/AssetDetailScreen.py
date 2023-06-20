@@ -21,6 +21,10 @@ Modified Time
 --------------
 {mtime}
 
+DL Status
+--------------
+{dl_status}
+
 SHA1
 --------------
 {sha1}
@@ -49,6 +53,10 @@ class AssetDetailScreen(ModalScreen):
 
     def on_mount(self) -> None:
         static = next(self.query("#asset_detail").results(Static))
+        if self.asset_detail["mtime"] == 0:
+            readable_time = "File not found"
+        else:
+            readable_time = time.ctime(self.asset_detail["mtime"])
         static.update(
             ASSET_DETAIL_MD.format(
                 url=self.asset_detail["url"],
@@ -56,6 +64,7 @@ class AssetDetailScreen(ModalScreen):
                 filename=self.asset_detail["filename"],
                 trail=self.asset_detail["trail"],
                 sha1=self.asset_detail["sha1"],
-                mtime=self.asset_detail["mtime"],
+                mtime=readable_time,
+                dl_status=self.asset_detail["dl_status"],
             )
         )

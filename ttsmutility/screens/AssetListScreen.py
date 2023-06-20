@@ -6,23 +6,34 @@ from textual.widgets import Static
 
 from ttsmutility.parse import AssetList
 from ttsmutility.util import format_time
+from ttsmutility.fetch.AssetDownload import download_files
 
 import os.path
 import pathlib
 
 
 class AssetListScreen(Screen):
-    BINDINGS = [("escape", "app.pop_screen", "OK")]
+    BINDINGS = [
+        ("escape", "app.pop_screen", "OK"),
+        ("d", "download_asset", "Download Asset"),
+    ]
 
     class AssetSelected(Message):
         def __init__(self, asset_detail: dict) -> None:
             self.asset_detail = asset_detail
             super().__init__()
 
+    class DownloadSelected(Message):
+        def __init__(self, mod_dir: str, assets: list) -> None:
+            self.mod_dir = mod_dir
+            self.assets = assets
+            super().__init__()
+
     def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
         self.mod_dir = mod_dir
         self.mod_name = mod_name
         self.mod_filename = mod_filename
+        self.current_row = 0
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -51,11 +62,9 @@ class AssetListScreen(Screen):
         static = next(self.query("#mod_name").results(Static))
         static.update(self.mod_name)
 
-        # TODO: Add columns universally to allow columns to not be cleared
         table.clear(columns=True)
         table.focus()
 
-        # TODO: Generate column names and keys in outside module
         table.add_column("URL", width=40, key="url")
         table.add_column("Modified", key="mtime")
         table.add_column("Trail", width=40, key="trail")
@@ -65,9 +74,13 @@ class AssetListScreen(Screen):
         self.assets = asset_list.parse_assets(self.mod_filename)
 
         for i, asset in enumerate(self.assets):
+            if asset["mtime"] == 0:
+                readable_time = "* " + asset["dl_status"]
+            else:
+                readable_time = format_time(asset["mtime"])
             table.add_row(
                 asset_list.url_reformat(asset["url"]),
-                format_time(asset["mtime"]),
+                readable_time,
                 asset_list.trail_reformat(asset["trail"]),
                 asset["asset_filename"],
                 ".." + asset["sha1"][15:],
@@ -89,6 +102,7 @@ class AssetListScreen(Screen):
             "trail": self.assets[event.row_key.value]["trail"],
             "sha1": self.assets[event.row_key.value]["sha1"],
             "mtime": self.assets[event.row_key.value]["mtime"],
+            "dl_status": self.assets[event.row_key.value]["dl_status"],
         }
         self.post_message(self.AssetSelected(asset_detail))
 
@@ -105,5 +119,10 @@ class AssetListScreen(Screen):
 
         event.data_table.sort(event.column_key, reverse=reverse)
 
-    def init_db(self, filename):
-        pass
+    def action_download_asset(self):
+        table = next(self.query("#asset-list").results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        assets = [
+            self.assets[row_key.value],
+        ]
+        self.post_message(self.DownloadSelected(self.mod_dir, assets))
