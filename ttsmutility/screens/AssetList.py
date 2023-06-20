@@ -10,15 +10,15 @@ from ttsmutility.util import format_time
 import os.path
 import pathlib
 
-class AssetListScreen(Screen):
 
+class AssetListScreen(Screen):
     BINDINGS = [("escape", "app.pop_screen", "OK")]
 
     class AssetSelected(Message):
         def __init__(self, asset_detail: dict) -> None:
             self.asset_detail = asset_detail
             super().__init__()
-    
+
     def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
         self.mod_dir = mod_dir
         self.mod_name = mod_name
@@ -38,20 +38,20 @@ class AssetListScreen(Screen):
             "sha1": False,
             "filename": False,
             "mtime": False,
-            }
-        self.last_sort_key = 'url'
+        }
+        self.last_sort_key = "url"
         self.asset_list = AssetList.AssetList(self.mod_dir)
 
-        table = next(self.query('#asset-list').results(DataTable))
+        table = next(self.query("#asset-list").results(DataTable))
         table.focus()
 
         table.cursor_type = "row"
-        table.sort("url", reverse=self.sort_order['url'])
-    
+        table.sort("url", reverse=self.sort_order["url"])
+
         static = next(self.query("#mod_name").results(Static))
         static.update(self.mod_name)
 
-        #TODO: Add columns universally to allow columns to not be cleared
+        # TODO: Add columns universally to allow columns to not be cleared
         table.clear(columns=True)
         table.focus()
 
@@ -66,33 +66,37 @@ class AssetListScreen(Screen):
 
         for i, asset in enumerate(self.assets):
             table.add_row(
-                self.asset_list.url_reformat(asset['url']),
-                format_time(asset['mtime']),
-                self.asset_list.trail_reformat(asset['trail']),
-                asset['asset_filename'],
-                '..'+asset['sha1'][15:],
-                key=i
-                )
+                self.asset_list.url_reformat(asset["url"]),
+                format_time(asset["mtime"]),
+                self.asset_list.trail_reformat(asset["trail"]),
+                asset["asset_filename"],
+                ".." + asset["sha1"][15:],
+                key=i,
+            )
         table.cursor_type = "row"
-        table.sort("url", reverse=self.sort_order['url'])
-        self.last_sort_key = 'url'
+        table.sort("url", reverse=self.sort_order["url"])
+        self.last_sort_key = "url"
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        filepath = os.path.join(self.mod_dir, self.assets[event.row_key.value]['asset_filename'])
+        filepath = os.path.join(
+            self.mod_dir, self.assets[event.row_key.value]["asset_filename"]
+        )
 
         asset_detail = {
-            'url': self.assets[event.row_key.value]['url'],
-            'filename': self.assets[event.row_key.value]['asset_filename'],
-            'uri': pathlib.Path(filepath).as_uri(),
-            'trail': self.assets[event.row_key.value]['trail'],
-            'sha1': self.assets[event.row_key.value]['sha1'],
-            'mtime': self.assets[event.row_key.value]['mtime'],
+            "url": self.assets[event.row_key.value]["url"],
+            "filename": self.assets[event.row_key.value]["asset_filename"],
+            "uri": pathlib.Path(filepath).as_uri(),
+            "trail": self.assets[event.row_key.value]["trail"],
+            "sha1": self.assets[event.row_key.value]["sha1"],
+            "mtime": self.assets[event.row_key.value]["mtime"],
         }
         self.post_message(self.AssetSelected(asset_detail))
-    
+
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
-            self.sort_order[event.column_key.value] = not self.sort_order[event.column_key.value]
+            self.sort_order[event.column_key.value] = not self.sort_order[
+                event.column_key.value
+            ]
         else:
             self.sort_order[event.column_key.value] = False
 
@@ -100,6 +104,6 @@ class AssetListScreen(Screen):
         self.last_sort_key = event.column_key.value
 
         event.data_table.sort(event.column_key, reverse=reverse)
-    
+
     def init_db(self, filename):
         pass

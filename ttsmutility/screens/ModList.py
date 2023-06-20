@@ -7,8 +7,8 @@ from textual.screen import Screen
 from ttsmutility.parse import ModList
 from ttsmutility.util import format_time
 
-class ModListScreen(Screen):
 
+class ModListScreen(Screen):
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
         self.save_dir = save_dir
@@ -18,7 +18,7 @@ class ModListScreen(Screen):
         yield Header()
         yield Footer()
 
-        with TabbedContent(initial='workshop'):
+        with TabbedContent(initial="workshop"):
             with TabPane("Workshop", id="workshop"):
                 yield DataTable(id="mod-list")
             with TabPane("Saves", id="saves"):
@@ -42,8 +42,8 @@ class ModListScreen(Screen):
             "trail": False,
             "sha1": False,
             "asset_filename": False,
-            }
-        
+        }
+
         for id in "#mod-list", "#save-list":
             table = next(self.query(id).results(DataTable))
 
@@ -67,45 +67,50 @@ class ModListScreen(Screen):
                 mods = self.saves
             for i, mod in enumerate(mods):
                 table.add_row(
-                    mod['name'].ljust(35),
-                    format_time(mod['mtime']),
-                    mod['total_assets'],
-                    mod['missing_assets'],
-                    mod['filename'],
-                    key=i)
+                    mod["name"].ljust(35),
+                    format_time(mod["mtime"]),
+                    mod["total_assets"],
+                    mod["missing_assets"],
+                    mod["filename"],
+                    key=i,
+                )
             table.cursor_type = "row"
-            table.sort("name", reverse=self.sort_order['name'])
-            self.last_sort_key = 'name'
+            table.sort("name", reverse=self.sort_order["name"])
+            self.last_sort_key = "name"
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
-    
-    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+
+    def on_tabbed_content_tab_activated(
+        self, event: TabbedContent.TabActivated
+    ) -> None:
         if event.tab.id == "workshop":
             id = "#mod-list"
         else:
             id = "#save-list"
         table = next(self.query(id).results(DataTable))
         table.focus()
-        table.sort("name", reverse=self.sort_order['name'])
-        self.last_sort_key = 'name'
+        table.sort("name", reverse=self.sort_order["name"])
+        self.last_sort_key = "name"
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if event.data_table.id == "asset-list":
             return
         if event.data_table.id == "mod-list":
-            mod_filename = self.mods[event.row_key.value]['filename']
-            mod_name = self.mods[event.row_key.value]['name']
+            mod_filename = self.mods[event.row_key.value]["filename"]
+            mod_name = self.mods[event.row_key.value]["name"]
             mod_dir = self.mod_dir
         else:
-            mod_filename = self.saves[event.row_key.value]['filename']
-            mod_name = self.saves[event.row_key.value]['name']
+            mod_filename = self.saves[event.row_key.value]["filename"]
+            mod_name = self.saves[event.row_key.value]["name"]
             mod_dir = self.save_dir
         self.post_message(self.ModSelected(mod_filename, mod_name, mod_dir))
-    
+
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
-            self.sort_order[event.column_key.value] = not self.sort_order[event.column_key.value]
+            self.sort_order[event.column_key.value] = not self.sort_order[
+                event.column_key.value
+            ]
         else:
             self.sort_order[event.column_key.value] = False
 

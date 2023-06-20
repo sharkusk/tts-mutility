@@ -10,12 +10,12 @@ AUDIOPATH = "Audio"
 PDFPATH = "PDF"
 TXTPATH = "Text"
 
-AUDIO_EXTS = ['.mp3', '.wav', '.ogv', '.ogg']
-IMG_EXTS = ['.png', '.jpg', '.mp4', '.m4v', '.webm', '.mov', '.unity3d']
-OBJ_EXTS = ['.obj']
-BUNDLE_EXTS = ['.unity3d']
-PDF_EXTS = ['.pdf']
-TXT_EXTS = ['.txt']
+AUDIO_EXTS = [".mp3", ".wav", ".ogv", ".ogg"]
+IMG_EXTS = [".png", ".jpg", ".mp4", ".m4v", ".webm", ".mov", ".unity3d"]
+OBJ_EXTS = [".obj"]
+BUNDLE_EXTS = [".unity3d"]
+PDF_EXTS = [".pdf"]
+TXT_EXTS = [".txt"]
 
 # TTS uses UPPER_CASE extensions for these files
 UPPER_EXTS = AUDIO_EXTS + PDF_EXTS + TXT_EXTS
@@ -37,6 +37,7 @@ MOD_PATHS = [
 
 # TTS uses UPPER_CASE extensions for these files
 UPPER_EXTS = AUDIO_EXTS + PDF_EXTS + TXT_EXTS
+
 
 def is_obj(trail, url):
     # TODO: None of my mods have NormalURL set (normal maps?). I’m
@@ -77,7 +78,7 @@ def is_from_script(trail, url):
 
 
 def is_custom_ui_asset(trail, url):
-    return 'CustomUIAssets' in trail
+    return "CustomUIAssets" in trail
 
 
 def recodeURL(url):
@@ -93,7 +94,7 @@ def get_fs_path_from_json_path(path, url, exts):
     for ext in exts:
         # Search the url for a valid extension
         if url.lower().find(ext.lower()) > 0:
-            filename  = recoded_name + ext
+            filename = recoded_name + ext
             filename = os.path.join(path, filename)
             break
         else:
@@ -137,16 +138,18 @@ def get_fs_path_from_extension(url, ext):
     else:
         return None
 
+
 def get_fs_path_from_url(url):
     # Use the url to extract the extension, ignoring any trailing ? url parameters
     offset = url.rfind("?")
     if offset > 0:
-        ext = os.path.splitext(url[0:url.rfind("?")])[1]
+        ext = os.path.splitext(url[0 : url.rfind("?")])[1]
     else:
         ext = os.path.splitext(url)[1]
-    
+
     if ext != "":
         return get_fs_path_from_extension(url, ext)
+
 
 def get_fs_path(trail, url):
     """Return a file-system path to the object in the cache."""
@@ -190,15 +193,13 @@ def get_fs_path(trail, url):
         return get_fs_path_from_json_path(IMGPATH, url, IMG_EXTS)
 
     else:
-        errstr = (
-            "Do not know how to generate path for "
-            "URL {url} at {trail}.".format(url=url, trail=trail)
+        errstr = "Do not know how to generate path for " "URL {url} at {trail}.".format(
+            url=url, trail=trail
         )
         raise ValueError(errstr)
 
 
 def find_file(url: str, trail: str) -> str:
-    
     # Some mods contain malformed URLs missing a prefix. I’m not
     # sure how TTS deals with these. Let’s assume http for now.
     if not urllib.parse.urlparse(url).scheme:
@@ -207,7 +208,7 @@ def find_file(url: str, trail: str) -> str:
         fetch_url = url
 
     try:
-        if urllib.parse.urlparse(fetch_url).hostname.find('localhost') >= 0:
+        if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
             return "", 0
     except:
         # URL was so badly formatted that there is no hostname.
@@ -217,7 +218,7 @@ def find_file(url: str, trail: str) -> str:
     filepath = get_fs_path(trail, url)
     if filepath is None:
         filepath = ""
-    
+
     if os.path.exists(filepath):
         mtime = os.path.getmtime(filepath)
     else:

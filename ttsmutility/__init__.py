@@ -15,7 +15,8 @@ if _init_table:
     FIRST_PASS = True
     with closing(sqlite3.connect(DB_NAME)) as conn:
         with closing(conn.cursor()) as cursor:
-            cursor.execute("""
+            cursor.execute(
+                """
             CREATE TABLE tts_assets(
                 id              INTEGER PRIMARY KEY,
                 asset_url       VARCHAR(255)    NOT NULL UNIQUE,
@@ -24,9 +25,11 @@ if _init_table:
                 asset_sha1      CHAR(40),
                 asset_mtime     TIMESTAMP
                 )
-            """)
+            """
+            )
 
-            cursor.execute("""
+            cursor.execute(
+                """
             CREATE TABLE tts_mods (
                 id              INTEGER PRIMARY KEY,
                 mod_filename    VARCHAR(128)    NOT NULL UNIQUE,
@@ -37,15 +40,18 @@ if _init_table:
                 total_assets    INT             NOT NULL,
                 missing_assets  INT             NOT NULL
                 )
-            """)
+            """
+            )
 
-            cursor.execute("""
+            cursor.execute(
+                """
             CREATE TABLE tts_mod_assets (
                 id              INTEGER PRIMARY KEY,
                 asset_id_fk     INT             NOT NULL REFERENCES tts_assets (id),
                 mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id),
                 mod_asset_trail VARCHAR(128)    NOT NULL
                 )
-            """)
-            
+            """
+            )
+
         conn.commit()
