@@ -101,6 +101,3 @@ class TTSMutility(App):
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.push_screen(Sha1ScanScreen(event.mod_dir))
-
-    def on_sha1scan_screen_scan_complete(self):
-        self.pop_screen()

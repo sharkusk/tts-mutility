@@ -35,9 +35,6 @@ MOD_PATHS = [
     (IMG_EXTS, IMGPATH),
 ]
 
-# TTS uses UPPER_CASE extensions for these files
-UPPER_EXTS = AUDIO_EXTS + PDF_EXTS + TXT_EXTS
-
 
 def is_obj(trail, url):
     # TODO: None of my mods have NormalURL set (normal maps?). I’m

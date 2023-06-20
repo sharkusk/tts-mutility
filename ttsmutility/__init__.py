@@ -21,7 +21,7 @@ if _init_table:
                 id                  INTEGER PRIMARY KEY,
                 asset_url           VARCHAR(255)  NOT NULL UNIQUE,
                 asset_url_recode    VARCHAR(255)  NOT NULL UNIQUE,
-                asset_filepath      VARCHAR(255)  UNIQUE,
+                asset_filepath      VARCHAR(255)  UNIQUE COLLATE NOCASE,
                 asset_sha1          CHAR(40),
                 asset_steam_sha1    CHAR(40),
                 asset_mtime         TIMESTAMP,

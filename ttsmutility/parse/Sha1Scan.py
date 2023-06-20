@@ -23,10 +23,10 @@ def scan_sha1s(root_dir):
     for root, _, files in os.walk("."):
         dir_name = pathlib.PurePath(root).name
 
-        if dir_name in TTS_RAW_DIRS:
+        if dir_name in TTS_RAW_DIRS or dir_name == "":
             continue
 
-        yield (("new_directory", len(files), root))
+        yield (("new_directory", len(files), dir_name))
 
         for filename in files:
             ext = os.path.splitext(filename)[1]
