@@ -29,7 +29,7 @@ class ModList:
             """
             SELECT mod_filename
             FROM tts_mods
-            WHERE (total_assets=-1 OR missing_assets=-1)""",
+            WHERE (total_assets=-1 OR missing_assets=-1 OR mod_size=-1)""",
         )
         result = self.cursor.fetchall()
         # Results are returned as a list of tuples, unzip to a list of mod_filename's
@@ -37,6 +37,34 @@ class ModList:
             return list(zip(*result))[0]
         else:
             return []
+
+    def calc_asset_size(self, filename: str) -> int:
+        self.cursor.execute(
+            """
+        SELECT SUM(asset_size)
+        FROM tts_assets
+        WHERE id IN (
+            SELECT asset_id_fk
+            FROM tts_mod_assets
+            WHERE mod_id_fk IN (
+                SELECT id FROM tts_mods
+                WHERE mod_filename=?
+            )
+        )
+        """,
+            (filename,),
+        )
+        result = self.cursor.fetchone()
+        self.cursor.execute(
+            """
+            UPDATE tts_mods
+            SET mod_size=?
+            WHERE mod_filename=?
+            """,
+            (result[0], filename),
+        )
+        self.conn.commit()
+        return result[0]
 
     def count_total_assets(self, filename: str) -> int:
         self.cursor.execute(
@@ -86,7 +114,7 @@ class ModList:
         mod = None
         self.cursor.execute(
             """
-            SELECT mod_name, mod_mtime, total_assets, missing_assets
+            SELECT mod_name, mod_mtime, mod_size, total_assets, missing_assets
             FROM tts_mods
             WHERE mod_filename=?""",
             (filename,),
@@ -97,8 +125,9 @@ class ModList:
                 "filename": filename,
                 "name": result[0],
                 "mtime": result[1],
-                "total_assets": result[2],
-                "missing_assets": result[3],
+                "size": result[2],
+                "total_assets": result[3],
+                "missing_assets": result[4],
             }
         return mod
 
@@ -139,11 +168,11 @@ class ModList:
                     # Set mtime to be zero in the DB, it will get updated when we scan our assets the first time
                     query = """
                     INSERT INTO tts_mods
-                        (mod_filename, mod_name, mod_mtime, mod_fetch_time, mod_backup_time, total_assets, missing_assets)
+                        (mod_filename, mod_name, mod_mtime, mod_size, mod_fetch_time, mod_backup_time, total_assets, missing_assets)
                     VALUES
-                        (?, ?, ?, ?, ?, ?, ?) 
+                        (?, ?, ?, ?, ?, ?, ?, ?) 
                     """
-                    self.cursor.execute(query, (f, name, 0, 0, 0, -1, -1))
+                    self.cursor.execute(query, (f, name, 0, 0, 0, 0, -1, -1))
                     updated_db = True
                     # Now that the mod is in the db, extract the data...
                     mod = self._get_mod_from_db(f)

@@ -31,8 +31,9 @@ class AssetDownloadScreen(ModalScreen):
         def __init__(self):
             super().__init__()
 
-    def __init__(self, mod_dir: str, assets: list or str) -> None:
+    def __init__(self, mod_dir: str, save_dir: str, assets: list or str) -> None:
         self.mod_dir = mod_dir
+        self.save_dir = save_dir
         self.assets = assets
         self.download_complete = False
         super().__init__()
@@ -150,7 +151,7 @@ class AssetDownloadScreen(ModalScreen):
             self.query_one("#cur_dl_progress").update(total=100, progress=0)
 
     def download_assets(self) -> None:
-        self.asset_list = AssetList(self.mod_dir)
+        self.asset_list = AssetList(self.mod_dir, self.save_dir)
         self.cur_retry = 0
         self.cur_filepath = ""
         self.cur_filesize = 0

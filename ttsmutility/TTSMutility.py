@@ -50,8 +50,7 @@ class TTSMutility(App):
         save_list = ModList.ModList(SAVE_DIR)
         saves = save_list.get_mods()
 
-        mod_asset_list = AssetList.AssetList(MOD_DIR)
-        save_asset_list = AssetList.AssetList(SAVE_DIR)
+        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
 
         for i, mod in enumerate(mods):
             mod_filename = mod["filename"]
@@ -68,20 +67,20 @@ class TTSMutility(App):
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
                 )
             )
-            save_asset_list.parse_assets(mod_filename, parse_only=True)
+            mod_asset_list.parse_assets(mod_filename, parse_only=True)
 
-        self.refresh_mods()
+        self.refresh_mods(init=True)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)
         self.post_message(self.InitComplete())
 
-    def refresh_mods(self):
+    def refresh_mods(self, init=False):
         mod_list = ModList.ModList(MOD_DIR)
         results = mod_list.get_mods_needing_asset_refresh()
 
         for i, mod_filename in enumerate(results):
-            if i % 5:
+            if init and i % 5:
                 self.post_message(
                     self.InitProcessing(
                         f"Calculating asset counts ({i/len(results):.0%})"
@@ -89,10 +88,13 @@ class TTSMutility(App):
                 )
             missing_assets = mod_list.count_missing_assets(mod_filename)
             total_assets = mod_list.count_total_assets(mod_filename)
+            mod_size = mod_list.calc_asset_size(mod_filename)
 
             if self.is_screen_installed("mod_list"):
                 screen = self.get_screen("mod_list")
-                screen.update_counts(mod_filename, total_assets, missing_assets)
+                screen.update_counts(
+                    mod_filename, total_assets, missing_assets, mod_size
+                )
 
     def on_ttsmutility_init_complete(self):
         self.install_screen(ModListScreen(MOD_DIR, SAVE_DIR), name="mod_list")
@@ -106,7 +108,9 @@ class TTSMutility(App):
         if self.is_screen_installed("asset_list"):
             self.uninstall_screen("asset_list")
         self.install_screen(
-            AssetListScreen(event.mod_filename, event.mod_name, event.mod_dir),
+            AssetListScreen(
+                event.mod_filename, event.mod_name, event.mod_dir, event.save_dir
+            ),
             name="asset_list",
         )
         self.push_screen("asset_list")
@@ -114,7 +118,9 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        self.push_screen(AssetDownloadScreen(event.mod_dir, event.mod_filename))
+        self.push_screen(
+            AssetDownloadScreen(event.mod_dir, event.save_dir, event.mod_filename)
+        )
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
@@ -122,7 +128,9 @@ class TTSMutility(App):
     def on_asset_list_screen_download_selected(
         self, event: AssetListScreen.DownloadSelected
     ):
-        self.push_screen(AssetDownloadScreen(event.mod_dir, event.assets))
+        self.push_screen(
+            AssetDownloadScreen(event.mod_dir, event.save_dir, event.assets)
+        )
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.push_screen(Sha1ScanScreen(event.mod_dir))

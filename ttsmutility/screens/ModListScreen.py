@@ -30,10 +30,13 @@ class ModListScreen(Screen):
                 yield DataTable(id="save-list")
 
     class ModSelected(Message):
-        def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+        def __init__(
+            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
+        ) -> None:
             self.mod_filename = mod_filename
             self.mod_name = mod_name
             self.mod_dir = mod_dir
+            self.save_dir = save_dir
             super().__init__()
 
     class Sha1Selected(Message):
@@ -42,8 +45,11 @@ class ModListScreen(Screen):
             super().__init__()
 
     class DownloadSelected(Message):
-        def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+        def __init__(
+            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
+        ) -> None:
             self.mod_dir = mod_dir
+            self.save_dir = save_dir
             self.mod_filename = mod_filename
             self.mod_name = mod_name
             super().__init__()
@@ -70,6 +76,7 @@ class ModListScreen(Screen):
             else:
                 table.add_column("Save Name", width=35, key="name")
             table.add_column("Modified", key="modified")
+            table.add_column("Size", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")
             table.add_column("Filename", key="filename")
@@ -85,37 +92,42 @@ class ModListScreen(Screen):
                 self.saves = {}
                 for save in self.save_list.get_mods():
                     self.saves[save["filename"]] = save
-                mods = self.mods
+                mods = self.saves
 
             for i, filename in enumerate(mods):
                 table.add_row(
-                    self.mods[filename]["name"].ljust(35),
-                    format_time(self.mods[filename]["mtime"]),
-                    self.mods[filename]["total_assets"],
-                    self.mods[filename]["missing_assets"],
-                    self.mods[filename]["filename"],
+                    mods[filename]["name"].ljust(35),
+                    format_time(mods[filename]["mtime"]),
+                    mods[filename]["size"],
+                    mods[filename]["total_assets"],
+                    mods[filename]["missing_assets"],
+                    mods[filename]["filename"],
                     key=filename,
                 )
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
             self.last_sort_key = "name"
 
-    def update_counts(self, mod_filename, total_assets, missing_assets):
+    def update_counts(self, mod_filename, total_assets, missing_assets, size):
         row_key = mod_filename
 
         if mod_filename.split("\\")[0] == "Workshop":
             id = "#mod-list"
+            mods = self.mods
         else:
             id = "#save-list"
+            mods = self.saves
 
         table = next(self.query(id).results(DataTable))
         # We need to update both our internal asset information
         # and what is shown on the table...
-        self.mods[row_key]["total_assets"] = total_assets
-        self.mods[row_key]["missing_assets"] = missing_assets
+        mods[row_key]["total_assets"] = total_assets
+        mods[row_key]["missing_assets"] = missing_assets
+        mods[row_key]["size"] = size
 
         table.update_cell(row_key, "total_assets", total_assets)
         table.update_cell(row_key, "missing_assets", missing_assets)
+        table.update_cell(row_key, "size", size)
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
@@ -136,12 +148,13 @@ class ModListScreen(Screen):
         if id == "mod-list":
             mod_filename = self.mods[row_key.value]["filename"]
             mod_name = self.mods[row_key.value]["name"]
-            mod_dir = self.mod_dir
         else:
             mod_filename = self.saves[row_key.value]["filename"]
             mod_name = self.saves[row_key.value]["name"]
-            mod_dir = self.save_dir
-        return (mod_filename, mod_name, mod_dir)
+        # assets are always stored in mod_dir
+        mod_dir = self.mod_dir
+        save_dir = self.save_dir
+        return (mod_filename, mod_name, mod_dir, save_dir)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         args = self.get_mod_by_row(event.data_table.id, event.row_key)

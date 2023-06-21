@@ -16,8 +16,9 @@ class IllegalSavegameException(ValueError):
 
 
 class AssetList:
-    def __init__(self, dir_path: str) -> None:
-        self.dir_path = dir_path
+    def __init__(self, mod_dir: str, save_dir: str) -> None:
+        self.mod_dir = mod_dir
+        self.save_dir = save_dir
         self.conn = sqlite3.connect(DB_NAME)
         self.cursor = self.conn.cursor()
 
@@ -28,8 +29,8 @@ class AssetList:
     def commit(self):
         self.conn.commit()
 
-    def urls_from_save(self, mod_path):
-        with open(mod_path, "r", encoding="utf-8") as infile:
+    def urls_from_save(self, mod_dir):
+        with open(mod_dir, "r", encoding="utf-8") as infile:
             try:
                 save = json.load(infile, strict=False)
             except UnicodeDecodeError:
@@ -190,7 +191,7 @@ class AssetList:
             self.cursor.execute(
                 """
                 UPDATE tts_mods
-                SET total_assets=-1, missing_assets=-1
+                SET total_assets=-1, missing_assets=-1, mod_size=-1
                 WHERE id IN (
                     SELECT mod_id_fk
                     FROM tts_mod_assets
@@ -237,7 +238,10 @@ class AssetList:
 
     def parse_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
-        mod_path = os.path.join(self.dir_path, mod_filename)
+        if mod_filename.split("\\")[0] == "Workshop":
+            mod_path = os.path.join(self.mod_dir, mod_filename)
+        else:
+            mod_path = os.path.join(self.save_dir, mod_filename)
         modified_db = False
         self.cursor.execute(
             """
@@ -272,7 +276,7 @@ class AssetList:
 
         if parse_file:
             old_dir = os.getcwd()
-            os.chdir(self.dir_path)
+            os.chdir(self.mod_dir)
 
             assets_i = []
             mod_assets_i = []
@@ -355,7 +359,7 @@ class AssetList:
         else:
             if not parse_only:
                 old_dir = os.getcwd()
-                os.chdir(self.dir_path)
+                os.chdir(self.mod_dir)
                 self.cursor.execute(
                     (
                         """

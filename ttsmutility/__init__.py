@@ -41,6 +41,7 @@ if _init_table:
                 mod_mtime       TIMESTAMP,
                 mod_fetch_time  TIMESTAMP,
                 mod_backup_time TIMESTAMP,
+                mod_size        INT             NOT NULL,
                 total_assets    INT             NOT NULL,
                 missing_assets  INT             NOT NULL
                 )

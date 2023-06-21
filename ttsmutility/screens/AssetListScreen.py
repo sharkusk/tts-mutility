@@ -26,13 +26,17 @@ class AssetListScreen(Screen):
             super().__init__()
 
     class DownloadSelected(Message):
-        def __init__(self, mod_dir: str, assets: list) -> None:
+        def __init__(self, mod_dir: str, save_dir: str, assets: list) -> None:
             self.mod_dir = mod_dir
+            self.save_dir = save_dir
             self.assets = assets
             super().__init__()
 
-    def __init__(self, mod_filename: str, mod_name: str, mod_dir: str) -> None:
+    def __init__(
+        self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
+    ) -> None:
         self.mod_dir = mod_dir
+        self.save_dir = save_dir
         self.mod_name = mod_name
         self.mod_filename = mod_filename
         self.current_row = 0
@@ -56,7 +60,7 @@ class AssetListScreen(Screen):
             "fsize": False,
         }
         self.last_sort_key = "url"
-        asset_list = AssetList.AssetList(self.mod_dir)
+        asset_list = AssetList.AssetList(self.mod_dir, self.save_dir)
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -228,4 +232,4 @@ class AssetListScreen(Screen):
         assets = [
             self.assets[row_key],
         ]
-        self.post_message(self.DownloadSelected(self.mod_dir, assets))
+        self.post_message(self.DownloadSelected(self.mod_dir, self.save_dir, assets))
