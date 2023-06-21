@@ -53,6 +53,7 @@ class AssetListScreen(Screen):
     def on_mount(self) -> None:
         self.sort_order = {
             "url": False,
+            "ext": False,
             "trail": False,
             "sha1": False,
             "filename": False,
@@ -75,9 +76,10 @@ class AssetListScreen(Screen):
         table.focus()
 
         table.add_column("URL", width=self.url_width, key="url")
-        table.add_column("Modified", key="mtime")
+        table.add_column("Extension", key="ext")
         table.add_column("Size", key="fsize")
         table.add_column("Trail", key="trail")
+        table.add_column("Modified", key="mtime")
         table.add_column("Filepath", width=self.filepath_width, key="filename")
         table.add_column("SHA1", key="sha1")
 
@@ -89,9 +91,10 @@ class AssetListScreen(Screen):
             readable_asset = self.format_asset(asset)
             table.add_row(
                 readable_asset["url"],
-                readable_asset["mtime"],
+                readable_asset["ext"],
                 readable_asset["fsize"],
                 self.trail_reformat(readable_asset["trail"]),
+                readable_asset["mtime"],
                 readable_asset["filename"],
                 readable_asset["sha1"],
                 key=asset["url"],  # Use original url for our key
@@ -148,6 +151,10 @@ class AssetListScreen(Screen):
         new_asset[
             "url"
         ] = f"{asset['url'][:start_length-1]}..{url_end[len(url_end)-end_length:]}"
+        if asset["filename"] is None:
+            new_asset["ext"] = None
+        else:
+            new_asset["ext"] = os.path.splitext(asset["filename"])[1]
         new_asset["url"] = self.format_long_entry(asset["url"], self.url_width)
         new_asset["filename"] = self.format_long_entry(
             asset["filename"], self.filepath_width
@@ -170,13 +177,14 @@ class AssetListScreen(Screen):
 
         readable_asset = self.format_asset(asset)
         table = next(self.query("#asset-list").results(DataTable))
-        col_keys = ["url", "mtime", "fsize", "trail", "filename", "sha1"]
+        col_keys = ["url", "mtime", "fsize", "trail", "filename", "sha1", "ext"]
         table.update_cell(row_key, col_keys[0], readable_asset["url"])
         table.update_cell(row_key, col_keys[1], readable_asset["mtime"])
         table.update_cell(row_key, col_keys[2], readable_asset["fsize"])
         # Skip Trail....  It doesn't change anyhow.
         table.update_cell(row_key, col_keys[4], readable_asset["filename"])
         table.update_cell(row_key, col_keys[5], readable_asset["sha1"])
+        table.update_cell(row_key, col_keys[6], readable_asset["ext"])
 
     def url_reformat(self, url):
         replacements = [

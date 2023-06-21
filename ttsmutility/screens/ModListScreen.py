@@ -76,7 +76,7 @@ class ModListScreen(Screen):
             else:
                 table.add_column("Save Name", width=35, key="name")
             table.add_column("Modified", key="modified")
-            table.add_column("Size", key="size")
+            table.add_column("Size (Bytes)", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")
             table.add_column("Filename", key="filename")

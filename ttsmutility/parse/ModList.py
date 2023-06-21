@@ -55,16 +55,20 @@ class ModList:
             (filename,),
         )
         result = self.cursor.fetchone()
+        if result[0] is None:
+            mod_size = 0
+        else:
+            mod_size = result[0]
         self.cursor.execute(
             """
             UPDATE tts_mods
             SET mod_size=?
             WHERE mod_filename=?
             """,
-            (result[0], filename),
+            (mod_size, filename),
         )
         self.conn.commit()
-        return result[0]
+        return mod_size
 
     def count_total_assets(self, filename: str) -> int:
         self.cursor.execute(
