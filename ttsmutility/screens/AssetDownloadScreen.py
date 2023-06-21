@@ -19,8 +19,16 @@ class AssetDownloadScreen(ModalScreen):
             self.status = status
             super().__init__()
 
+    class FileDownloadComplete(Message):
+        def __init__(
+            self,
+            asset: dict,
+        ) -> None:
+            self.asset = asset
+            super().__init__()
+
     class DownloadComplete(Message):
-        def __init__(self) -> None:
+        def __init__(self):
             super().__init__()
 
     def __init__(self, mod_dir: str, assets: list or str) -> None:
@@ -46,7 +54,24 @@ class AssetDownloadScreen(ModalScreen):
     def status_cb(self, state: str, url: str, data) -> None:
         if state == "error":
             error = data
-            self.asset_list.download_done(url, None, 0, 0, error)
+            self.asset_list.download_done(url, self.cur_filepath, 0, 0, error)
+            self.post_message(
+                self.FileDownloadComplete(
+                    {
+                        "url": url,
+                        "filename": self.cur_filepath,
+                        "mtime": 0,
+                        "fsize": 0,
+                        "sha1": "",
+                        "dl_status": error,
+                    }
+                )
+            )
+            self.post_message(
+                self.StatusOutput(
+                    f"Download Failed: {url} -> {self.cur_filepath} -- {error}"
+                )
+            )
         elif state == "download_starting":
             self.cur_retry = data
             self.post_message(
@@ -69,18 +94,46 @@ class AssetDownloadScreen(ModalScreen):
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
             if filesize == self.cur_filesize:
+                mtime = os.path.getmtime(filepath)
                 self.asset_list.download_done(
                     url,
                     self.cur_filepath,
-                    os.path.getmtime(filepath),
+                    mtime,
                     self.cur_filesize,
                     "",
+                )
+                self.post_message(
+                    self.FileDownloadComplete(
+                        {
+                            "url": url,
+                            "filename": self.cur_filepath,
+                            "mtime": mtime,
+                            "fsize": filesize,
+                            "sha1": "",
+                            "dl_status": "",
+                        }
+                    )
                 )
                 self.post_message(
                     self.StatusOutput(f"Download complete: {self.cur_filepath}")
                 )
             else:
-                self.asset_list.download_done(url, "", 0, 0, "Filesize mismatch")
+                mtime = 0
+                self.asset_list.download_done(
+                    url, self.cur_filepath, mtime, filesize, "Filesize mismatch"
+                )
+                self.post_message(
+                    self.FileDownloadComplete(
+                        {
+                            "url": url,
+                            "filename": self.cur_filepath,
+                            "mtime": mtime,
+                            "fsize": filesize,
+                            "sha1": "",
+                            "dl_status": "Filesize mismatch",
+                        }
+                    )
+                )
         else:
             # Unknown state!
             sys.exit(1)
@@ -107,16 +160,19 @@ class AssetDownloadScreen(ModalScreen):
         # A mod name was passed insteam of a list of assets
         if type(self.assets) is str:
             urls = self.asset_list.get_missing_assets(self.assets)
+            overwrite = False
         else:
             for asset in self.assets:
-                urls.append((asset["url"], asset["trail"]))
+                urls.append((asset["url"], asset["trail"].split("->")))
+            overwrite = True
 
         self.query_one("#all_dl_progress").update(total=len(urls), progress=0)
 
-        download_files(urls, self.mod_dir, self.status_cb)
+        download_files(
+            urls, self.mod_dir, self.status_cb, ignore_content_type=overwrite
+        )
 
         self.asset_list.commit()
-        self.post_message(self.StatusOutput(f"Download Complete"))
         self.post_message(self.DownloadComplete())
 
     def on_asset_download_screen_status_output(self, event: StatusOutput):

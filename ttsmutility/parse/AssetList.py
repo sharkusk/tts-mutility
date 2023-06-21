@@ -28,27 +28,6 @@ class AssetList:
     def commit(self):
         self.conn.commit()
 
-    def url_reformat(self, url):
-        replacements = [
-            ("http://", ""),
-            ("https://", ""),
-            ("cloud-3.steamusercontent.com/ugc", ".steamuser."),
-            ("www.dropbox.com/s", ".dropbox."),
-        ]
-        for x, y in replacements:
-            url = url.replace(x, y)
-        return url
-
-    def trail_reformat(self, trail):
-        replacements = [
-            ("ObjectStates", "O.S"),
-            ("Custom", "C."),
-            ("ContainedObjects", "Con.O"),
-        ]
-        for x, y in replacements:
-            trail = trail.replace(x, y)
-        return trail
-
     def urls_from_save(self, mod_path):
         with open(mod_path, "r", encoding="utf-8") as infile:
             try:
@@ -153,7 +132,7 @@ class AssetList:
         # return sha1, steam_sha1, sha1_mtime
         self.cursor.execute(
             """
-            SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime
+            SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime, asset_size
             FROM tts_assets
             WHERE asset_filepath=?
             """,
@@ -166,6 +145,7 @@ class AssetList:
                 "steam_sha1": result[1],
                 "sha1_mtime": result[2],
                 "mtime": result[3],
+                "fsize": result[4],
             }
         return None
 
@@ -182,33 +162,46 @@ class AssetList:
         )
 
     def download_done(
-        self, url: str, filepath: str, mtime: float, size: int, dl_status: str
+        self, url: str, filepath: str, mtime: float, fsize: int, dl_status: str
     ) -> None:
-        self.cursor.execute(
-            """
-            UPDATE tts_assets
-            SET asset_filepath=?, asset_mtime=?, asset_size=?, asset_dl_status=?
-            WHERE asset_url=?
-            """,
-            (filepath, mtime, size, dl_status, url),
-        )
-
-        # Set mod asset counts containing this asset to -1 to represent an update to the system
-        self.cursor.execute(
-            """
-            UPDATE tts_mods
-            SET total_assets=-1, missing_assets=-1
-            WHERE id IN (
-                SELECT mod_id_fk
-                FROM tts_mod_assets
-                WHERE asset_id_fk IN (
-                    SELECT id FROM tts_assets
-                    WHERE asset_url=?
-                )
+        # Don't overwrite the calculated filepath with something that is empty
+        if filepath == "":
+            self.cursor.execute(
+                """
+                UPDATE tts_assets
+                SET asset_mtime=?, asset_size=?, asset_dl_status=?
+                WHERE asset_url=?
+                """,
+                (mtime, fsize, dl_status, url),
             )
-            """,
-            (url,),
-        )
+        else:
+            self.cursor.execute(
+                """
+                UPDATE tts_assets
+                SET asset_filepath=?, asset_mtime=?, asset_size=?, asset_dl_status=?
+                WHERE asset_url=?
+                """,
+                (filepath, mtime, fsize, dl_status, url),
+            )
+
+        # dl_status is empty if the download was succesfull
+        if dl_status == "":
+            # Set mod asset counts containing this asset to -1 to represent an update to the system
+            self.cursor.execute(
+                """
+                UPDATE tts_mods
+                SET total_assets=-1, missing_assets=-1
+                WHERE id IN (
+                    SELECT mod_id_fk
+                    FROM tts_mod_assets
+                    WHERE asset_id_fk IN (
+                        SELECT id FROM tts_assets
+                        WHERE asset_url=?
+                    )
+                )
+                """,
+                (url,),
+            )
 
     def get_missing_assets(self, mod_filename: str) -> list:
         assets = []
@@ -239,7 +232,7 @@ class AssetList:
                 # File doesn't exist, so download it
                 skip = False
             if not skip:
-                urls.append((result[0], result[4]))
+                urls.append((result[0], result[4].split("->")))
         return urls
 
     def parse_assets(self, mod_filename: str, parse_only=False) -> list:
@@ -287,7 +280,7 @@ class AssetList:
             mods_changed = set()
 
             for trail, url in self.urls_from_save(mod_path):
-                asset_filename, mtime = find_file(url, trail)
+                asset_filename, mtime, fsize = find_file(url, trail)
                 trail_string = "->".join(["%s"] * len(trail)) % tuple(trail)
 
                 # This is assumed to be unique, but can be "not found" so in that case make it NULL to
@@ -299,15 +292,16 @@ class AssetList:
                     assets.append(
                         {
                             "url": url,
-                            "asset_filename": asset_filename,
+                            "filename": asset_filename,
                             "sha1": "",
                             "mtime": mtime,
                             "trail": trail_string,
+                            "fsize": fsize,
                         }
                     )
 
                 assets_i.append(
-                    (url, recodeURL(url), asset_filename, "", mtime, "", 0, "")
+                    (url, recodeURL(url), asset_filename, "", mtime, fsize, "", 0, "")
                 )
                 mod_assets_i.append((recodeURL(url), mod_filename, trail_string))
 
@@ -317,10 +311,10 @@ class AssetList:
                 """
                 INSERT OR IGNORE INTO tts_assets
                     (asset_url, asset_url_recode, asset_filepath, asset_sha1,
-                     asset_mtime, asset_steam_sha1, asset_sha1_mtime, asset_dl_status)
+                     asset_mtime, asset_size, asset_steam_sha1, asset_sha1_mtime, asset_dl_status)
                 VALUES
                     (?, ?, ?, ?,
-                     ?, ?, ?, ?)
+                     ?, ?, ?, ?, ?)
                 """,
                 assets_i,
             )
@@ -365,7 +359,7 @@ class AssetList:
                 self.cursor.execute(
                     (
                         """
-                    SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status
+                    SELECT asset_url, asset_filepath, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status, asset_size
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -381,7 +375,7 @@ class AssetList:
                     if result[1] == "":
                         # No filepath exists in the DB, but check if this file happens to exist in the filesystem
                         # (maybe it was added recently)
-                        asset_filename, mtime = find_file(
+                        asset_filename, mtime, fsize = find_file(
                             result[0], result[4].split("->")
                         )
                         if asset_filename != "":
@@ -389,10 +383,10 @@ class AssetList:
                             self.cursor.execute(
                                 """
                                 UPDATE tts_assets
-                                SET asset_filepath=?, asset_sha1=?, asset_mtime=?
+                                SET asset_filepath=?, asset_sha1=?, asset_mtime=?, asset_size=?
                                 WHERE asset_url=?
                                 """,
-                                (asset_filename, "", mtime, result[0]),
+                                (asset_filename, "", mtime, fsize, result[0]),
                             )
 
                     else:
@@ -401,11 +395,12 @@ class AssetList:
                     assets.append(
                         {
                             "url": result[0],
-                            "asset_filename": asset_filename,
+                            "filename": asset_filename,
                             "mtime": result[2],
                             "sha1": result[3],
                             "trail": result[4],
                             "dl_status": result[5],
+                            "fsize": result[6],
                         }
                     )
                 os.chdir(old_dir)

@@ -54,6 +54,10 @@ def download_files(
     os.chdir(mod_dir)
 
     for url, trail in urls:
+        if type(trail) is not list:
+            state_callback("error", url, f"trail '{trail}' not converted to list")
+            continue
+
         # Some mods contain malformed URLs missing a prefix. I’m not
         # sure how TTS deals with these. Let’s assume http for now.
         if not urllib.parse.urlparse(url).scheme:

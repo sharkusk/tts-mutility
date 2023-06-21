@@ -9,9 +9,9 @@ ASSET_DETAIL_MD = """URL
 --------------
 {url}
 
-Filename
+Mod Filepath
 --------------
-{filename}
+{filepath}
 
 URI
 --------------
@@ -21,17 +21,21 @@ Modified Time
 --------------
 {mtime}
 
-DL Status
+File Size
 --------------
-{dl_status}
+{fsize:,} Bytes
+
+JSON Trail
+--------------
+{trail}
 
 SHA1
 --------------
 {sha1}
 
-JSON Trail
+DL Status
 --------------
-{trail}"""
+{dl_status}"""
 
 
 class AssetDetailScreen(ModalScreen):
@@ -61,10 +65,11 @@ class AssetDetailScreen(ModalScreen):
             ASSET_DETAIL_MD.format(
                 url=self.asset_detail["url"],
                 uri=self.asset_detail["uri"],
-                filename=self.asset_detail["filename"],
+                filepath=self.asset_detail["filename"],
                 trail=self.asset_detail["trail"],
                 sha1=self.asset_detail["sha1"],
                 mtime=readable_time,
+                fsize=self.asset_detail["fsize"],
                 dl_status=self.asset_detail["dl_status"],
             )
         )

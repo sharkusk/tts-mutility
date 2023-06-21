@@ -206,11 +206,11 @@ def find_file(url: str, trail: str) -> str:
 
     try:
         if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
-            return "", 0
+            return "", 0, 0
     except:
         # URL was so badly formatted that there is no hostname.
         # missing.append((url, f"Invalid hostname",''))
-        return "", 0
+        return "", 0, 0
 
     filepath = get_fs_path(trail, url)
     if filepath is None:
@@ -218,7 +218,9 @@ def find_file(url: str, trail: str) -> str:
 
     if os.path.exists(filepath):
         mtime = os.path.getmtime(filepath)
+        fsize = os.path.getsize(filepath)
     else:
         mtime = 0
+        fsize = 0
 
-    return filepath, mtime
+    return filepath, mtime, fsize
