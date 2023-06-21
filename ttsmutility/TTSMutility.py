@@ -38,17 +38,14 @@ class TTSMutility(App):
         yield Static(id="status")
         self.run_worker(self.initialize_database)
 
-    def on_mount(self) -> None:
-        self.install_screen(ModListScreen(MOD_DIR, SAVE_DIR), name="mod_list")
-
     def initialize_database(self) -> None:
         # Wait for DB to be created on first pass
         if FIRST_PASS:
             self.post_message(self.InitProcessing(f"Creating Database"))
             time.sleep(2)
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        self.mod_list = ModList.ModList(MOD_DIR)
-        mods = self.mod_list.get_mods()
+        mod_list = ModList.ModList(MOD_DIR)
+        mods = mod_list.get_mods()
         self.post_message(self.InitProcessing(f"Loading Save Mods"))
         save_list = ModList.ModList(SAVE_DIR)
         saves = save_list.get_mods()
@@ -80,7 +77,9 @@ class TTSMutility(App):
         self.post_message(self.InitComplete())
 
     def refresh_mods(self):
-        results = self.mod_list.get_mods_needing_asset_refresh()
+        mod_list = ModList.ModList(MOD_DIR)
+        results = mod_list.get_mods_needing_asset_refresh()
+
         for i, mod_filename in enumerate(results):
             if i % 5:
                 self.post_message(
@@ -88,13 +87,15 @@ class TTSMutility(App):
                         f"Calculating asset counts ({i/len(results):.0%})"
                     )
                 )
-            self.mod_list.count_missing_assets(mod_filename)
-            self.mod_list.count_total_assets(mod_filename)
+            missing_assets = mod_list.count_missing_assets(mod_filename)
+            total_assets = mod_list.count_total_assets(mod_filename)
 
             if self.is_screen_installed("mod_list"):
                 screen = self.get_screen("mod_list")
+                screen.update_counts(mod_filename, total_assets, missing_assets)
 
     def on_ttsmutility_init_complete(self):
+        self.install_screen(ModListScreen(MOD_DIR, SAVE_DIR), name="mod_list")
         self.push_screen("mod_list")
 
     def on_ttsmutility_init_processing(self, event: InitProcessing):
@@ -135,5 +136,4 @@ class TTSMutility(App):
 
     def on_asset_download_screen_download_complete(self):
         # This gives error due to sqlite cursor being from wrong thread
-        # self.refresh_mods()
-        pass
+        self.refresh_mods()

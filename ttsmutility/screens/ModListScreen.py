@@ -53,7 +53,7 @@ class ModListScreen(Screen):
             "name": False,
             "modified": False,
             "total_assets": False,
-            "total_missing": False,
+            "missing_assets": False,
             "filename": False,
             "url": False,
             "trail": False,
@@ -71,29 +71,51 @@ class ModListScreen(Screen):
                 table.add_column("Save Name", width=35, key="name")
             table.add_column("Modified", key="modified")
             table.add_column("Assets", key="total_assets")
-            table.add_column("Missing", key="total_missing")
+            table.add_column("Missing", key="missing_assets")
             table.add_column("Filename", key="filename")
 
             if id == "#mod-list":
                 self.mod_list = ModList.ModList(self.mod_dir)
-                self.mods = self.mod_list.get_mods()
+                self.mods = {}
+                for mod in self.mod_list.get_mods():
+                    self.mods[mod["filename"]] = mod
                 mods = self.mods
             else:
                 self.save_list = ModList.ModList(self.save_dir, is_save=True)
-                self.saves = self.save_list.get_mods()
-                mods = self.saves
-            for i, mod in enumerate(mods):
+                self.saves = {}
+                for save in self.save_list.get_mods():
+                    self.saves[save["filename"]] = save
+                mods = self.mods
+
+            for i, filename in enumerate(mods):
                 table.add_row(
-                    mod["name"].ljust(35),
-                    format_time(mod["mtime"]),
-                    mod["total_assets"],
-                    mod["missing_assets"],
-                    mod["filename"],
-                    key=i,
+                    self.mods[filename]["name"].ljust(35),
+                    format_time(self.mods[filename]["mtime"]),
+                    self.mods[filename]["total_assets"],
+                    self.mods[filename]["missing_assets"],
+                    self.mods[filename]["filename"],
+                    key=filename,
                 )
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
             self.last_sort_key = "name"
+
+    def update_counts(self, mod_filename, total_assets, missing_assets):
+        row_key = mod_filename
+
+        if mod_filename.split("\\")[0] == "Workshop":
+            id = "#mod-list"
+        else:
+            id = "#save-list"
+
+        table = next(self.query(id).results(DataTable))
+        # We need to update both our internal asset information
+        # and what is shown on the table...
+        self.mods[row_key]["total_assets"] = total_assets
+        self.mods[row_key]["missing_assets"] = missing_assets
+
+        table.update_cell(row_key, "total_assets", total_assets)
+        table.update_cell(row_key, "missing_assets", missing_assets)
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
