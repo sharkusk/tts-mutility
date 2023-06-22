@@ -19,16 +19,17 @@ if _init_table:
                 """
             CREATE TABLE tts_assets(
                 id                  INTEGER PRIMARY KEY,
-                asset_url           VARCHAR(255)  NOT NULL UNIQUE,
-                asset_url_recode    VARCHAR(255)  NOT NULL UNIQUE,
-                asset_filepath      VARCHAR(255)  UNIQUE COLLATE NOCASE,
-                asset_sha1          CHAR(40),
-                asset_steam_sha1    CHAR(40),
-                asset_mtime         TIMESTAMP,
-                asset_sha1_mtime    TIMESTAMP,
-                asset_size          INTEGER,
-                asset_dl_status     VARCHAR(255),
-                asset_content_name  VARCHAR(255)
+                asset_url           VARCHAR(255)    UNIQUE,
+                asset_path          VARCHAR(32)     COLLATE NOCASE      DEFAULT "",
+                asset_filename      VARCHAR(255)    UNIQUE COLLATE NOCASE,
+                asset_ext           VARCHAR(16)     COLLATE NOCASE      DEFAULT "",
+                asset_sha1          CHAR(40)                            DEFAULT "",
+                asset_steam_sha1    CHAR(40)                            DEFAULT "",
+                asset_mtime         TIMESTAMP                           DEFAULT 0,
+                asset_sha1_mtime    TIMESTAMP                           DEFAULT 0,
+                asset_size          INTEGER                             DEFAULT 0,
+                asset_dl_status     VARCHAR(255)                        DEFAULT "",
+                asset_content_name  VARCHAR(255)                        DEFAULT ""
                 )
             """
             )
@@ -36,15 +37,15 @@ if _init_table:
             cursor.execute(
                 """
             CREATE TABLE tts_mods (
-                id              INTEGER PRIMARY KEY,
-                mod_filename    VARCHAR(128)    NOT NULL UNIQUE,
-                mod_name        VARCHAR(128)    NOT NULL,
-                mod_mtime       TIMESTAMP,
-                mod_fetch_time  TIMESTAMP,
-                mod_backup_time TIMESTAMP,
-                mod_size        INT             NOT NULL,
-                total_assets    INT             NOT NULL,
-                missing_assets  INT             NOT NULL
+                id                  INTEGER PRIMARY KEY,
+                mod_filename        VARCHAR(128)    NOT NULL UNIQUE,
+                mod_name            VARCHAR(128)    NOT NULL,
+                mod_mtime           TIMESTAMP                   DEFAULT 0,
+                mod_fetch_time      TIMESTAMP                   DEFAULT 0,
+                mod_backup_time     TIMESTAMP                   DEFAULT 0,
+                mod_size            INT             NOT NULL    DEFAULT -1,
+                mod_total_assets    INT             NOT NULL    DEFAULT -1,
+                mod_missing_assets  INT             NOT NULL    DEFAULT -1
                 )
             """
             )
@@ -55,8 +56,27 @@ if _init_table:
                 id              INTEGER PRIMARY KEY,
                 asset_id_fk     INT             NOT NULL REFERENCES tts_assets (id),
                 mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id),
-                mod_asset_trail VARCHAR(128)    NOT NULL
+                mod_asset_trail VARCHAR(128)    NOT NULL,
+                UNIQUE(asset_id_fk, mod_id_fk)
                 )
+            """
+            )
+
+            cursor.execute(
+                """
+            CREATE TABLE tts_app (
+                id                  INTEGER PRIMARY KEY,
+                app_last_scan_time  TIMESTAMP
+                )
+            """
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO tts_app
+                    (app_last_scan_time)
+                VALUES
+                    (0)
             """
             )
 

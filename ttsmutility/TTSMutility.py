@@ -42,7 +42,7 @@ class TTSMutility(App):
         # Wait for DB to be created on first pass
         if FIRST_PASS:
             self.post_message(self.InitProcessing(f"Creating Database"))
-            time.sleep(2)
+            time.sleep(1)
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(MOD_DIR)
         mods = mod_list.get_mods()
@@ -51,6 +51,9 @@ class TTSMutility(App):
         saves = save_list.get_mods()
 
         mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+
+        self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
+        mod_asset_list.scan_mod_dir()
 
         for i, mod in enumerate(mods):
             mod_filename = mod["filename"]

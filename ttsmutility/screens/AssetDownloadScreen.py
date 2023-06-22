@@ -6,6 +6,7 @@ from textual.message import Message
 
 from ttsmutility.parse.AssetList import AssetList
 from ttsmutility.fetch.AssetDownload import download_files
+from ttsmutility.parse.FileFinder import trailstring_to_trail
 
 from rich.markdown import Markdown
 
@@ -160,7 +161,7 @@ class AssetDownloadScreen(ModalScreen):
             overwrite = False
         else:
             for asset in self.assets:
-                urls.append((asset["url"], asset["trail"].split("->")))
+                urls.append((asset["url"], trailstring_to_trail(asset["trail"])))
             overwrite = True
 
         self.query_one("#dl_progress_all").update(total=len(urls), progress=0)

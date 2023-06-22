@@ -2,7 +2,7 @@ import json
 import os.path
 from glob import glob
 import sqlite3
-import atexit
+import re
 
 from ttsmutility import *
 
@@ -20,16 +20,25 @@ class ModList:
 
     def get_mod_name(self, filename: str) -> str:
         file_path = os.path.join(self.dir_path, filename)
-        with open(file_path, "r", encoding="utf-8") as infile:
-            save = json.load(infile)
-        return save["SaveName"]
+        if False:
+            # This is really slow as the entire JSON file is processed.
+            with open(file_path, "r", encoding="utf-8") as infile:
+                save = json.load(infile)
+            return save["SaveName"]
+        else:
+            with open(file_path, "r", encoding="utf-8") as infile:
+                for line in infile:
+                    if "SaveName" in line:
+                        # "SaveName": "Defenders of the Realm",
+                        return re.findall('"SaveName": "(.*)"', line)[0]
+        return ""
 
     def get_mods_needing_asset_refresh(self):
         self.cursor.execute(
             """
             SELECT mod_filename
             FROM tts_mods
-            WHERE (total_assets=-1 OR missing_assets=-1 OR mod_size=-1)""",
+            WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1)""",
         )
         result = self.cursor.fetchall()
         # Results are returned as a list of tuples, unzip to a list of mod_filename's
@@ -83,7 +92,7 @@ class ModList:
         self.cursor.execute(
             """
             UPDATE tts_mods
-            SET total_assets=?
+            SET mod_total_assets=?
             WHERE mod_filename=?
             """,
             (result[0], filename),
@@ -106,7 +115,7 @@ class ModList:
         self.cursor.execute(
             """
             UPDATE tts_mods
-            SET missing_assets=?
+            SET mod_missing_assets=?
             WHERE mod_filename=?
             """,
             (result[0], filename),
@@ -118,7 +127,7 @@ class ModList:
         mod = None
         self.cursor.execute(
             """
-            SELECT mod_name, mod_mtime, mod_size, total_assets, missing_assets
+            SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets
             FROM tts_mods
             WHERE mod_filename=?""",
             (filename,),
@@ -135,7 +144,7 @@ class ModList:
             }
         return mod
 
-    def get_mods(self) -> list:
+    def get_mods(self, parse_only=False) -> list:
         """
         Returns list of dictionary in following format:
         [{
@@ -169,19 +178,23 @@ class ModList:
                 mod = self._get_mod_from_db(f)
                 if mod is None:
                     name = self.get_mod_name(f)
-                    # Set mtime to be zero in the DB, it will get updated when we scan our assets the first time
-                    query = """
-                    INSERT INTO tts_mods
-                        (mod_filename, mod_name, mod_mtime, mod_size, mod_fetch_time, mod_backup_time, total_assets, missing_assets)
-                    VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?) 
-                    """
-                    self.cursor.execute(query, (f, name, 0, 0, 0, 0, -1, -1))
+                    # Default values will come from table definition...
+                    self.cursor.execute(
+                        """
+                        INSERT INTO tts_mods
+                            (mod_filename, mod_name)
+                        VALUES
+                            (?, ?) 
+                        """,
+                        (f, name),
+                    )
                     updated_db = True
                     # Now that the mod is in the db, extract the data...
-                    mod = self._get_mod_from_db(f)
+                    if parse_only == False:
+                        mod = self._get_mod_from_db(f)
 
-                mods.append(mod)
+                if parse_only == False:
+                    mods.append(mod)
             if updated_db:
                 self.conn.commit()
         return mods

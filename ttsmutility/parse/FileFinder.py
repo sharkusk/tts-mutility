@@ -35,6 +35,18 @@ MOD_PATHS = [
     (IMG_EXTS, IMGPATH),
 ]
 
+# Ignore raw files as they are created by TTS
+FILES_TO_IGNORE = [".RAWT", ".RAWM", ".TMP", ".DB"]
+TTS_RAW_DIRS = {"Images Raw": ".rawt", "Models Raw": ".rawm", ".": ""}
+
+
+def trailstring_to_trail(trailstring: str) -> list:
+    return trailstring.split("->")
+
+
+def trail_to_trailstring(trail: list) -> str:
+    return "->".join(["%s"] * len(trail)) % tuple(trail)
+
 
 def is_obj(trail, url):
     # TODO: None of my mods have NormalURL set (normal maps?). I’m

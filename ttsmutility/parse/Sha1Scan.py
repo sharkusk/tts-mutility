@@ -2,6 +2,8 @@ import hashlib
 import os
 import pathlib
 
+from ttsmutility.parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
+
 # Recursively read each directory
 # Load existing dictionary, for each file not found in dictionary:
 # Files that match steam pattern, extract SHA-1 values, add to {SHA1, filename}
@@ -10,11 +12,6 @@ import pathlib
 #   Extract SHA-1
 #   Check if matching SHA-1 file is found
 #   Copy and rename to destination directory
-
-# Ignore raw files as they are created by TTS
-FILES_TO_IGNORE = [".RAWT", ".RAWM", ".TMP", ".DB"]
-
-TTS_RAW_DIRS = {"Images Raw": ".rawt", "Models Raw": ".rawm", ".": ""}
 
 
 def scan_sha1s(root_dir):
