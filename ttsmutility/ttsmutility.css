@@ -34,40 +34,62 @@ Screen {
     visibility: visible;
 }
 
-#downloadscreen {
-    height: 20;
-    width: auto;
+ProgressBar {
     padding: 1;
+    width: 100%;
+    height: 1fr;
+    /*
+    border: round red;
+    */
+}
+
+Bar {
+    width: 1fr;
+}
+
+#dl_screen {
+    height: 90%;
+    width: 90%;
+    padding: 0;
     padding-bottom: 0;
     border: round blue 75%
 }
 
-#downloadoutput {
-    padding: 1;
-    text-align: center;
+#dl_scroll {
+    width: 1fr;
+    height: 8fr;
+    padding: 0;
+    /*
+    border: round green;
+    */
 }
 
-#downloadprogress {
+#dl_log {
+    width: 100%;
+    padding: 0;
+    /*
+    border: round yellow;
+    */
 }
 
-#downloadscreen Footer {
+#dl_screen Footer {
     visibility: hidden;
 }
 
-#downloadscreen.unhide Footer {
+#dl_screen.unhide Footer {
     visibility: visible;
 }
 
 #asset_detail {
     border: round blue 75%;
     align: center middle;
-    width: 0.9fr;
+    width: 1fr;
     background: $panel;
     padding: 1;
+    height: 1fr;
 }
 
 #asset_detail.fs {
-    align: center middle;
     background: $panel;
     padding: 0;
     border: none;

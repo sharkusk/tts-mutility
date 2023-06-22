@@ -1,11 +1,13 @@
 from textual.app import ComposeResult
-from textual.widgets import Static, ProgressBar, Footer
-from textual.containers import Container
+from textual.widgets import TextLog, ProgressBar, Footer
+from textual.containers import VerticalScroll, Container
 from textual.screen import ModalScreen
 from textual.message import Message
 
 from ttsmutility.parse.AssetList import AssetList
 from ttsmutility.fetch.AssetDownload import download_files
+
+from rich.markdown import Markdown
 
 import sys
 import os
@@ -40,11 +42,14 @@ class AssetDownloadScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Container(
-            ProgressBar(id="all_dl_progress", show_eta=False),
-            ProgressBar(id="cur_dl_progress", show_eta=False),
-            Static(id="downloadoutput"),
+            ProgressBar(id="dl_progress_all", show_eta=False),
+            ProgressBar(id="dl_progress_cur", show_eta=False),
+            VerticalScroll(
+                TextLog(id="dl_log", highlight=True, markup=True),
+                id="dl_scroll",
+            ),
             Footer(),
-            id="downloadscreen",
+            id="dl_screen",
         )
         self.run_worker(self.download_assets)
 
@@ -68,33 +73,27 @@ class AssetDownloadScreen(ModalScreen):
                     }
                 )
             )
-            self.post_message(
-                self.StatusOutput(
-                    f"Download Failed: {url} -> {self.cur_filepath} -- {error}"
-                )
-            )
+            self.post_message(self.StatusOutput(f"\n\nDownload Failed: \n- {error}\n"))
         elif state == "download_starting":
             self.cur_retry = data
-            self.post_message(
-                self.StatusOutput(f"Downloading (Retry {self.cur_retry}): {url}")
-            )
+            if self.cur_retry == 0:
+                self.post_message(self.StatusOutput(f"---\n## {url}\n"))
+            else:
+                self.post_message(self.StatusOutput(f"## Retry {self.cur_retry}\n"))
         elif state == "file_size":
             self.cur_filesize = data
-            self.query_one("#cur_dl_progress").update(total=data, progress=0)
+            self.query_one("#dl_progress_cur").update(total=data, progress=0)
         elif state == "data_read":
-            self.query_one("#cur_dl_progress").advance(data)
+            self.query_one("#dl_progress_cur").advance(data)
         elif state == "filepath":
             self.cur_filepath = data
         elif state == "asset_dir":
-            self.post_message(
-                self.StatusOutput(
-                    f"Downloading (Retry {self.cur_retry}): {url} -> {data}"
-                )
-            )
+            pass
+            # self.post_message(self.StatusOutput(f"-> {data}: "))
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
-            if filesize == self.cur_filesize:
+            if self.cur_filesize == 0 or filesize == self.cur_filesize:
                 mtime = os.path.getmtime(filepath)
                 self.asset_list.download_done(
                     url,
@@ -115,9 +114,7 @@ class AssetDownloadScreen(ModalScreen):
                         }
                     )
                 )
-                self.post_message(
-                    self.StatusOutput(f"Download complete: {self.cur_filepath}")
-                )
+                self.post_message(self.StatusOutput(f"- {self.cur_filepath}\n"))
             else:
                 mtime = 0
                 self.asset_list.download_done(
@@ -135,20 +132,25 @@ class AssetDownloadScreen(ModalScreen):
                         }
                     )
                 )
+                self.post_message(
+                    self.StatusOutput(
+                        f"\n\nFilesize mismatch. Expected {self.cur_filesize}, received {filesize} \n- {self.cur_filepath}\n"
+                    )
+                )
         else:
             # Unknown state!
             sys.exit(1)
 
         if state in ["error", "success"]:
             # Increment overall progress here
-            self.query_one("#all_dl_progress").advance(1)
+            self.query_one("#dl_progress_all").advance(1)
 
         if state in ["error", "download_starting", "success"]:
             # Reset state data here
             self.cur_retry = 0
             self.cur_filepath = ""
             self.cur_filesize = 0
-            self.query_one("#cur_dl_progress").update(total=100, progress=0)
+            self.query_one("#dl_progress_cur").update(total=100, progress=0)
 
     def download_assets(self) -> None:
         self.asset_list = AssetList(self.mod_dir, self.save_dir)
@@ -167,7 +169,7 @@ class AssetDownloadScreen(ModalScreen):
                 urls.append((asset["url"], asset["trail"].split("->")))
             overwrite = True
 
-        self.query_one("#all_dl_progress").update(total=len(urls), progress=0)
+        self.query_one("#dl_progress_all").update(total=len(urls), progress=0)
 
         download_files(
             urls, self.mod_dir, self.status_cb, ignore_content_type=overwrite
@@ -177,8 +179,8 @@ class AssetDownloadScreen(ModalScreen):
         self.post_message(self.DownloadComplete())
 
     def on_asset_download_screen_status_output(self, event: StatusOutput):
-        self.query_one("#downloadoutput").update(event.status)
+        self.query_one("#dl_log").write(Markdown(event.status))
 
     def on_asset_download_screen_download_complete(self):
-        self.query_one("#downloadscreen").toggle_class("unhide")
+        self.query_one("#dl_screen").toggle_class("unhide")
         self.download_complete = True

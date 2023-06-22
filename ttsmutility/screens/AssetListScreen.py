@@ -168,23 +168,40 @@ class AssetListScreen(Screen):
     ) -> None:
         row_key = asset["url"]
 
-        # We need to update both our internal asset information
-        # and what is shown on the table...
-        self.assets[row_key]["mtime"] = asset["mtime"]
-        self.assets[row_key]["fsize"] = asset["fsize"]
-        self.assets[row_key]["filename"] = asset["filename"]
-        self.assets[row_key]["sha1"] = asset["sha1"]
+        try:
+            # We need to update both our internal asset information
+            # and what is shown on the table...
+            self.assets[row_key]["mtime"] = asset["mtime"]
+            self.assets[row_key]["fsize"] = asset["fsize"]
+            self.assets[row_key]["filename"] = asset["filename"]
+            self.assets[row_key]["sha1"] = asset["sha1"]
+        except KeyError:
+            # This happens if the download process finishes and updates
+            # assets for a mod that is not currently loaded
+            return
 
         readable_asset = self.format_asset(asset)
         table = next(self.query("#asset-list").results(DataTable))
         col_keys = ["url", "mtime", "fsize", "trail", "filename", "sha1", "ext"]
-        table.update_cell(row_key, col_keys[0], readable_asset["url"])
-        table.update_cell(row_key, col_keys[1], readable_asset["mtime"])
-        table.update_cell(row_key, col_keys[2], readable_asset["fsize"])
+        table.update_cell(
+            row_key, col_keys[0], readable_asset["url"], update_width=True
+        )
+        table.update_cell(
+            row_key, col_keys[1], readable_asset["mtime"], update_width=True
+        )
+        table.update_cell(
+            row_key, col_keys[2], readable_asset["fsize"], update_width=True
+        )
         # Skip Trail....  It doesn't change anyhow.
-        table.update_cell(row_key, col_keys[4], readable_asset["filename"])
-        table.update_cell(row_key, col_keys[5], readable_asset["sha1"])
-        table.update_cell(row_key, col_keys[6], readable_asset["ext"])
+        table.update_cell(
+            row_key, col_keys[4], readable_asset["filename"], update_width=True
+        )
+        table.update_cell(
+            row_key, col_keys[5], readable_asset["sha1"], update_width=True
+        )
+        table.update_cell(
+            row_key, col_keys[6], readable_asset["ext"], update_width=True
+        )
 
     def url_reformat(self, url):
         replacements = [

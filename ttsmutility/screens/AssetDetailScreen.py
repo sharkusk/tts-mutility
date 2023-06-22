@@ -5,37 +5,20 @@ from textual.screen import ModalScreen
 
 import time
 
-ASSET_DETAIL_MD = """URL
---------------
+ASSET_DETAIL_MD = """# URL
 {url}
 
-Mod Filepath
---------------
+## Mod Filepath
 {filepath}
 
-URI
---------------
+## URI
 {uri}
 
-Modified Time
---------------
-{mtime}
-
-File Size
---------------
-{fsize:,} Bytes
-
-JSON Trail
---------------
-{trail}
-
-SHA1
---------------
-{sha1}
-
-DL Status
---------------
-{dl_status}"""
+- Modified Time: {mtime}
+- File Size: {fsize:,} Bytes
+- JSON Trail: {trail}
+- SHA1: {sha1}
+- DL Status: {dl_status}"""
 
 
 class AssetDetailScreen(ModalScreen):
