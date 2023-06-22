@@ -8,6 +8,7 @@ from ttsmutility.parse.Sha1Scan import scan_sha1s
 from ttsmutility.parse.AssetList import AssetList
 
 import sys
+import os
 
 
 class Sha1ScanScreen(ModalScreen):
@@ -22,8 +23,9 @@ class Sha1ScanScreen(ModalScreen):
         def __init__(self) -> None:
             super().__init__()
 
-    def __init__(self, mod_dir: str) -> None:
+    def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
+        self.save_dir = save_dir
         self.scan_complete = False
         super().__init__()
 
@@ -43,7 +45,8 @@ class Sha1ScanScreen(ModalScreen):
     def scan_sha1s(self) -> None:
         asset = None
         filepath = None
-        asset_list = AssetList(self.mod_dir)
+        mtime = 0
+        asset_list = AssetList(self.mod_dir, self.save_dir)
         skip = False
         update_frequency = 0
         i = 0
@@ -61,16 +64,17 @@ class Sha1ScanScreen(ModalScreen):
                 continue
             elif result[0] == "filepath":
                 filepath = result[1]
+                mtime = os.path.getmtime(filepath)
                 asset = asset_list.get_sha1_info(filepath)
                 if asset is None:
                     # Skip this filepath since it doesn't exist in our DB
                     skip = True
                 elif asset["sha1_mtime"] is None:
                     skip = False
-                elif asset["mtime"] <= asset["sha1_mtime"]:
-                    skip = True
-                else:
+                elif mtime > asset["sha1_mtime"]:
                     skip = False
+                else:
+                    skip = True
 
                 i += 1
                 if i % update_frequency:
@@ -83,14 +87,13 @@ class Sha1ScanScreen(ModalScreen):
                     scanner.send(True)
                     continue
             elif result[0] == "sha1":
-                asset_list.sha1_scan_done(
-                    filepath, result[1], result[2], asset["mtime"]
-                )
+                asset_list.sha1_scan_done(filepath, result[1], result[2], mtime)
                 continue
             else:
                 # Our state machine is broken!
                 sys.exit(1)
         asset_list.commit()
+        self.query_one(ProgressBar).update(total=100, progress=100)
         self.post_message(self.StatusOutput(f"SHA1 Scanning Complete"))
         self.post_message(self.ScanComplete())
 

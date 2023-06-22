@@ -3,23 +3,30 @@ from textual.widgets import Static
 from textual.widgets import Footer
 from textual.screen import ModalScreen
 
+from rich.markdown import Markdown
+
 import time
 
-ASSET_DETAIL_MD = """# URL
+ASSET_DETAIL_MD = """
+# URL
 {url}
 
-## Mod Filepath
+# Mod Filepath
 {filename}
 
-## URI
+# URI
 {uri}
 
-- Modified Time: {mtime}
-- File Size: {fsize:,} Bytes
-- JSON Trail: {trail}
-- Content Filename: {content_name}
-- SHA1: {sha1}
-- DL Status: {dl_status}"""
+| Asset Details | |
+|-------------------|:-----------------:|
+| Modified Time     | {mtime}           |
+| File Size         | {fsize:,}         |
+| JSON Trail        | {trail}           |
+| Content Filename  | {content_name}    |
+| SHA1 Hexdigest    | {sha1}            |
+| Download Status   | {dl_status}       |
+
+"""
 
 
 class AssetDetailScreen(ModalScreen):
@@ -45,19 +52,4 @@ class AssetDetailScreen(ModalScreen):
             readable_time = "File not found"
         else:
             readable_time = time.ctime(self.asset_detail["mtime"])
-        if False:
-            static.update(
-                ASSET_DETAIL_MD.format(
-                    url=self.asset_detail["url"],
-                    uri=self.asset_detail["uri"],
-                    filepath=self.asset_detail["filename"],
-                    trail=self.asset_detail["trail"],
-                    sha1=self.asset_detail["sha1"],
-                    mtime=readable_time,
-                    fsize=self.asset_detail["fsize"],
-                    dl_status=self.asset_detail["dl_status"],
-                    content_name=self.asset_detail["content_name"],
-                )
-            )
-        else:
-            static.update(ASSET_DETAIL_MD.format(**self.asset_detail))
+        static.update(Markdown(ASSET_DETAIL_MD.format(**self.asset_detail)))

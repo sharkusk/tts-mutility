@@ -40,8 +40,9 @@ class ModListScreen(Screen):
             super().__init__()
 
     class Sha1Selected(Message):
-        def __init__(self, mod_dir: str) -> None:
+        def __init__(self, mod_dir: str, save_dir: str) -> None:
             self.mod_dir = mod_dir
+            self.save_dir = save_dir
             super().__init__()
 
     class DownloadSelected(Message):
@@ -174,7 +175,7 @@ class ModListScreen(Screen):
         event.data_table.sort(event.column_key, reverse=reverse)
 
     def action_scan_sha1(self) -> None:
-        self.post_message(self.Sha1Selected(self.mod_dir))
+        self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
 
     def action_download_assets(self) -> None:
         tabbed = self.query_one(TabbedContent)

@@ -133,7 +133,7 @@ class TTSMutility(App):
         )
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
-        self.push_screen(Sha1ScanScreen(event.mod_dir))
+        self.push_screen(Sha1ScanScreen(event.mod_dir, event.save_dir))
 
     def on_asset_download_screen_file_download_complete(
         self, event: AssetDownloadScreen.FileDownloadComplete

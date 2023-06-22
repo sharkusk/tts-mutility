@@ -162,6 +162,21 @@ class AssetList:
             (sha1, steam_sha1, sha1_mtime, filepath),
         )
 
+    def get_sha1_mismatches(self):
+        self.cursor.execute(
+            """
+            SELECT asset_url
+            FROM tts_assets
+            WHERE tts_assets.asset_steam_sha1 != ""
+                AND tts_assets.asset_sha1 != tts_assets.asset_steam_sha1
+            """,
+        )
+        result = self.cursor.fetchall()
+        if len(result) > 0:
+            return list(zip(*result))[0]
+        else:
+            return []
+
     def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
         if asset["filename"] == "":
@@ -175,8 +190,8 @@ class AssetList:
                     asset["mtime"],
                     asset["fsize"],
                     asset["dl_status"],
-                    asset["url"],
                     asset["content_name"],
+                    asset["url"],
                 ),
             )
         else:
@@ -191,8 +206,8 @@ class AssetList:
                     asset["mtime"],
                     asset["fsize"],
                     asset["dl_status"],
-                    asset["url"],
                     asset["content_name"],
+                    asset["url"],
                 ),
             )
 
