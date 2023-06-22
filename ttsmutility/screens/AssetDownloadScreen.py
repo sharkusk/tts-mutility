@@ -69,7 +69,7 @@ class AssetDownloadScreen(ModalScreen):
                 "dl_status": error,
                 "content_name": self.cur_content_name,
             }
-            self.asset_list.download_done(url, asset)
+            self.asset_list.download_done(asset)
             self.post_message(self.FileDownloadComplete(asset))
             self.post_message(self.StatusOutput(f"- Download Failed: {error}\n"))
         elif state == "download_starting":

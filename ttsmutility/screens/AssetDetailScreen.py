@@ -18,7 +18,7 @@ ASSET_DETAIL_MD = """
 {uri}
 
 | Asset Details | |
-|-------------------|:-----------------:|
+|------------------:|:------------------|
 | Modified Time     | {mtime}           |
 | File Size         | {fsize:,}         |
 | JSON Trail        | {trail}           |
@@ -49,7 +49,7 @@ class AssetDetailScreen(ModalScreen):
     def on_mount(self) -> None:
         static = next(self.query("#asset_detail").results(Static))
         if self.asset_detail["mtime"] == 0:
-            readable_time = "File not found"
+            self.asset_detail["mtime"] = "File not found"
         else:
-            readable_time = time.ctime(self.asset_detail["mtime"])
+            self.asset_detail["mtime"] = time.ctime(self.asset_detail["mtime"])
         static.update(Markdown(ASSET_DETAIL_MD.format(**self.asset_detail)))
