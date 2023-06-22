@@ -219,7 +219,8 @@ class AssetList:
             self.cursor.execute(
                 """
                 UPDATE tts_assets
-                SET asset_filename=?, asset_path, asset_ext, asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?
+                SET asset_filename=?, asset_path=?, asset_ext=?,
+                    asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?
                 WHERE asset_url=?
                 """,
                 (
@@ -346,7 +347,7 @@ class AssetList:
 
         self.conn.commit()
 
-    def parse_mod(self, mod_filename: str) -> None:
+    def update_mod_assets(self, mod_filename: str) -> None:
         if mod_filename.split("\\")[0] == "Workshop":
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
@@ -409,7 +410,7 @@ class AssetList:
             (os.path.getmtime(mod_path), mod_filename),
         )
 
-    def parse_assets(self, mod_filename: str, parse_only=False) -> list:
+    def get_mod_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
         if mod_filename.split("\\")[0] == "Workshop":
             mod_path = os.path.join(self.mod_dir, mod_filename)
@@ -430,17 +431,17 @@ class AssetList:
             (mod_filename,),
         )
         result = self.cursor.fetchone()
-        parse_mod = False
+        refresh_mod = False
         if result == None:
-            parse_mod = True
+            refresh_mod = True
         else:
             prev_mod_mtime = result[0]
             mod_mtime = os.path.getmtime(mod_path)
             if mod_mtime > prev_mod_mtime:
-                parse_mod = True
+                refresh_mod = True
 
-        if parse_mod:
-            self.parse_mod(mod_filename)
+        if refresh_mod:
+            self.update_mod_assets(mod_filename)
             modified_db = True
 
         if not parse_only:
@@ -463,20 +464,9 @@ class AssetList:
             )
             results = self.cursor.fetchall()
             for result in results:
-                if result[1] is None:
-                    path = "?"
-                else:
-                    path = result[1]
-
-                if result[2] is None:
-                    filename = ""
-                else:
-                    filename = result[2]
-
-                if result[3] is None:
-                    ext = ""
-                else:
-                    ext = result[3]
+                path = result[1]
+                filename = result[2]
+                ext = result[3]
 
                 asset_filename = os.path.join(path, filename) + ext
                 assets.append(

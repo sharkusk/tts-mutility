@@ -81,7 +81,7 @@ class AssetListScreen(Screen):
         table.add_column("Filepath", width=self.filepath_width, key="filename")
         table.add_column("SHA1", key="sha1")
 
-        assets = asset_list.parse_assets(self.mod_filename)
+        assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
 
         for i, asset in enumerate(assets):

@@ -62,7 +62,7 @@ class TTSMutility(App):
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
                 )
             )
-            mod_asset_list.parse_assets(mod_filename, parse_only=True)
+            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
         for mod in saves:
             mod_filename = mod["filename"]
             self.post_message(
@@ -70,7 +70,7 @@ class TTSMutility(App):
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
                 )
             )
-            mod_asset_list.parse_assets(mod_filename, parse_only=True)
+            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
 
         self.refresh_mods(init=True)
 

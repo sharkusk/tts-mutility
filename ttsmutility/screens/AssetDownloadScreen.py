@@ -43,8 +43,11 @@ class AssetDownloadScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Container(
-            ProgressBar(id="dl_progress_all", show_eta=False),
-            ProgressBar(id="dl_progress_cur", show_eta=False),
+            Container(
+                ProgressBar(id="dl_progress_all", show_eta=False),
+                ProgressBar(id="dl_progress_cur", show_eta=False),
+                id="dl_progress",
+            ),
             VerticalScroll(
                 TextLog(id="dl_log", highlight=True, markup=True),
                 id="dl_scroll",
