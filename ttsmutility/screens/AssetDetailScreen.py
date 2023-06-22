@@ -9,7 +9,7 @@ ASSET_DETAIL_MD = """# URL
 {url}
 
 ## Mod Filepath
-{filepath}
+{filename}
 
 ## URI
 {uri}
@@ -17,6 +17,7 @@ ASSET_DETAIL_MD = """# URL
 - Modified Time: {mtime}
 - File Size: {fsize:,} Bytes
 - JSON Trail: {trail}
+- Content Filename: {content_name}
 - SHA1: {sha1}
 - DL Status: {dl_status}"""
 
@@ -44,15 +45,19 @@ class AssetDetailScreen(ModalScreen):
             readable_time = "File not found"
         else:
             readable_time = time.ctime(self.asset_detail["mtime"])
-        static.update(
-            ASSET_DETAIL_MD.format(
-                url=self.asset_detail["url"],
-                uri=self.asset_detail["uri"],
-                filepath=self.asset_detail["filename"],
-                trail=self.asset_detail["trail"],
-                sha1=self.asset_detail["sha1"],
-                mtime=readable_time,
-                fsize=self.asset_detail["fsize"],
-                dl_status=self.asset_detail["dl_status"],
+        if False:
+            static.update(
+                ASSET_DETAIL_MD.format(
+                    url=self.asset_detail["url"],
+                    uri=self.asset_detail["uri"],
+                    filepath=self.asset_detail["filename"],
+                    trail=self.asset_detail["trail"],
+                    sha1=self.asset_detail["sha1"],
+                    mtime=readable_time,
+                    fsize=self.asset_detail["fsize"],
+                    dl_status=self.asset_detail["dl_status"],
+                    content_name=self.asset_detail["content_name"],
+                )
             )
-        )
+        else:
+            static.update(ASSET_DETAIL_MD.format(**self.asset_detail))

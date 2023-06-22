@@ -230,13 +230,7 @@ def download_file(
     except UnboundLocalError:
         pass
 
-    # Only for informative purposes.
     length = response.getheader("Content-Length", 0)
-    length_kb = "???"
-    if length:
-        with suppress(ValueError):
-            length_kb = int(length) / 1000
-    size_msg = "({length} kb)".format(length=length_kb)
 
     state_callback("file_size", url, int(length))
 
@@ -256,6 +250,7 @@ def download_file(
     content_disposition = response.getheader("Content-Disposition", "").strip()
     offset_std = content_disposition.find('filename="')
     offset_utf = content_disposition.find("filename*=UTF-8")
+    name = ""
     if offset_std >= 0:
         name = content_disposition[offset_std:].split('"')[1]
         _, filename_ext = os.path.splitext(name)
@@ -269,6 +264,15 @@ def download_file(
             filename_ext = os.path.splitext(url[0 : url.rfind("?")])[1]
         else:
             filename_ext = os.path.splitext(url)[1]
+
+    if name != "":
+        if "steamusercontent" in url:
+            if url[-1] == "/":
+                hexdigest = os.path.splitext(url)[0][-41:-1]
+            else:
+                hexdigest = os.path.splitext(url)[0][-40:]
+            name = name.split(hexdigest + "_")[1]
+        state_callback("content_name", url, name)
 
     if filename_ext == "":
         if content_type in DEFAULT_EXT:

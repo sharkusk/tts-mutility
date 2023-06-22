@@ -27,7 +27,8 @@ if _init_table:
                 asset_mtime         TIMESTAMP,
                 asset_sha1_mtime    TIMESTAMP,
                 asset_size          INTEGER,
-                asset_dl_status     VARCHAR(255)
+                asset_dl_status     VARCHAR(255),
+                asset_content_name  VARCHAR(255)
                 )
             """
             )

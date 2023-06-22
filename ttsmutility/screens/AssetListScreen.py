@@ -7,8 +7,6 @@ from textual.widgets import Static
 from ttsmutility.parse import AssetList
 from ttsmutility.util import format_time
 from ttsmutility.fetch.AssetDownload import download_files
-from ttsmutility.screens.AssetDownloadScreen import AssetDownloadScreen
-from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
 
 import os.path
 import pathlib
@@ -175,6 +173,7 @@ class AssetListScreen(Screen):
             self.assets[row_key]["fsize"] = asset["fsize"]
             self.assets[row_key]["filename"] = asset["filename"]
             self.assets[row_key]["sha1"] = asset["sha1"]
+            self.assets[row_key]["content_name"] = asset["content_name"]
         except KeyError:
             # This happens if the download process finishes and updates
             # assets for a mod that is not currently loaded
