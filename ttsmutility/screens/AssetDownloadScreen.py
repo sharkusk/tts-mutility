@@ -148,6 +148,8 @@ class AssetDownloadScreen(ModalScreen):
             self.cur_filepath = ""
             self.cur_content_name = ""
             self.cur_filesize = 0
+
+        if state in ["download_starting"]:
             self.query_one("#dl_progress_cur").update(total=100, progress=0)
 
     def download_assets(self) -> None:

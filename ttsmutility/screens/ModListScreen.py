@@ -1,9 +1,10 @@
 from textual.app import ComposeResult
 from textual.widgets import Footer, Header, DataTable
 from textual.message import Message
-from textual.widgets import TabbedContent, TabPane, Static
+from textual.widgets import TabbedContent, TabPane, Static, Input
 from textual.screen import Screen
 from textual.containers import Center
+from textual.events import Key
 
 from ttsmutility.parse import ModList
 from ttsmutility.util import format_time
@@ -14,19 +15,21 @@ class ModListScreen(Screen):
     BINDINGS = [
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
-        ("f", "check_files", "Check Local Files"),
+        ("f", "filter", "Enable Filter"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
         self.save_dir = save_dir
+        self.prev_selected = None
         super().__init__()
 
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
 
-        yield Center(Static(id="ml_status"))
+        yield Center(Static(id="ml_status"), id="ml_status_center")
+        yield Center(Input(placeholder="Filter", id="ml_filter"), id="ml_filter_center")
 
         with TabbedContent(initial="workshop"):
             with TabPane("Workshop", id="workshop"):
@@ -97,7 +100,7 @@ class ModListScreen(Screen):
         self.run_worker(self.load_mods)
 
     def load_mods(self) -> None:
-        self.query_one("#ml_status").add_class("unhide")
+        self.query_one("#ml_status_center").add_class("unhide")
         mod_asset_list = AssetList(self.mod_dir, self.save_dir)
 
         def update(mod_names, mod_list, mods):
@@ -120,7 +123,7 @@ class ModListScreen(Screen):
         save_names = save_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
         update(save_names, save_list, self.saves)
 
-        self.query_one("#ml_status").remove_class("unhide")
+        self.query_one("#ml_status_center").remove_class("unhide")
 
     def get_mod_table(self, filename: str) -> DataTable:
         if filename.split("\\")[0] == "Workshop":
@@ -179,6 +182,7 @@ class ModListScreen(Screen):
         table.focus()
         table.sort("name", reverse=self.sort_order["name"])
         self.last_sort_key = "name"
+        self.log(self.css_tree)
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
         if id == "mod-list":
@@ -193,8 +197,10 @@ class ModListScreen(Screen):
         return (mod_filename, mod_name, mod_dir, save_dir)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        args = self.get_mod_by_row(event.data_table.id, event.row_key)
-        self.post_message(self.ModSelected(*args))
+        if self.prev_selected is not None and event.row_key == self.prev_selected:
+            args = self.get_mod_by_row(event.data_table.id, event.row_key)
+            self.post_message(self.ModSelected(*args))
+        self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -226,5 +232,16 @@ class ModListScreen(Screen):
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.DownloadSelected(*args))
 
-    def action_check_files(self) -> None:
-        pass
+    def action_filter(self) -> None:
+        self.query_one("#ml_filter_center").toggle_class("unhide")
+
+    def on_key(self, event: Key):
+        if event.key == "enter":
+            if self.query_one("TabbedContent").active == "workshop":
+                id = "#mod-list"
+            else:
+                id = "#save-list"
+            table = next(self.query(id).results(DataTable))
+            row_key, _ = table.coordinate_to_cell_key((table.cursor_row, 0))
+            args = self.get_mod_by_row(id[1:], row_key)
+            self.post_message(self.ModSelected(*args))

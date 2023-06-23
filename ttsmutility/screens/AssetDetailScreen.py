@@ -8,23 +8,23 @@ from rich.markdown import Markdown
 import time
 
 ASSET_DETAIL_MD = """
-# URL
+## URL
 {url}
 
-# Mod Filepath
-{filename}
-
-# URI
+## Local File URI
 {uri}
 
+## TTS Mod Filepath
+{filename}
+
 | Asset Details | |
-|------------------:|:------------------|
-| Modified Time     | {mtime}           |
-| File Size         | {fsize:,}         |
-| JSON Trail        | {trail}           |
-| Content Filename  | {content_name}    |
-| SHA1 Hexdigest    | {sha1}            |
-| Download Status   | {dl_status}       |
+|--------------------------:|:------------------|
+| Modified Time             | {mtime}           |
+| File Size                 | {fsize:,}         |
+| JSON Trail                | {trail}           |
+| Content Filename          | {content_name}    |
+| SHA1 Hexdigest            | {sha1}            |
+| Download Error Status     | {dl_status}       |
 
 """
 

@@ -19,6 +19,10 @@ Bar {
     width: 1fr;
 }
 
+TabbedContent {
+    height: 1fr;
+}
+
 ContentSwitcher {
     width: 1fr;
     height: 1fr;
@@ -26,6 +30,7 @@ ContentSwitcher {
 
 TabPane {
     padding: 0;
+    height: 1fr;
 }
 
 DataTable {
@@ -59,15 +64,29 @@ DataTable {
     visibility: visible;
 }
 
-#ml_status {
+#ml_filter_center {
     visibility: hidden;
     height: 0;
 }
 
-#ml_status.unhide {
+#ml_filter_center.unhide {
+    visibility: visible;
+    height: auto;
+    padding: 1;
+}
+
+#ml_status_center {
+    visibility: hidden;
+    height: 0;
+}
+
+#ml_status {
+    text-align: center;
+}
+
+#ml_status_center.unhide {
     height: 1;
     visibility: visible;
-    text-align: center;
     /*
     border: round green;
     */
