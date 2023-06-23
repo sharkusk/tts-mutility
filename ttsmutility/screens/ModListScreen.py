@@ -10,6 +10,8 @@ from ttsmutility.parse import ModList
 from ttsmutility.util import format_time
 from ttsmutility.parse.AssetList import AssetList
 
+from itertools import filterfalse
+
 
 class ModListScreen(Screen):
     BINDINGS = [
@@ -164,36 +166,32 @@ class ModListScreen(Screen):
             filename,
             key=filename,
         )
-        self.active_rows[mods[filename]["name"]] = filename
+        self.active_rows[filename] = mods[filename]["name"]
 
     def update_filtered_rows(self) -> None:
-        # TODO: "name" does not have to be unique, so if there are duplicates the
-        # approach below will only filter the first of those rows.
         if len(self.filter) > len(self.prev_filter):
             # Filter is getting longer, so we are going to be removing rows
-            filtered_names = list(
-                filter(
-                    lambda x: self.filter.lower() in x.lower(), self.active_rows.keys()
+            filenames_to_remove = list(
+                filterfalse(
+                    lambda x: self.filter.lower() in self.active_rows[x].lower(),
+                    self.active_rows.keys(),
                 )
             )
-            removed_rows = list(
-                set(self.active_rows.keys()).symmetric_difference(set(filtered_names))
-            )
-            for name in removed_rows:
-                table, _ = self.get_mod_table(self.active_rows[name])
-                table.remove_row(self.active_rows[name])
-                self.filtered_rows[name] = self.active_rows[name]
-                self.active_rows.pop(name)
+            for filename in filenames_to_remove:
+                table, _ = self.get_mod_table(filename)
+                table.remove_row(filename)
+                self.filtered_rows[filename] = self.active_rows[filename]
+                self.active_rows.pop(filename)
         else:
             # Filter is getting shorter, so we may be adding rows (if any now match)
-            unfiltered_names = list(
+            filenames_to_add = list(
                 filter(
-                    lambda x: self.filter.lower() in x.lower(),
+                    lambda x: self.filter.lower() in self.filtered_rows[x].lower(),
                     self.filtered_rows.keys(),
                 )
             )
-            for name in unfiltered_names:
-                filename = self.filtered_rows.pop(name)
+            for filename in filenames_to_add:
+                self.filtered_rows.pop(filename)
                 _, mods = self.get_mod_table(filename)
                 self.add_mod_row(mods[filename])
                 # self.active_rows is updated in the add_mod_row function
