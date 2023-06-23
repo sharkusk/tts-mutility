@@ -1,17 +1,20 @@
 from textual.app import ComposeResult
 from textual.widgets import Footer, Header, DataTable
 from textual.message import Message
-from textual.widgets import TabbedContent, TabPane
+from textual.widgets import TabbedContent, TabPane, Static
 from textual.screen import Screen
+from textual.containers import Center
 
 from ttsmutility.parse import ModList
 from ttsmutility.util import format_time
+from ttsmutility.parse.AssetList import AssetList
 
 
 class ModListScreen(Screen):
     BINDINGS = [
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
+        ("f", "check_files", "Check Local Files"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -22,6 +25,8 @@ class ModListScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
+
+        yield Center(Static(id="ml_status"))
 
         with TabbedContent(initial="workshop"):
             with TabPane("Workshop", id="workshop"):
@@ -37,6 +42,11 @@ class ModListScreen(Screen):
             self.mod_name = mod_name
             self.mod_dir = mod_dir
             self.save_dir = save_dir
+            super().__init__()
+
+    class ModLoaded(Message):
+        def __init__(self, mod: dict) -> None:
+            self.mod = mod
             super().__init__()
 
     class Sha1Selected(Message):
@@ -59,13 +69,10 @@ class ModListScreen(Screen):
         self.sort_order = {
             "name": False,
             "modified": False,
+            "size": False,
             "total_assets": False,
             "missing_assets": False,
             "filename": False,
-            "url": False,
-            "trail": False,
-            "sha1": False,
-            "asset_filename": False,
         }
 
         for id in "#mod-list", "#save-list":
@@ -82,37 +89,41 @@ class ModListScreen(Screen):
             table.add_column("Missing", key="missing_assets")
             table.add_column("Filename", key="filename")
 
-            if id == "#mod-list":
-                self.mod_list = ModList.ModList(self.mod_dir)
-                self.mods = {}
-                for mod in self.mod_list.get_mods():
-                    self.mods[mod["filename"]] = mod
-                mods = self.mods
-            else:
-                self.save_list = ModList.ModList(self.save_dir, is_save=True)
-                self.saves = {}
-                for save in self.save_list.get_mods():
-                    self.saves[save["filename"]] = save
-                mods = self.saves
-
-            for i, filename in enumerate(mods):
-                table.add_row(
-                    mods[filename]["name"].ljust(35),
-                    format_time(mods[filename]["mtime"]),
-                    mods[filename]["size"],
-                    mods[filename]["total_assets"],
-                    mods[filename]["missing_assets"],
-                    mods[filename]["filename"],
-                    key=filename,
-                )
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
             self.last_sort_key = "name"
 
-    def update_counts(self, mod_filename, total_assets, missing_assets, size):
-        row_key = mod_filename
+            # self.full_load(id, table)
+        self.run_worker(self.load_mods)
 
-        if mod_filename.split("\\")[0] == "Workshop":
+    def load_mods(self) -> None:
+        self.query_one("#ml_status").add_class("unhide")
+        mod_asset_list = AssetList(self.mod_dir, self.save_dir)
+
+        def update(mod_names, mod_list, mods):
+            total_mods = len(mod_names)
+            for i, mod_filename in enumerate(mod_names):
+                self.update_status(f"Scanning Mod {i} of {total_mods}")
+                mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
+                mod_list.update_mod_counts(mod_filename)
+                mod = mod_list.get_mod_from_db(mod_filename)
+                mods[mod_filename] = mod
+                self.add_mod_row(mod)
+
+        self.mods = {}
+        mod_list = ModList.ModList(self.mod_dir)
+        mod_names = mod_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
+        update(mod_names, mod_list, self.mods)
+
+        self.saves = {}
+        save_list = ModList.ModList(self.save_dir, is_save=True)
+        save_names = save_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
+        update(save_names, save_list, self.saves)
+
+        self.query_one("#ml_status").remove_class("unhide")
+
+    def get_mod_table(self, filename: str) -> DataTable:
+        if filename.split("\\")[0] == "Workshop":
             id = "#mod-list"
             mods = self.mods
         else:
@@ -120,6 +131,30 @@ class ModListScreen(Screen):
             mods = self.saves
 
         table = next(self.query(id).results(DataTable))
+        return table, mods
+
+    def add_mod_row(self, mod: dict) -> None:
+        filename = mod["filename"]
+        table, mods = self.get_mod_table(filename)
+
+        table.add_row(
+            mods[filename]["name"].ljust(35),
+            format_time(mods[filename]["mtime"], "Scanning..."),
+            mods[filename]["size"],
+            mods[filename]["total_assets"],
+            mods[filename]["missing_assets"],
+            filename,
+            key=filename,
+        )
+
+    def update_status(self, message: str, disabled=False):
+        status = next(self.query("#ml_status").results(Static))
+        status.update(message)
+
+    def update_counts(self, mod_filename, total_assets, missing_assets, size):
+        row_key = mod_filename
+        table, mods = self.get_mod_table(mod_filename)
+
         # We need to update both our internal asset information
         # and what is shown on the table...
         mods[row_key]["total_assets"] = total_assets
@@ -174,6 +209,9 @@ class ModListScreen(Screen):
 
         event.data_table.sort(event.column_key, reverse=reverse)
 
+    def on_mod_list_screen_mod_loaded(self, event: ModLoaded) -> None:
+        self.add_mod_row(event.mod)
+
     def action_scan_sha1(self) -> None:
         self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
 
@@ -187,3 +225,6 @@ class ModListScreen(Screen):
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.DownloadSelected(*args))
+
+    def action_check_files(self) -> None:
+        pass

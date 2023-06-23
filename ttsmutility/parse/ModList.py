@@ -47,6 +47,39 @@ class ModList:
         else:
             return []
 
+    def update_mod_counts(self, mod_filename, forced=False):
+        need_total = False
+        need_missing = False
+        need_size = False
+        if forced:
+            need_total = True
+            need_missing = True
+            need_size = True
+        else:
+            self.cursor.execute(
+                """
+                SELECT mod_total_assets, mod_missing_assets, mod_size
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            result = self.cursor.fetchone()
+            if result is None:
+                return
+            if result[0] == -1:
+                need_total = True
+            if result[1] == -1:
+                need_missing = True
+            if result[2] == -1:
+                need_size = True
+        if need_total:
+            self.count_total_assets(mod_filename)
+        if need_missing:
+            self.count_missing_assets(mod_filename)
+        if need_size:
+            self.calc_asset_size(mod_filename)
+
     def calc_asset_size(self, filename: str) -> int:
         self.cursor.execute(
             """
@@ -123,7 +156,7 @@ class ModList:
         self.conn.commit()
         return result[0]
 
-    def _get_mod_from_db(self, filename: str) -> dict or None:
+    def get_mod_from_db(self, filename: str) -> dict or None:
         mod = None
         self.cursor.execute(
             """
@@ -144,7 +177,7 @@ class ModList:
             }
         return mod
 
-    def get_mods(self, parse_only=False) -> list:
+    def get_mods(self, parse_only=False, sort_by="mod_name") -> list:
         """
         Returns list of dictionary in following format:
         [{
@@ -169,15 +202,15 @@ class ModList:
             ):
                 if "WorkshopFileInfos.json" in f or "SaveFileInfos.json" in f:
                     continue
-
                 if max_mods != -1 and i >= max_mods:
                     break
 
+                name = self.get_mod_name(f)
+
                 # We could have the same mod filename in both the Save and Workshop
                 # directories.
-                mod = self._get_mod_from_db(f)
+                mod = self.get_mod_from_db(f)
                 if mod is None:
-                    name = self.get_mod_name(f)
                     # Default values will come from table definition...
                     self.cursor.execute(
                         """
@@ -191,10 +224,20 @@ class ModList:
                     updated_db = True
                     # Now that the mod is in the db, extract the data...
                     if parse_only == False:
-                        mod = self._get_mod_from_db(f)
+                        mod = self.get_mod_from_db(f)
 
-                if parse_only == False:
+                if parse_only:
+                    mods.append((f, name))
+                else:
                     mods.append(mod)
             if updated_db:
                 self.conn.commit()
-        return mods
+
+            if parse_only:
+                return tuple(zip(*sorted(mods, key=lambda mod: mod[1])))[0]
+            else:
+                if sort_by is not None:
+                    return sorted(mods, key=lambda x: x[sort_by])
+                else:
+                    return mods
+        return None

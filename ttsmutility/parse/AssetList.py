@@ -404,7 +404,7 @@ class AssetList:
         self.cursor.execute(
             """
             UPDATE tts_mods
-            SET mod_mtime=?, mod_total_assets=-1, mod_missing_assets=-1
+            SET mod_mtime=?, mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
             WHERE mod_filename=?
             """,
             (os.path.getmtime(mod_path), mod_filename),

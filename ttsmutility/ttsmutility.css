@@ -1,7 +1,8 @@
 Screen {
-    align: center middle;
-    padding: 0;
-    margin: 0;
+    height: 100%;
+    /*
+    border: round red;
+    */
 }
 
 ProgressBar {
@@ -50,15 +51,26 @@ DataTable {
     text-align: center;
 }
 
-#sha1progress {
-}
-
 #sha1screen Footer {
     visibility: hidden;
 }
 
 #sha1screen.unhide Footer {
     visibility: visible;
+}
+
+#ml_status {
+    visibility: hidden;
+    height: 0;
+}
+
+#ml_status.unhide {
+    height: 1;
+    visibility: visible;
+    text-align: center;
+    /*
+    border: round green;
+    */
 }
 
 #dl_screen {

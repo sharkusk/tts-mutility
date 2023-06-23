@@ -43,36 +43,11 @@ class TTSMutility(App):
         if FIRST_PASS:
             self.post_message(self.InitProcessing(f"Creating Database"))
             time.sleep(1)
-        self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(MOD_DIR)
-        mods = mod_list.get_mods()
-        self.post_message(self.InitProcessing(f"Loading Save Mods"))
-        save_list = ModList.ModList(SAVE_DIR)
-        saves = save_list.get_mods()
-
-        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+        # self.full_initialization()
 
         self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
+        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
         mod_asset_list.scan_mod_dir()
-
-        for i, mod in enumerate(mods):
-            mod_filename = mod["filename"]
-            self.post_message(
-                self.InitProcessing(
-                    f"Finding assets in {mod_filename} ({i}/{len(mods)})"
-                )
-            )
-            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-        for mod in saves:
-            mod_filename = mod["filename"]
-            self.post_message(
-                self.InitProcessing(
-                    f"Finding assets in {mod_filename} ({i}/{len(mods)})"
-                )
-            )
-            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-
-        self.refresh_mods(init=True)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         time.sleep(0.1)

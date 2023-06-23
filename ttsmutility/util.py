@@ -1,8 +1,11 @@
 import time
 
 
-def format_time(mtime: float) -> str:
+def format_time(mtime: float, zero_string: str = "") -> str:
     if mtime == 0:
-        return "File not found."
+        if zero_string == "":
+            return "File not found."
+        else:
+            return zero_string
     else:
         return time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime))
