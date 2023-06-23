@@ -22,6 +22,10 @@ class ModListScreen(Screen):
         self.mod_dir = mod_dir
         self.save_dir = save_dir
         self.prev_selected = None
+        self.filter = ""
+        self.prev_filter = ""
+        self.active_rows = {}
+        self.filtered_rows = {}
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -29,7 +33,14 @@ class ModListScreen(Screen):
         yield Footer()
 
         yield Center(Static(id="ml_status"), id="ml_status_center")
-        yield Center(Input(placeholder="Filter", id="ml_filter"), id="ml_filter_center")
+        yield Center(
+            Input(
+                placeholder="Please wait for loading to complete...",
+                disabled=True,
+                id="ml_filter",
+            ),
+            id="ml_filter_center",
+        )
 
         with TabbedContent(initial="workshop"):
             with TabPane("Workshop", id="workshop"):
@@ -123,9 +134,13 @@ class ModListScreen(Screen):
         save_names = save_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
         update(save_names, save_list, self.saves)
 
+        f = self.query_one("#ml_filter")
+        f.placeholder = "Filter"
+        f.disabled = False
+
         self.query_one("#ml_status_center").remove_class("unhide")
 
-    def get_mod_table(self, filename: str) -> DataTable:
+    def get_mod_table(self, filename: str) -> tuple:
         if filename.split("\\")[0] == "Workshop":
             id = "#mod-list"
             mods = self.mods
@@ -149,6 +164,43 @@ class ModListScreen(Screen):
             filename,
             key=filename,
         )
+        self.active_rows[mods[filename]["name"]] = filename
+
+    def update_filtered_rows(self) -> None:
+        # TODO: "name" does not have to be unique, so if there are duplicates the
+        # approach below will only filter the first of those rows.
+        if len(self.filter) > len(self.prev_filter):
+            # Filter is getting longer, so we are going to be removing rows
+            filtered_names = list(
+                filter(
+                    lambda x: self.filter.lower() in x.lower(), self.active_rows.keys()
+                )
+            )
+            removed_rows = list(
+                set(self.active_rows.keys()).symmetric_difference(set(filtered_names))
+            )
+            for name in removed_rows:
+                table, _ = self.get_mod_table(self.active_rows[name])
+                table.remove_row(self.active_rows[name])
+                self.filtered_rows[name] = self.active_rows[name]
+                self.active_rows.pop(name)
+        else:
+            # Filter is getting shorter, so we may be adding rows (if any now match)
+            unfiltered_names = list(
+                filter(
+                    lambda x: self.filter.lower() in x.lower(),
+                    self.filtered_rows.keys(),
+                )
+            )
+            for name in unfiltered_names:
+                filename = self.filtered_rows.pop(name)
+                _, mods = self.get_mod_table(filename)
+                self.add_mod_row(mods[filename])
+                # self.active_rows is updated in the add_mod_row function
+            self.get_active_table()[0].sort(
+                self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
+            )
+        self.prev_filter = self.filter
 
     def update_status(self, message: str, disabled=False):
         status = next(self.query("#ml_status").results(Static))
@@ -233,15 +285,59 @@ class ModListScreen(Screen):
         self.post_message(self.DownloadSelected(*args))
 
     def action_filter(self) -> None:
-        self.query_one("#ml_filter_center").toggle_class("unhide")
+        f = self.query_one("#ml_filter_center")
+        if self.filter == "":
+            f.toggle_class("unhide")
+        if "unhide" in f.classes:
+            self.query_one("#ml_filter").focus()
+        else:
+            self.get_active_table()[0].focus()
+
+    def get_active_table(self) -> tuple:
+        if self.query_one("TabbedContent").active == "workshop":
+            table_id = "#mod-list"
+        else:
+            table_id = "#save-list"
+        return next(self.query(table_id).results(DataTable)), table_id[1:]
 
     def on_key(self, event: Key):
+        if event.key == "escape":
+            fc = self.query_one("#ml_filter_center")
+            # Check if our filter window is open...
+            if "unhide" in fc.classes:
+                f = self.query_one("#ml_filter")
+                if "focus-within" in fc.pseudo_classes:
+                    # If focus in on the filter, exit if filter is empty, otherwise clear it
+                    if f.value == "":
+                        table, _ = self.get_active_table()
+                        table.focus()
+                        fc.toggle_class("unhide")
+                    else:
+                        f.value = ""
+                else:
+                    # Focus is elsewhere, clear the filter value and close the filter window
+                    f.value = ""
+                    fc.toggle_class("unhide")
+
         if event.key == "enter":
-            if self.query_one("TabbedContent").active == "workshop":
-                id = "#mod-list"
-            else:
-                id = "#save-list"
-            table = next(self.query(id).results(DataTable))
+            table, _ = self.get_active_table()
+            f = self.query_one("#ml_filter_center")
+            if "focus-within" in f.pseudo_classes:
+                self.prev_selected = ""
+                table.focus()
+                if self.filter == "":
+                    f.toggle_class("unhide")
+                return
             row_key, _ = table.coordinate_to_cell_key((table.cursor_row, 0))
-            args = self.get_mod_by_row(id[1:], row_key)
-            self.post_message(self.ModSelected(*args))
+            # The row selected event will run after this, normally the first
+            # row selected event will be ignored (so that single mouse clicks
+            # do not jump immediately into the asset screen).  However, when
+            # enter is pressed we want to jump to the next screen.  This can
+            # be done by forcing the prev_selected to be the current row, then
+            # when the row selected even runs it will think this is the second
+            # selection event.
+            self.prev_selected = row_key
+
+    def on_input_changed(self, event: Input.Changed):
+        self.filter = event.input.value
+        self.update_filtered_rows()
