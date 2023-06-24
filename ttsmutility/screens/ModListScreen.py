@@ -98,7 +98,7 @@ class ModListScreen(Screen):
             else:
                 table.add_column("Save Name", width=35, key="name")
             table.add_column("Modified", key="modified")
-            table.add_column("Size (Bytes)", key="size")
+            table.add_column("Size (MB)", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")
             table.add_column("Filename", key="filename")
@@ -158,7 +158,7 @@ class ModListScreen(Screen):
         table.add_row(
             mods[filename]["name"].ljust(35),
             format_time(mods[filename]["mtime"], "Scanning..."),
-            mods[filename]["size"],
+            mods[filename]["size"] / (1024*1024),
             mods[filename]["total_assets"],
             mods[filename]["missing_assets"],
             filename,
@@ -214,7 +214,7 @@ class ModListScreen(Screen):
 
         table.update_cell(row_key, "total_assets", total_assets)
         table.update_cell(row_key, "missing_assets", missing_assets)
-        table.update_cell(row_key, "size", size)
+        table.update_cell(row_key, "size", size / (1014*1024))
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
