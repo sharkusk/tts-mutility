@@ -4,7 +4,7 @@ from textual.message import Message
 from textual.widgets import Footer, Header, DataTable
 from textual.widgets import Static
 
-from ttsmutility.parse import AssetList
+from ttsmutility.parse.AssetList import AssetList
 from ttsmutility.util import format_time
 from ttsmutility.fetch.AssetDownload import download_files
 
@@ -59,7 +59,7 @@ class AssetListScreen(Screen):
             "fsize": False,
         }
         self.last_sort_key = "url"
-        asset_list = AssetList.AssetList(self.mod_dir, self.save_dir)
+        asset_list = AssetList(self.mod_dir, self.save_dir)
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -233,7 +233,11 @@ class AssetListScreen(Screen):
 
         asset_detail = self.assets[event.row_key.value].copy()
         asset_detail["uri"] = pathlib.Path(filepath).as_uri() if filepath != "" else ""
+        asset_detail["mod_name"] = self.mod_name
 
+        asset_list = AssetList(self.mod_dir, self.save_dir)
+        other_mods = asset_list.get_mods_using_asset(asset_detail["url"])
+        asset_detail["other_mods"] = other_mods
         self.post_message(self.AssetSelected(asset_detail))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):

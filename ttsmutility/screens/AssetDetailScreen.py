@@ -8,6 +8,8 @@ from rich.markdown import Markdown
 import time
 
 ASSET_DETAIL_MD = """
+# {mod_name}
+
 ## URL
 {url}
 
@@ -18,14 +20,16 @@ ASSET_DETAIL_MD = """
 {filename}
 
 | Asset Details | |
-|--------------------------:|:------------------|
-| Modified Time             | {mtime}           |
-| File Size                 | {fsize:,}         |
-| JSON Trail                | {trail}           |
-| Content Filename          | {content_name}    |
-| SHA1 Hexdigest            | {sha1}            |
-| Download Error Status     | {dl_status}       |
+|------------------------------:|:------------------|
+| Modified Time                 | {mtime}           |
+| File Size                     | {fsize:,}         |
+| JSON Trail                    | {trail}           |
+| Content Filename              | {content_name}    |
+| SHA1 Hexdigest                | {sha1}            |
+| Download Error Status         | {dl_status}       |
 
+## All TTS Mods Using Asset
+{other_mods}
 """
 
 
@@ -52,4 +56,7 @@ class AssetDetailScreen(ModalScreen):
             self.asset_detail["mtime"] = "File not found"
         else:
             self.asset_detail["mtime"] = time.ctime(self.asset_detail["mtime"])
+        self.asset_detail["other_mods"] = "`\n- `".join(
+            self.asset_detail["other_mods"]
+        ).join(["\n- `", "`\n"])
         static.update(Markdown(ASSET_DETAIL_MD.format(**self.asset_detail)))

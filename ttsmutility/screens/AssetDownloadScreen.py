@@ -42,19 +42,14 @@ class AssetDownloadScreen(ModalScreen):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield Container(
-            Container(
-                ProgressBar(id="dl_progress_all", show_eta=False),
-                ProgressBar(id="dl_progress_cur", show_eta=False),
-                id="dl_progress",
-            ),
-            VerticalScroll(
-                TextLog(id="dl_log", highlight=True, markup=True),
-                id="dl_scroll",
-            ),
-            Footer(),
-            id="dl_screen",
-        )
+        with Container(id="dl_screen"):
+            with Container(id="dl_progress"):
+                yield ProgressBar(id="dl_progress_all", show_eta=False)
+                yield ProgressBar(id="dl_progress_cur", show_eta=False)
+            with VerticalScroll(id="dl_scroll"):
+                yield TextLog(id="dl_log", highlight=True, markup=True)
+            yield Footer()
+
         self.run_worker(self.download_assets)
 
     def action_exit(self) -> None:
@@ -70,6 +65,7 @@ class AssetDownloadScreen(ModalScreen):
                 "mtime": 0,
                 "fsize": 0,
                 "sha1": "",
+                "steam_sha1": self.steam_sha1,
                 "dl_status": error,
                 "content_name": self.cur_content_name,
             }
@@ -95,6 +91,8 @@ class AssetDownloadScreen(ModalScreen):
             )
         elif state == "filepath":
             self.cur_filepath = data
+        elif state == "steam_sha1":
+            self.steam_sha1 = data
         elif state == "asset_dir":
             self.post_message(self.StatusOutput(f"- Asset dir: {data}"))
         elif state == "success":
@@ -108,6 +106,7 @@ class AssetDownloadScreen(ModalScreen):
                     "mtime": mtime,
                     "fsize": filesize,
                     "sha1": "",
+                    "steam_sha1": self.steam_sha1,
                     "dl_status": "",
                     "content_name": self.cur_content_name,
                 }
@@ -124,6 +123,7 @@ class AssetDownloadScreen(ModalScreen):
                     "mtime": mtime,
                     "fsize": filesize,
                     "sha1": "",
+                    "steam_sha1": self.steam_sha1,
                     "dl_status": f"Filesize mismatch (expected {self.cur_filesize})",
                     "content_name": self.cur_content_name,
                 }
@@ -135,8 +135,8 @@ class AssetDownloadScreen(ModalScreen):
                     )
                 )
         else:
-            # Unknown state!
-            sys.exit(1)
+            # Generic status for logging...
+            self.post_message(self.StatusOutput(f"- {state}: {data}"))
 
         if state in ["error", "success"]:
             # Increment overall progress here
@@ -148,6 +148,7 @@ class AssetDownloadScreen(ModalScreen):
             self.cur_filepath = ""
             self.cur_content_name = ""
             self.cur_filesize = 0
+            self.steam_sha1 = ""
 
         if state in ["download_starting"]:
             self.query_one("#dl_progress_cur").update(total=100, progress=0)

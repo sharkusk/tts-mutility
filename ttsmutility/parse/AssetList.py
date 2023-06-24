@@ -200,7 +200,7 @@ class AssetList:
             self.cursor.execute(
                 """
                 UPDATE tts_assets
-                SET asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?
+                SET asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
                 WHERE asset_url=?
                 """,
                 (
@@ -208,6 +208,7 @@ class AssetList:
                     asset["fsize"],
                     asset["dl_status"],
                     asset["content_name"],
+                    asset["steam_sha1"],
                     asset["url"],
                 ),
             )
@@ -220,7 +221,7 @@ class AssetList:
                 """
                 UPDATE tts_assets
                 SET asset_filename=?, asset_path=?, asset_ext=?,
-                    asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?
+                    asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
                 WHERE asset_url=?
                 """,
                 (
@@ -231,6 +232,7 @@ class AssetList:
                     asset["fsize"],
                     asset["dl_status"],
                     asset["content_name"],
+                    asset["steam_sha1"],
                     asset["url"],
                 ),
             )
@@ -409,6 +411,25 @@ class AssetList:
             """,
             (os.path.getmtime(mod_path), mod_filename),
         )
+
+    def get_mods_using_asset(self, url: str) -> list:
+        self.cursor.execute(
+            """
+            SELECT mod_name
+            FROM tts_mods
+            WHERE id IN (
+                SELECT mod_id_fk
+                FROM tts_mod_assets
+                WHERE asset_id_fk = (
+                    SELECT id
+                    FROM tts_assets
+                    WHERE asset_url=?
+                )
+            )
+            """,
+            (url,),
+        )
+        return list(zip(*self.cursor.fetchall()))[0]
 
     def get_mod_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []

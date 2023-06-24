@@ -206,7 +206,7 @@ def download_file(
     timeout,
     content_expected,
     ignore_content_type,
-    default_ext_from_path,
+    default_ext_from_trail,
     state_callback,
 ):
     request = urllib.request.Request(url=fetch_url, headers=headers)
@@ -234,6 +234,21 @@ def download_file(
 
     state_callback("file_size", url, int(length))
 
+    # Possible ways to determine the file extension.
+    # Use them in this order...
+    extensions = {
+        "content-disposition": "",
+        "mime": "",
+        "filepath": "",
+        "url": "",
+        "trail": "",
+    }
+
+    extensions["trail"] = default_ext_from_trail
+
+    if filepath is not None:
+        extensions["filepath"] = os.path.splitext(filepath)[1]
+
     # Some content_type arrives as: 'text/plain; charset=utf-8', we only care about
     # the first part...
     content_type = response.getheader("Content-Type", "").split(";")[0].strip()
@@ -242,64 +257,61 @@ def download_file(
         # Google drive sends html error page when file is removed/missing
         return f"Wrong context type ({content_type})"
 
-    filename_ext = ""
-    ext = ""
+    if content_type in DEFAULT_EXT:
+        extensions["mime"] = DEFAULT_EXT[content_type]
 
     # Format of content disposition looks like this:
     # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3"; filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3'
     content_disposition = response.getheader("Content-Disposition", "").strip()
     offset_std = content_disposition.find('filename="')
     offset_utf = content_disposition.find("filename*=UTF-8")
-    name = ""
+    content_disp_name = ""
     if offset_std >= 0:
-        name = content_disposition[offset_std:].split('"')[1]
-        _, filename_ext = os.path.splitext(name)
+        content_disp_name = content_disposition[offset_std:].split('"')[1]
+        extensions["content-disposition"] = os.path.splitext(content_disp_name)[1]
     elif offset_utf >= 0:
-        name = content_disposition[offset_utf:].split("=UTF-8")[1]
-        _, filename_ext = os.path.splitext(name.split(";")[0])
+        content_disp_name = content_disposition[offset_utf:].split("=UTF-8")[1]
+        extensions["content-disposition"] = os.path.splitext(
+            content_disp_name.split(";")[0]
+        )
     else:
         # Use the url to extract the extension, ignoring any trailing ? url parameters
         offset = url.rfind("?")
         if offset > 0:
-            filename_ext = os.path.splitext(url[0 : url.rfind("?")])[1]
+            extensions["url"] = os.path.splitext(url[0 : url.rfind("?")])[1]
         else:
-            filename_ext = os.path.splitext(url)[1]
+            extensions["url"] = os.path.splitext(url)[1]
 
-    if name != "":
+    if content_disp_name != "":
         if "steamusercontent" in url:
             if url[-1] == "/":
                 hexdigest = os.path.splitext(url)[0][-41:-1]
             else:
                 hexdigest = os.path.splitext(url)[0][-40:]
-            name = name.split(hexdigest + "_")[1]
-        state_callback("content_name", url, name)
+            content_disp_name = content_disp_name.split(hexdigest + "_")[1]
+            state_callback("steam_sha1", url, hexdigest)
+        state_callback("content_name", url, content_disp_name)
 
-    if filename_ext == "":
-        if content_type in DEFAULT_EXT:
-            filename_ext = DEFAULT_EXT[content_type]
-        else:
-            filename_ext = default_ext_from_path
+    ext = ""
+    for key in extensions.keys():
+        if extensions[key] != "":
+            ext = extensions[key]
+            break
 
     # TTS saves some file extensions as upper case
-    filename_ext = fix_ext_case(filename_ext)
+    ext = fix_ext_case(ext)
+    state_callback("ext", url, f"`{ext}` from `{key}`.")
 
     if filepath is None:
-        ext = filename_ext
         filepath = get_fs_path_from_extension(url, ext)
-
         if filepath is None:
             return f"Cannot detect filepath ({ext})"
-    else:
-        # Check if we know the extension of our filename.  If not, use
-        # the data in the response to determine the appropriate extension.
-        ext = os.path.splitext(filepath)[1]
-        if ext == "":
-            ext = filename_ext
-            filepath = filepath + ext
+
+    filepath = os.path.splitext(filepath)[0] + ext
+    state_callback("filepath", url, filepath)
 
     asset_dir = os.path.split(os.path.split(filepath)[0])[1]
-    state_callback("filepath", url, filepath)
-    state_callback("asset_dir", url, asset_dir)
+    state_callback("asset_dir", url, f"Saving to `Mods/{asset_dir}`")
 
     try:
         with open(filepath, "wb") as outfile:
