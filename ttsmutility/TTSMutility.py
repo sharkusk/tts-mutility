@@ -1,4 +1,5 @@
 import time
+from importlib.metadata import version
 
 from textual.app import App, ComposeResult
 from textual.widgets import Header
@@ -22,6 +23,7 @@ SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator"
 
 class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
+    SUB_TITLE = version("tts-backup")
 
     class InitComplete(Message):
         def __init__(self) -> None:
