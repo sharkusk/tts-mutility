@@ -1,5 +1,5 @@
 import time
-from importlib.metadata import version
+from importlib.metadata import version, PackageNotFoundError
 
 from textual.app import App, ComposeResult
 from textual.widgets import Header
@@ -23,7 +23,13 @@ SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator"
 
 class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
-    SUB_TITLE = version("tts-backup")
+
+    try:
+        __version__ = version("ttsmutility")
+        SUB_TITLE = __version__
+    except PackageNotFoundError:
+        # package is not installed
+        pass
 
     class InitComplete(Message):
         def __init__(self) -> None:
