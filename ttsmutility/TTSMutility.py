@@ -1,4 +1,9 @@
 import time
+import platform
+import os
+import sys
+from pathlib import Path
+
 from importlib.metadata import version, PackageNotFoundError
 
 from textual.app import App, ComposeResult
@@ -17,9 +22,33 @@ from ttsmutility.parse import AssetList
 
 from ttsmutility import FIRST_PASS
 
-MOD_DIR = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Tabletop Simulator\\Tabletop Simulator_Data\\Mods"
-SAVE_DIR = "C:\\Users\\shark\\OneDrive\\Documents\\My Games\\Tabletop Simulator"
+gamedata_map = {
+    "Windows": "~/Documents/My Games/Tabletop Simulator",
+    "Darwin": "~/Library/Tabletop Simulator",  # MacOS
+    "Linux": "~/.local/share/Tabletop Simulator",
+}
+try:
+    active_platform = platform.system()
+    GAMEDATA_DEFAULT = os.path.expanduser(gamedata_map[active_platform])
+except KeyError:
+    GAMEDATA_DEFAULT = os.path.expanduser(gamedata_map["Windows"])
 
+# If the mod location is somewhere other than the default location we can
+# provide the path to the new location through a simple one-line test file
+mod_link_path = Path(GAMEDATA_DEFAULT, 'mod_location.txt')
+if not os.path.exists(Path(GAMEDATA_DEFAULT, 'Mods') or os.path.exists(mod_link_path)):
+    print(f"Reading default gamedata directory information from: {mod_link_path}")
+    if os.path.exists(mod_link_path):
+        with open(Path(GAMEDATA_DEFAULT, 'mod_location.txt')) as f:
+            GAMEDATA_DEFAULT = f.readline().strip()
+        print(f"Default gamedata directory = {GAMEDATA_DEFAULT}")
+    else:
+        print(f"Warning: default gamedata directory not detected, must specify at command line!")
+        sys.exit(1)
+
+MOD_DIR = os.path.join(GAMEDATA_DEFAULT, "Mods")
+SAVE_DIR = GAMEDATA_DEFAULT
+        
 
 class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
@@ -62,9 +91,11 @@ class TTSMutility(App):
         self.post_message(self.InitComplete())
 
     def full_initialization(self) -> None:
+        dirs = [MOD_DIR, SAVE_DIR]
+
         # Wait for DB to be created on first pass
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(MOD_DIR)
+        mod_list =  ModList.ModList(MOD_DIR)
         mods = mod_list.get_mods()
         self.post_message(self.InitProcessing(f"Loading Save Mods"))
         save_list = ModList.ModList(SAVE_DIR)

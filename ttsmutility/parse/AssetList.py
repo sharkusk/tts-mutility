@@ -68,7 +68,7 @@ class AssetList:
                         # It appears that AudioLibrary items are mappings of form
                         # “Item1” → URL, “Item2” → audio title.
                         url = elem["Item1"]
-                        record = recodeURL(url)
+                        recode = recodeURL(url)
                         if recode in done:
                             continue
                         done.add(recode)
@@ -145,24 +145,25 @@ class AssetList:
         if filename != "":
             filename, _ = os.path.splitext(filename)
 
-        self.cursor.execute(
-            """
-            SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime, asset_size
-            FROM tts_assets
-            WHERE asset_filename=? and asset_path=?
-            """,
-            (filename, path),
-        )
-        result = self.cursor.fetchone()
-        if result is not None:
-            return {
-                "sha1": result[0],
-                "steam_sha1": result[1],
-                "sha1_mtime": result[2],
-                "mtime": result[3],
-                "fsize": result[4],
-            }
-        return None
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime, asset_size
+                FROM tts_assets
+                WHERE asset_filename=? and asset_path=?
+                """,
+                (filename, path),
+            )
+            result = cursor.fetchone()
+            if result is not None:
+                return {
+                    "sha1": result[0],
+                    "steam_sha1": result[1],
+                    "sha1_mtime": result[2],
+                    "mtime": result[3],
+                    "fsize": result[4],
+                }
+            return None
 
     def sha1_scan_done(
         self, filepath: str, sha1: str, steam_sha1: str, sha1_mtime: float
@@ -170,25 +171,27 @@ class AssetList:
         path, filename = os.path.split(filepath)
         if filename != "":
             filename, _ = os.path.splitext(filename)
-        self.cursor.execute(
-            """
-            UPDATE tts_assets
-            SET asset_sha1=?, asset_steam_sha1=?, asset_sha1_mtime=?
-            WHERE asset_filename=? and asset_path=?
-            """,
-            (sha1, steam_sha1, sha1_mtime, filename, path),
-        )
+        with sqlite3.connect(DB_NAME) as db:
+            db.execute(
+                """
+                UPDATE tts_assets
+                SET asset_sha1=?, asset_steam_sha1=?, asset_sha1_mtime=?
+                WHERE asset_filename=? and asset_path=?
+                """,
+                (sha1, steam_sha1, sha1_mtime, filename, path),
+            )
 
     def get_sha1_mismatches(self):
-        self.cursor.execute(
-            """
-            SELECT asset_url
-            FROM tts_assets
-            WHERE tts_assets.asset_steam_sha1 != ""
-                AND tts_assets.asset_sha1 != tts_assets.asset_steam_sha1
-            """,
-        )
-        result = self.cursor.fetchall()
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT asset_url
+                FROM tts_assets
+                WHERE tts_assets.asset_steam_sha1 != ""
+                    AND tts_assets.asset_sha1 != tts_assets.asset_steam_sha1
+                """,
+            )
+            result = cursor.fetchall()
         if len(result) > 0:
             return list(zip(*result))[0]
         else:
@@ -196,81 +199,82 @@ class AssetList:
 
     def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
-        if asset["filename"] == "":
-            self.cursor.execute(
-                """
-                UPDATE tts_assets
-                SET asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
-                WHERE asset_url=?
-                """,
-                (
-                    asset["mtime"],
-                    asset["fsize"],
-                    asset["dl_status"],
-                    asset["content_name"],
-                    asset["steam_sha1"],
-                    asset["url"],
-                ),
-            )
-        else:
-            path, filename = os.path.split(asset["filename"])
-            if filename != "":
-                filename, ext = os.path.splitext(filename)
-
-            self.cursor.execute(
-                """
-                UPDATE tts_assets
-                SET asset_filename=?, asset_path=?, asset_ext=?,
-                    asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
-                WHERE asset_url=?
-                """,
-                (
-                    filename,
-                    path,
-                    ext,
-                    asset["mtime"],
-                    asset["fsize"],
-                    asset["dl_status"],
-                    asset["content_name"],
-                    asset["steam_sha1"],
-                    asset["url"],
-                ),
-            )
-
-        # dl_status is empty if the download was succesfull
-        if asset["dl_status"] == "":
-            # Set mod asset counts containing this asset to -1 to represent an update to the system
-            self.cursor.execute(
-                """
-                UPDATE tts_mods
-                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
-                WHERE id IN (
-                    SELECT mod_id_fk
-                    FROM tts_mod_assets
-                    WHERE asset_id_fk IN (
-                        SELECT id FROM tts_assets
-                        WHERE asset_url=?
-                    )
+        with sqlite3.connect(DB_NAME) as db:
+            if asset["filename"] == "":
+                db.execute(
+                    """
+                    UPDATE tts_assets
+                    SET asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
+                    WHERE asset_url=?
+                    """,
+                    (
+                        asset["mtime"],
+                        asset["fsize"],
+                        asset["dl_status"],
+                        asset["content_name"],
+                        asset["steam_sha1"],
+                        asset["url"],
+                    ),
                 )
-                """,
-                (asset["url"],),
-            )
+            else:
+                path, filename = os.path.split(asset["filename"])
+                if filename != "":
+                    filename, ext = os.path.splitext(filename)
+
+                db.execute(
+                    """
+                    UPDATE tts_assets
+                    SET asset_filename=?, asset_path=?, asset_ext=?,
+                        asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
+                    WHERE asset_url=?
+                    """,
+                    (
+                        filename,
+                        path,
+                        ext,
+                        asset["mtime"],
+                        asset["fsize"],
+                        asset["dl_status"],
+                        asset["content_name"],
+                        asset["steam_sha1"],
+                        asset["url"],
+                    ),
+                )
+
+            # dl_status is empty if the download was succesfull
+            if asset["dl_status"] == "":
+                # Set mod asset counts containing this asset to -1 to represent an update to the system
+                db.execute(
+                    """
+                    UPDATE tts_mods
+                    SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                    WHERE id IN (
+                        SELECT mod_id_fk
+                        FROM tts_mod_assets
+                        WHERE asset_id_fk IN (
+                            SELECT id FROM tts_assets
+                            WHERE asset_url=?
+                        )
+                    )
+                    """,
+                    (asset["url"],),
+                )
 
     def get_missing_assets(self, mod_filename: str) -> list:
-        assets = []
-        self.cursor.execute(
-            """
-            SELECT asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail
-            FROM tts_assets
-                INNER JOIN tts_mod_assets
-                    ON tts_mod_assets.asset_id_fk=tts_assets.id
-                INNER JOIN tts_mods
-                    ON tts_mod_assets.mod_id_fk=tts_mods.id
-            WHERE mod_filename=?
-            """,
-            (mod_filename,),
-        )
-        results = self.cursor.fetchall()
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            results = cursor.fetchall()
         urls = []
         for result in results:
             skip = True
@@ -291,67 +295,68 @@ class AssetList:
     def scan_mod_dir(self) -> list:
         assets = []
         scan_time = time.time()
-        self.cursor.execute(
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT app_last_scan_time
+                FROM tts_app
+                WHERE id=1
             """
-            SELECT app_last_scan_time
-            FROM tts_app
-            WHERE id=1
-        """
-        )
-        result = self.cursor.fetchone()
-        # This should not fail as we init to zero as part of DB init
-        prev_scan_time = result[0]
+            )
+            result = cursor.fetchone()
+            # This should not fail as we init to zero as part of DB init
+            prev_scan_time = result[0]
 
-        ignore_paths = ["Mods", "Workshop"]
-        ignore_files = ["sha1-verified"]
+            ignore_paths = ["Mods", "Workshop"]
+            ignore_files = ["sha1-verified"]
 
-        for root, _, files in os.walk(self.mod_dir, topdown=True):
-            path = pathlib.PurePath(root).name
+            for root, _, files in os.walk(self.mod_dir, topdown=True):
+                path = pathlib.PurePath(root).name
 
-            if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
-                continue
-
-            for filename in files:
-                if filename in ignore_files:
+                if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
                     continue
-                mtime = os.path.getmtime(os.path.join(root, filename))
-                if mtime < prev_scan_time:
-                    continue
-                size = os.path.getsize(os.path.join(root, filename))
-                filename, ext = os.path.splitext(filename)
-                if ext.upper() in FILES_TO_IGNORE:
-                    continue
-                assets.append((path, filename, ext, mtime, size, 1))
-        self.cursor.executemany(
-            """
-            INSERT INTO tts_assets
-                (asset_path, asset_filename, asset_ext, asset_mtime, asset_size, asset_new)
-            VALUES
-                (?, ?, ?, ?, ?, ?)
-            ON CONFLICT (asset_filename)
-            DO UPDATE SET
-                asset_path=excluded.asset_path,
-                asset_ext=excluded.asset_ext,
-                asset_mtime=excluded.asset_mtime,
-                asset_size=excluded.asset_size,
-                asset_new=excluded.asset_new;
+
+                for filename in files:
+                    if filename in ignore_files:
+                        continue
+                    mtime = os.path.getmtime(os.path.join(root, filename))
+                    if mtime < prev_scan_time:
+                        continue
+                    size = os.path.getsize(os.path.join(root, filename))
+                    filename, ext = os.path.splitext(filename)
+                    if ext.upper() in FILES_TO_IGNORE:
+                        continue
+                    assets.append((path, filename, ext, mtime, size, 1))
+            db.executemany(
+                """
+                INSERT INTO tts_assets
+                    (asset_path, asset_filename, asset_ext, asset_mtime, asset_size, asset_new)
+                VALUES
+                    (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (asset_filename)
+                DO UPDATE SET
+                    asset_path=excluded.asset_path,
+                    asset_ext=excluded.asset_ext,
+                    asset_mtime=excluded.asset_mtime,
+                    asset_size=excluded.asset_size,
+                    asset_new=excluded.asset_new;
+                """,
+                assets,
+            )
+
+            db.execute(
+                """
+                UPDATE tts_app
+                SET app_last_scan_time=?
+                WHERE id=1
             """,
-            assets,
-        )
+                (scan_time,),
+            )
 
-        self.cursor.execute(
-            """
-            UPDATE tts_app
-            SET app_last_scan_time=?
-            WHERE id=1
-        """,
-            (scan_time,),
-        )
-
-        self.conn.commit()
+            db.commit()
 
     def update_mod_assets(self, mod_filename: str) -> None:
-        if mod_filename.split("\\")[0] == "Workshop":
+        if mod_filename.find("Workshop") == 0:
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
             mod_path = os.path.join(self.save_dir, mod_filename)
@@ -360,81 +365,86 @@ class AssetList:
             (recodeURL(url), url, trail) for trail, url in self.urls_from_save(mod_path)
         ]
 
-        if len(mod_assets) > 0:
-            filenames, urls, trails = zip(*mod_assets)
+        with sqlite3.connect(DB_NAME) as db:
+            if len(mod_assets) > 0:
+                filenames, urls, trails = zip(*mod_assets)
 
-            # Combine the URLs/filenames from the mod with what is already in the DB
-            # (from filesystem scan and possible previous mod scan)
+                # Combine the URLs/filenames from the mod with what is already in the DB
+                # (from filesystem scan and possible previous mod scan)
 
-            self.cursor.executemany(
+                db.executemany(
+                    """
+                    INSERT INTO tts_assets
+                        (asset_url, asset_filename)
+                    VALUES
+                        (?, ?)
+                    ON CONFLICT (asset_filename)
+                    DO UPDATE SET
+                        asset_url=excluded.asset_url;
+                    """,
+                    tuple(zip(urls, filenames)),
+                )
+                db.executemany(
+                    """
+                    INSERT INTO tts_assets
+                        (asset_url, asset_filename)
+                    VALUES
+                        (?, ?)
+                    ON CONFLICT (asset_url)
+                    DO UPDATE SET
+                        asset_filename=excluded.asset_filename;
+                    """,
+                    tuple(zip(urls, filenames)),
+                )
+
+                trailstrings = [trail_to_trailstring(trail) for trail in trails]
+                db.executemany(
+                    """
+                    INSERT OR IGNORE INTO tts_mod_assets
+                        (asset_id_fk, mod_id_fk, mod_asset_trail)
+                    VALUES (
+                        (SELECT tts_assets.id FROM tts_assets WHERE asset_filename=?),
+                        (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
+                        ?)
+                    """,
+                    tuple(zip(filenames, [mod_filename] * len(filenames), trailstrings)),
+                )
+
+            db.execute(
                 """
-                INSERT INTO tts_assets
-                    (asset_url, asset_filename)
-                VALUES
-                    (?, ?)
-                ON CONFLICT (asset_filename)
-                DO UPDATE SET
-                    asset_url=excluded.asset_url;
+                UPDATE tts_mods
+                SET mod_mtime=?, mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                WHERE mod_filename=?
                 """,
-                tuple(zip(urls, filenames)),
+                (os.path.getmtime(mod_path), mod_filename),
             )
-            self.cursor.executemany(
-                """
-                INSERT INTO tts_assets
-                    (asset_url, asset_filename)
-                VALUES
-                    (?, ?)
-                ON CONFLICT (asset_url)
-                DO UPDATE SET
-                    asset_filename=excluded.asset_filename;
-                """,
-                tuple(zip(urls, filenames)),
-            )
-
-            trailstrings = [trail_to_trailstring(trail) for trail in trails]
-            self.cursor.executemany(
-                """
-                INSERT OR IGNORE INTO tts_mod_assets
-                    (asset_id_fk, mod_id_fk, mod_asset_trail)
-                VALUES (
-                    (SELECT tts_assets.id FROM tts_assets WHERE asset_filename=?),
-                    (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
-                    ?)
-                """,
-                tuple(zip(filenames, [mod_filename] * len(filenames), trailstrings)),
-            )
-
-        self.cursor.execute(
-            """
-            UPDATE tts_mods
-            SET mod_mtime=?, mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
-            WHERE mod_filename=?
-            """,
-            (os.path.getmtime(mod_path), mod_filename),
-        )
+            db.commit()
 
     def get_mods_using_asset(self, url: str) -> list:
-        self.cursor.execute(
-            """
-            SELECT mod_name
-            FROM tts_mods
-            WHERE id IN (
-                SELECT mod_id_fk
-                FROM tts_mod_assets
-                WHERE asset_id_fk = (
-                    SELECT id
-                    FROM tts_assets
-                    WHERE asset_url=?
+        results = []
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT mod_name
+                FROM tts_mods
+                WHERE id IN (
+                    SELECT mod_id_fk
+                    FROM tts_mod_assets
+                    WHERE asset_id_fk = (
+                        SELECT id
+                        FROM tts_assets
+                        WHERE asset_url=?
+                    )
                 )
+                """,
+                (url,),
             )
-            """,
-            (url,),
-        )
-        return list(zip(*self.cursor.fetchall()))[0]
+            results = list(zip(*cursor.fetchall()))[0]
+        return results
 
     def get_mod_assets(self, mod_filename: str, parse_only=False) -> list:
         assets = []
-        if mod_filename.split("\\")[0] == "Workshop":
+        if mod_filename.find("Workshop") == 0:
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
             mod_path = os.path.join(self.save_dir, mod_filename)
@@ -443,68 +453,66 @@ class AssetList:
         prev_mod_mtime = 0
         mod_mtime = 0
 
-        # Check if we have this mod in our DB
-        self.cursor.execute(
-            """
-            SELECT mod_mtime
-            FROM tts_mods
-            WHERE mod_filename=?
-            """,
-            (mod_filename,),
-        )
-        result = self.cursor.fetchone()
-        refresh_mod = False
-        if result == None:
-            refresh_mod = True
-        else:
-            prev_mod_mtime = result[0]
-            mod_mtime = os.path.getmtime(mod_path)
-            if mod_mtime > prev_mod_mtime:
-                refresh_mod = True
-
-        if refresh_mod:
-            self.update_mod_assets(mod_filename)
-            modified_db = True
-
-        if not parse_only:
-            old_dir = os.getcwd()
-            os.chdir(self.mod_dir)
-
-            self.cursor.execute(
-                (
-                    """
-                SELECT asset_url, asset_path, asset_filename, asset_ext, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status, asset_size, asset_content_name
-                FROM tts_assets
-                    INNER JOIN tts_mod_assets
-                        ON tts_mod_assets.asset_id_fk=tts_assets.id
-                    INNER JOIN tts_mods
-                        ON tts_mod_assets.mod_id_fk=tts_mods.id
-                WHERE mod_filename=?
+        with sqlite3.connect(DB_NAME) as db:
+            # Check if we have this mod in our DB
+            cursor = db.execute(
                 """
-                ),
+                SELECT mod_mtime
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
                 (mod_filename,),
             )
-            results = self.cursor.fetchall()
-            for result in results:
-                path = result[1]
-                filename = result[2]
-                ext = result[3]
+            result = cursor.fetchone()
+            refresh_mod = False
+            if result == None:
+                refresh_mod = True
+            else:
+                prev_mod_mtime = result[0]
+                mod_mtime = os.path.getmtime(mod_path)
+                if mod_mtime > prev_mod_mtime:
+                    refresh_mod = True
 
-                asset_filename = os.path.join(path, filename) + ext
-                assets.append(
-                    {
-                        "url": result[0],
-                        "filename": asset_filename,
-                        "mtime": result[4],
-                        "sha1": result[5],
-                        "trail": result[6],
-                        "dl_status": result[7],
-                        "fsize": result[8],
-                        "content_name": result[9],
-                    }
+            if refresh_mod:
+                self.update_mod_assets(mod_filename)
+
+            if not parse_only:
+                old_dir = os.getcwd()
+                os.chdir(self.mod_dir)
+
+                cursor = db.execute(
+                    (
+                        """
+                    SELECT asset_url, asset_path, asset_filename, asset_ext, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status, asset_size, asset_content_name
+                    FROM tts_assets
+                        INNER JOIN tts_mod_assets
+                            ON tts_mod_assets.asset_id_fk=tts_assets.id
+                        INNER JOIN tts_mods
+                            ON tts_mod_assets.mod_id_fk=tts_mods.id
+                    WHERE mod_filename=?
+                    """
+                    ),
+                    (mod_filename,),
                 )
-            os.chdir(old_dir)
+                results = cursor.fetchall()
+                for result in results:
+                    path = result[1]
+                    filename = result[2]
+                    ext = result[3]
 
-        if modified_db:
-            self.conn.commit()
+                    asset_filename = os.path.join(path, filename) + ext
+                    assets.append(
+                        {
+                            "url": result[0],
+                            "filename": asset_filename,
+                            "mtime": result[4],
+                            "sha1": result[5],
+                            "trail": result[6],
+                            "dl_status": result[7],
+                            "fsize": result[8],
+                            "content_name": result[9],
+                        }
+                    )
+                os.chdir(old_dir)
+
         return assets

@@ -141,7 +141,7 @@ class ModListScreen(Screen):
         self.query_one("#ml_status_center").remove_class("unhide")
 
     def get_mod_table(self, filename: str) -> tuple:
-        if filename.split("\\")[0] == "Workshop":
+        if filename.find("Workshop") == 0:
             id = "#ml_workshop_dt"
             mods = self.mods
         else:
