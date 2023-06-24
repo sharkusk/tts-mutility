@@ -3,7 +3,7 @@ import sqlite3
 from contextlib import closing
 
 
-DB_NAME = "ttsmutility.sqlite"
+DB_NAME = os.path.abspath("ttsmutility.sqlite")
 FIRST_PASS = False
 
 if os.path.exists(DB_NAME):
