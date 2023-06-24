@@ -311,7 +311,7 @@ def download_file(
     state_callback("filepath", url, filepath)
 
     asset_dir = os.path.split(os.path.split(filepath)[0])[1]
-    state_callback("asset_dir", url, f"Saving to `Mods/{asset_dir}`")
+    state_callback("asset_dir", url, f"Mods/{asset_dir}")
 
     try:
         with open(filepath, "wb") as outfile:
