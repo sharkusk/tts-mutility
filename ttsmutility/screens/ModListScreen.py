@@ -34,21 +34,19 @@ class ModListScreen(Screen):
         yield Header()
         yield Footer()
 
-        yield Center(Static(id="ml_status"), id="ml_status_center")
-        yield Center(
-            Input(
-                placeholder="Please wait for loading to complete...",
+        with Center(id="ml_status_center"):
+            yield Static(id="ml_status")
+        with Center(id="ml_filter_center"):
+            yield Input(
+                placeholder="Loading. Please wait...",
                 disabled=True,
                 id="ml_filter",
-            ),
-            id="ml_filter_center",
-        )
-
-        with TabbedContent(initial="workshop"):
-            with TabPane("Workshop", id="workshop"):
-                yield DataTable(id="mod-list")
-            with TabPane("Saves", id="saves"):
-                yield DataTable(id="save-list")
+            )
+        with TabbedContent(initial="ml_pane_workshop"):
+            with TabPane("Workshop", id="ml_pane_workshop"):
+                yield DataTable(id="ml_workshop_dt")
+            with TabPane("Saves", id="ml_pane_saves"):
+                yield DataTable(id="ml_saves_dt")
 
     class ModSelected(Message):
         def __init__(
@@ -91,11 +89,11 @@ class ModListScreen(Screen):
             "filename": False,
         }
 
-        for id in "#mod-list", "#save-list":
+        for id in "#ml_workshop_dt", "#ml_saves_dt":
             table = next(self.query(id).results(DataTable))
 
             # TODO: Generate column names and keys in outside module
-            if id == "#mod-list":
+            if id == "#ml_workshop_dt":
                 table.add_column("Mod Name", width=35, key="name")
             else:
                 table.add_column("Save Name", width=35, key="name")
@@ -144,10 +142,10 @@ class ModListScreen(Screen):
 
     def get_mod_table(self, filename: str) -> tuple:
         if filename.split("\\")[0] == "Workshop":
-            id = "#mod-list"
+            id = "#ml_workshop_dt"
             mods = self.mods
         else:
-            id = "#save-list"
+            id = "#ml_saves_dt"
             mods = self.saves
 
         table = next(self.query(id).results(DataTable))
@@ -224,10 +222,10 @@ class ModListScreen(Screen):
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        if event.tab.id == "workshop":
-            id = "#mod-list"
+        if event.tab.id == "ml_pane_workshop":
+            id = "#ml_workshop_dt"
         else:
-            id = "#save-list"
+            id = "#ml_saves_dt"
         table = next(self.query(id).results(DataTable))
         table.focus()
         table.sort("name", reverse=self.sort_order["name"])
@@ -235,7 +233,7 @@ class ModListScreen(Screen):
         self.log(self.css_tree)
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
-        if id == "mod-list":
+        if id == "ml_workshop_dt":
             mod_filename = self.mods[row_key.value]["filename"]
             mod_name = self.mods[row_key.value]["name"]
         else:
@@ -273,10 +271,10 @@ class ModListScreen(Screen):
 
     def action_download_assets(self) -> None:
         tabbed = self.query_one(TabbedContent)
-        if tabbed.active == "workshop":
-            id = "mod-list"
+        if tabbed.active == "ml_pane_workshop":
+            id = "ml_workshop_dt"
         else:
-            id = "save-list"
+            id = "ml_saves_dt"
         table = next(self.query("#" + id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         args = self.get_mod_by_row(id, row_key)
@@ -292,10 +290,10 @@ class ModListScreen(Screen):
             self.get_active_table()[0].focus()
 
     def get_active_table(self) -> tuple:
-        if self.query_one("TabbedContent").active == "workshop":
-            table_id = "#mod-list"
+        if self.query_one("TabbedContent").active == "ml_pane_workshop":
+            table_id = "#ml_workshop_dt"
         else:
-            table_id = "#save-list"
+            table_id = "#ml_saves_dt"
         return next(self.query(table_id).results(DataTable)), table_id[1:]
 
     def on_key(self, event: Key):

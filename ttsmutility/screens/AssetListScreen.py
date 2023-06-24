@@ -44,7 +44,7 @@ class AssetListScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static(id="mod_name")
+        yield Static(id="al_modname")
         yield DataTable(id="asset-list")
         yield Footer()
 
@@ -67,7 +67,7 @@ class AssetListScreen(Screen):
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order["url"])
 
-        static = next(self.query("#mod_name").results(Static))
+        static = next(self.query("#al_modname").results(Static))
         static.update(self.mod_name)
 
         table.clear(columns=True)

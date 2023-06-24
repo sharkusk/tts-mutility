@@ -30,12 +30,10 @@ class Sha1ScanScreen(ModalScreen):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield Container(
-            ProgressBar(id="sha1progress"),
-            Static(id="sha1output"),
-            Footer(),
-            id="sha1screen",
-        )
+        with Container(id="sha1_screen"):
+            yield ProgressBar(id="sha1_progress")
+            yield Static(id="sha1_status")
+            yield Footer()
         self.run_worker(self.scan_sha1s)
 
     def action_exit(self) -> None:
@@ -98,8 +96,8 @@ class Sha1ScanScreen(ModalScreen):
         self.post_message(self.ScanComplete())
 
     def on_sha1scan_screen_status_output(self, event: StatusOutput):
-        self.query_one("#sha1output").update(event.status)
+        self.query_one("#sha1_status").update(event.status)
 
     def on_sha1scan_screen_scan_complete(self):
-        self.query_one("#sha1screen").toggle_class("unhide")
+        self.query_one("#sha1_screen").toggle_class("unhide")
         self.scan_complete = True

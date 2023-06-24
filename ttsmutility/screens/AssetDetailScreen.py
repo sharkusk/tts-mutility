@@ -45,13 +45,13 @@ class AssetDetailScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        yield Static(id="asset_detail")
+        yield Static(id="ad_screen")
 
     def action_toggle_fullscreen(self) -> None:
-        self.query_one("#asset_detail").toggle_class("fs")
+        self.query_one("#ad_screen").toggle_class("fs")
 
     def on_mount(self) -> None:
-        static = next(self.query("#asset_detail").results(Static))
+        static = next(self.query("#ad_screen").results(Static))
         if self.asset_detail["mtime"] == 0:
             self.asset_detail["mtime"] = "File not found"
         else:

@@ -43,7 +43,7 @@ DataTable {
     height: 1fr;
 }
 
-#sha1screen {
+#sha1_screen {
     height: 10;
     width: 90%;
     padding: 1;
@@ -51,16 +51,16 @@ DataTable {
     border: round blue 75%
 }
 
-#sha1output {
+#sha1_status {
     padding: 1;
     text-align: center;
 }
 
-#sha1screen Footer {
+#sha1_screen Footer {
     visibility: hidden;
 }
 
-#sha1screen.unhide Footer {
+#sha1_screen.unhide Footer {
     visibility: visible;
 }
 
@@ -138,7 +138,7 @@ DataTable {
     visibility: visible;
 }
 
-#asset_detail {
+#ad_screen {
     border: round blue 75%;
     align: center middle;
     width: 1fr;
@@ -146,7 +146,7 @@ DataTable {
     padding: 1;
 }
 
-#asset_detail.fs {
+#ad_screen.fs {
     background: $panel;
     padding: 0;
     border: none;
