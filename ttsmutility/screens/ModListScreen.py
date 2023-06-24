@@ -125,6 +125,7 @@ class ModListScreen(Screen):
 
         self.mods = {}
         mod_list = ModList.ModList(self.mod_dir)
+        mod_list.get_mods_needing_asset_refresh()  # Run once to capture new files added to the fs
         mod_names = mod_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
         update(mod_names, mod_list, self.mods)
 

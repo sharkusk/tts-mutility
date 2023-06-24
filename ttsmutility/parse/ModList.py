@@ -43,9 +43,50 @@ class ModList:
         result = self.cursor.fetchall()
         # Results are returned as a list of tuples, unzip to a list of mod_filename's
         if len(result) > 0:
-            return list(zip(*result))[0]
+            part1 = list(list(zip(*result))[0])
         else:
-            return []
+            part1 = []
+
+        self.cursor.execute(
+            """
+            SELECT mod_filename
+            FROM tts_mods
+            WHERE id IN (
+                SELECT mod_id_fk
+                FROM tts_mod_assets
+                WHERE asset_id_fk IN (
+                    SELECT id
+                    FROM tts_assets
+                    WHERE asset_new=1
+                )
+            )
+            """,
+        )
+        result = self.cursor.fetchall()
+        if len(result) > 0:
+            part2 = list(list(zip(*result))[0])
+        else:
+            part2 = []
+
+        self.cursor.executemany(
+            """
+            UPDATE tts_mods
+            SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+            WHERE mod_filename=?
+            """,
+            result,
+        )
+
+        combined = list(set(part1 + part2))
+
+        self.cursor.execute(
+            """
+            UPDATE tts_assets
+            SET asset_new=0
+            """,
+        )
+
+        return combined
 
     def update_mod_counts(self, mod_filename, forced=False):
         need_total = False

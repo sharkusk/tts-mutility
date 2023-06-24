@@ -321,19 +321,20 @@ class AssetList:
                 filename, ext = os.path.splitext(filename)
                 if ext.upper() in FILES_TO_IGNORE:
                     continue
-                assets.append((path, filename, ext, mtime, size))
+                assets.append((path, filename, ext, mtime, size, 1))
         self.cursor.executemany(
             """
             INSERT INTO tts_assets
-                (asset_path, asset_filename, asset_ext, asset_mtime, asset_size)
+                (asset_path, asset_filename, asset_ext, asset_mtime, asset_size, asset_new)
             VALUES
-                (?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?)
             ON CONFLICT (asset_filename)
             DO UPDATE SET
+                asset_path=excluded.asset_path,
                 asset_ext=excluded.asset_ext,
                 asset_mtime=excluded.asset_mtime,
                 asset_size=excluded.asset_size,
-                asset_path=excluded.asset_path;
+                asset_new=excluded.asset_new;
             """,
             assets,
         )

@@ -29,7 +29,8 @@ if _init_table:
                 asset_sha1_mtime    TIMESTAMP                           DEFAULT 0,
                 asset_size          INTEGER                             DEFAULT 0,
                 asset_dl_status     VARCHAR(255)                        DEFAULT "",
-                asset_content_name  VARCHAR(255)                        DEFAULT ""
+                asset_content_name  VARCHAR(255)                        DEFAULT "",
+                asset_new           INT2
                 )
             """
             )
