@@ -177,7 +177,7 @@ class ModList:
             }
         return mod
 
-    def get_mods(self, parse_only=False, sort_by="mod_name") -> list:
+    def get_mods(self, parse_only=False, sort_by="name") -> list:
         """
         Returns list of dictionary in following format:
         [{

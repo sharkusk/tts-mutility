@@ -1,4 +1,6 @@
 __pycache__/
 .vscode
-*.sqlite
-*.sqlite-journal
+.sqlite
+.sqlite-journal
+.bak
+*.egg-info/

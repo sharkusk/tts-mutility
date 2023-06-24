@@ -107,8 +107,7 @@ class ModListScreen(Screen):
             table.sort("name", reverse=self.sort_order["name"])
             self.last_sort_key = "name"
 
-            # self.full_load(id, table)
-        self.run_worker(self.load_mods)
+        self.load_mods()
 
     def load_mods(self) -> None:
         self.query_one("#ml_status_center").add_class("unhide")
