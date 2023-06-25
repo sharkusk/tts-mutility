@@ -9,7 +9,7 @@ from importlib.metadata import version, PackageNotFoundError
 from textual.app import App, ComposeResult
 from textual.widgets import Header
 from textual.message import Message
-from textual.widgets import Static, LoadingIndicator
+from textual.widgets import Static, LoadingIndicator, Markdown
 
 from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
 from ttsmutility.screens.AssetListScreen import AssetListScreen
@@ -192,3 +192,6 @@ class TTSMutility(App):
     def on_asset_download_screen_download_complete(self):
         # This gives error due to sqlite cursor being from wrong thread
         self.refresh_mods()
+
+    def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
+        print(event.href)

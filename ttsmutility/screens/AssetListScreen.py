@@ -238,7 +238,7 @@ class AssetListScreen(Screen):
 
         asset_list = AssetList(self.mod_dir, self.save_dir)
         other_mods = asset_list.get_mods_using_asset(asset_detail["url"])
-        asset_detail["other_mods"] = other_mods
+        asset_detail["other_mods"] = sorted(other_mods)
         self.post_message(self.AssetSelected(asset_detail))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
