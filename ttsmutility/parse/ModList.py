@@ -220,66 +220,67 @@ class ModList:
                 }
         return mod
 
-    def get_mods(self, parse_only=False, sort_by="name") -> list:
-        """
-        Returns list of dictionary in following format:
-        [{
-            "filename": filename,
-            "name": name,
-            "mtime": mtime,
-            etc (TBD)...
-        },]
-        """
+    def get_mods(self) -> dict:
+        mods = {}
+        mod_list = []
         if os.path.exists(self.dir_path):
-            mods = []
-            updated_db = False
             # We want the mod filenames to be formatted: Saves/xxxx.json or Workshop/xxxx.json
             if self.is_save:
                 base_dir = "Saves"
             else:
                 base_dir = "Workshop"
 
-            with sqlite3.connect(DB_NAME) as db:
-                max_mods = -1  # Debug with fewer mods...
-                for i, f in enumerate(
-                    glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)
+            max_mods = -1  # Debug with fewer mods...
+            for i, f in enumerate(
+                glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)
+            ):
+                if (
+                    "WorkshopFileInfos.json" in f
+                    or "SaveFileInfos.json" in f
+                    or "TS_AutoSave" in f
                 ):
-                    if "WorkshopFileInfos.json" in f or "SaveFileInfos.json" in f or "TS_AutoSave" in f:
-                        continue
-                    if max_mods != -1 and i >= max_mods:
-                        break
+                    continue
+                if max_mods != -1 and i >= max_mods:
+                    break
 
-                    name = self.get_mod_name(f)
+                name = self.get_mod_name(f)
+                mod_list.append((f, name))
 
-                    # We could have the same mod filename in both the Save and Workshop
-                    # directories.
-                    mod = self.get_mod_from_db(f)
-                    if mod is None:
-                        # Default values will come from table definition...
-                        db.execute(
-                            """
-                            INSERT INTO tts_mods
-                                (mod_filename, mod_name)
-                            VALUES
-                                (?, ?) 
-                            """,
-                            (f, name),
-                        )
-                        db.commit()
-                        # Now that the mod is in the db, extract the data...
-                        if parse_only == False:
-                            mod = self.get_mod_from_db(f)
+            if len(mod_list) == 0:
+                return mods
 
-                    if parse_only:
-                        mods.append((f, name))
-                    else:
-                        mods.append(mod)
-
-            if parse_only:
-                return tuple(zip(*sorted(mods, key=lambda mod: mod[1])))[0]
-            else:
-                if sort_by is not None:
-                    return sorted(mods, key=lambda x: x[sort_by])
-                else:
-                    return mods
-        return None
+            with sqlite3.connect(DB_NAME) as db:
+                # We could have the same mod filename in both the Save and Workshop
+                # directories.
+                # Default values will come from table definition...
+                db.executemany(
+                    """
+                    INSERT OR IGNORE INTO tts_mods
+                        (mod_filename, mod_name)
+                    VALUES
+                        (?, ?) 
+                    """,
+                    mod_list,
+                )
+                # Now that the mod is in the db, extract the data...
+                for mod_filename in tuple(zip(*mod_list))[0]:
+                    cursor = db.execute(
+                        """
+                        SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets, mod_filename
+                        FROM tts_mods
+                        WHERE mod_filename=?
+                        """,
+                        (mod_filename,),
+                    )
+                    result = cursor.fetchone()
+                    if result != None:
+                        mods[result[5]] = {
+                            "name": result[0],
+                            "mtime": result[1],
+                            "size": result[2],
+                            "total_assets": result[3],
+                            "missing_assets": result[4],
+                            "filename": result[5],
+                        }
+                db.commit()
+        return mods

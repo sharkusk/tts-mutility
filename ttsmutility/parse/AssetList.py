@@ -407,7 +407,9 @@ class AssetList:
                         (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
                         ?)
                     """,
-                    tuple(zip(filenames, [mod_filename] * len(filenames), trailstrings)),
+                    tuple(
+                        zip(filenames, [mod_filename] * len(filenames), trailstrings)
+                    ),
                 )
 
             db.execute(
@@ -448,7 +450,6 @@ class AssetList:
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
             mod_path = os.path.join(self.save_dir, mod_filename)
-        modified_db = False
 
         prev_mod_mtime = 0
         mod_mtime = 0

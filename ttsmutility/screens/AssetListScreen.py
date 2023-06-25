@@ -233,6 +233,7 @@ class AssetListScreen(Screen):
 
         asset_detail = self.assets[event.row_key.value].copy()
         asset_detail["uri"] = pathlib.Path(filepath).as_uri() if filepath != "" else ""
+        asset_detail["filepath"] = pathlib.Path(filepath) if filepath != "" else ""
         asset_detail["mod_name"] = self.mod_name
 
         asset_list = AssetList(self.mod_dir, self.save_dir)

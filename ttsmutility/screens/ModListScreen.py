@@ -113,26 +113,22 @@ class ModListScreen(Screen):
         self.query_one("#ml_status_center").add_class("unhide")
         mod_asset_list = AssetList(self.mod_dir, self.save_dir)
 
-        def update(mod_names, mod_list, mods):
-            total_mods = len(mod_names)
-            for i, mod_filename in enumerate(mod_names):
+        def update(mod_list, mods):
+            total_mods = len(mods)
+            for i, mod_filename in enumerate(mods.keys()):
                 self.update_status(f"Scanning Mod {i} of {total_mods}")
                 mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
                 mod_list.update_mod_counts(mod_filename)
-                mod = mod_list.get_mod_from_db(mod_filename)
-                mods[mod_filename] = mod
-                self.add_mod_row(mod)
+                self.add_mod_row(mods[mod_filename])
 
-        self.mods = {}
         mod_list = ModList.ModList(self.mod_dir)
+        self.mods = mod_list.get_mods()
         mod_list.get_mods_needing_asset_refresh()  # Run once to capture new files added to the fs
-        mod_names = mod_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
-        update(mod_names, mod_list, self.mods)
+        update(mod_list, self.mods)
 
-        self.saves = {}
         save_list = ModList.ModList(self.save_dir, is_save=True)
-        save_names = save_list.get_mods(parse_only=True, sort_by=self.last_sort_key)
-        update(save_names, save_list, self.saves)
+        self.saves = save_list.get_mods()
+        update(save_list, self.saves)
 
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
@@ -158,7 +154,7 @@ class ModListScreen(Screen):
         table.add_row(
             mods[filename]["name"].ljust(35),
             format_time(mods[filename]["mtime"], "Scanning..."),
-            mods[filename]["size"] / (1024*1024),
+            mods[filename]["size"] / (1024 * 1024),
             mods[filename]["total_assets"],
             mods[filename]["missing_assets"],
             filename,
@@ -214,7 +210,7 @@ class ModListScreen(Screen):
 
         table.update_cell(row_key, "total_assets", total_assets)
         table.update_cell(row_key, "missing_assets", missing_assets)
-        table.update_cell(row_key, "size", size / (1014*1024))
+        table.update_cell(row_key, "size", size / (1024 * 1024))
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
