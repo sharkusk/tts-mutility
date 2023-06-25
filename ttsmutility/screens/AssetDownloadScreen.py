@@ -142,7 +142,7 @@ class AssetDownloadScreen(ModalScreen):
             # Increment overall progress here
             self.query_one("#dl_progress_all").advance(1)
 
-        if state in ["error", "download_starting", "success"]:
+        if state in ["init", "error", "download_starting", "success"]:
             # Reset state data here
             self.cur_retry = 0
             self.cur_filepath = ""

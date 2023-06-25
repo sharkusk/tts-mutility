@@ -53,6 +53,8 @@ def download_files(
     old_dir = os.getcwd()
     os.chdir(mod_dir)
 
+    state_callback("init", None, None)
+
     for url, trail in urls:
         if type(trail) is not list:
             state_callback("error", url, f"trail '{trail}' not converted to list")
