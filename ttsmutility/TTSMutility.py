@@ -35,20 +35,22 @@ except KeyError:
 
 # If the mod location is somewhere other than the default location we can
 # provide the path to the new location through a simple one-line test file
-mod_link_path = Path(GAMEDATA_DEFAULT, 'mod_location.txt')
-if not os.path.exists(Path(GAMEDATA_DEFAULT, 'Mods') or os.path.exists(mod_link_path)):
+mod_link_path = Path(GAMEDATA_DEFAULT, "mod_location.txt")
+if not os.path.exists(Path(GAMEDATA_DEFAULT, "Mods") or os.path.exists(mod_link_path)):
     print(f"Reading default gamedata directory information from: {mod_link_path}")
     if os.path.exists(mod_link_path):
-        with open(Path(GAMEDATA_DEFAULT, 'mod_location.txt')) as f:
+        with open(Path(GAMEDATA_DEFAULT, "mod_location.txt")) as f:
             GAMEDATA_DEFAULT = f.readline().strip()
         print(f"Default gamedata directory = {GAMEDATA_DEFAULT}")
     else:
-        print(f"Warning: default gamedata directory not detected, must specify at command line!")
+        print(
+            f"Warning: default gamedata directory not detected, must specify at command line!"
+        )
         sys.exit(1)
 
 MOD_DIR = os.path.join(GAMEDATA_DEFAULT, "Mods")
 SAVE_DIR = GAMEDATA_DEFAULT
-        
+
 
 class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
@@ -95,7 +97,7 @@ class TTSMutility(App):
 
         # Wait for DB to be created on first pass
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list =  ModList.ModList(MOD_DIR)
+        mod_list = ModList.ModList(MOD_DIR)
         mods = mod_list.get_mods()
         self.post_message(self.InitProcessing(f"Loading Save Mods"))
         save_list = ModList.ModList(SAVE_DIR)
@@ -106,16 +108,14 @@ class TTSMutility(App):
         self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
         mod_asset_list.scan_mod_dir()
 
-        for i, mod in enumerate(mods):
-            mod_filename = mod["filename"]
+        for i, mod_filename in enumerate(mods):
             self.post_message(
                 self.InitProcessing(
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
                 )
             )
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-        for mod in saves:
-            mod_filename = mod["filename"]
+        for mod_filename in saves:
             self.post_message(
                 self.InitProcessing(
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
