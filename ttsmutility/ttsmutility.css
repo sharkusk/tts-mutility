@@ -1,5 +1,6 @@
 Screen {
     height: 100%;
+    align: center middle;
     /*
     border: round red;
     */
@@ -99,7 +100,7 @@ DataTable {
 #dl_screen {
     height: 90%;
     width: 90%;
-    padding: 0;
+    padding: 1;
     padding-bottom: 0;
     border: round blue 75%
 }
@@ -109,17 +110,19 @@ DataTable {
     border: round green;
     */
     height: 2;
-    padding-left: 1;
-    padding-right: 2;
+    padding-left: 2;
+    padding-right: 0;
+}
+
+#dl_status {
+    height: 1fr;
 }
 
 #dl_scroll {
-    width: 1fr;
-    height: 1fr;
+    width: 100%;
+    height: 1.5fr;
     padding-left: 1;
-    /*
     border: round green;
-    */
 }
 
 #dl_log {

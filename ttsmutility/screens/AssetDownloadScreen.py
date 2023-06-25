@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
-from textual.widgets import TextLog, ProgressBar, Footer
-from textual.containers import VerticalScroll, Container
+from textual.widgets import TextLog, ProgressBar, Footer, Markdown
+from textual.containers import VerticalScroll, Container, Center
 from textual.screen import ModalScreen
 from textual.message import Message
 
@@ -8,7 +8,7 @@ from ttsmutility.parse.AssetList import AssetList
 from ttsmutility.fetch.AssetDownload import download_files
 from ttsmutility.parse.FileFinder import trailstring_to_trail
 
-from rich.markdown import Markdown
+from rich.markdown import Markdown as RichMarkdown
 
 import sys
 import os
@@ -39,13 +39,15 @@ class AssetDownloadScreen(ModalScreen):
         self.save_dir = save_dir
         self.assets = assets
         self.download_complete = False
+        self.status = ""
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        with Container(id="dl_screen"):
+        with Center(id="dl_screen"):
             with Container(id="dl_progress"):
                 yield ProgressBar(id="dl_progress_all", show_eta=False)
                 yield ProgressBar(id="dl_progress_cur", show_eta=False)
+            yield Markdown(id="dl_status")
             with VerticalScroll(id="dl_scroll"):
                 yield TextLog(id="dl_log", highlight=True, markup=True)
             yield Footer()
@@ -71,17 +73,20 @@ class AssetDownloadScreen(ModalScreen):
             }
             self.asset_list.download_done(asset)
             self.post_message(self.FileDownloadComplete(asset))
-            self.post_message(self.StatusOutput(f"- Download Failed: {error}\n"))
+            self.post_message(
+                self.StatusOutput(f"- Download Failed ({error}): `{url}` \n")
+            )
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
                 self.post_message(self.StatusOutput(f"---\n"))
-                self.post_message(self.StatusOutput(f"- Downloading: {url}\n"))
+                self.post_message(self.StatusOutput(f"- Downloading: `{url}`\n"))
             else:
                 self.post_message(self.StatusOutput(f"- Retry #{self.cur_retry}\n"))
         elif state == "file_size":
             self.cur_filesize = data
             self.query_one("#dl_progress_cur").update(total=data, progress=0)
+            self.post_message(self.StatusOutput(f"- Filesize: {self.cur_filesize}\n"))
         elif state == "data_read":
             self.query_one("#dl_progress_cur").advance(data)
         elif state == "content_name":
@@ -113,7 +118,7 @@ class AssetDownloadScreen(ModalScreen):
                 self.asset_list.download_done(asset)
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
-                    self.StatusOutput(f"- Download success: {self.cur_filepath}\n")
+                    self.StatusOutput(f"- Download Success: `{self.cur_filepath}`\n")
                 )
             else:
                 mtime = 0
@@ -131,7 +136,7 @@ class AssetDownloadScreen(ModalScreen):
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
                     self.StatusOutput(
-                        f"- Filesize mismatch. Expected {self.cur_filesize}, received {filesize} \n- {self.cur_filepath}\n"
+                        f"- Filesize Mismatch. Expected {self.cur_filesize}; received {filesize} \n- {self.cur_filepath}\n"
                     )
                 )
         else:
@@ -180,7 +185,15 @@ class AssetDownloadScreen(ModalScreen):
         self.post_message(self.DownloadComplete())
 
     def on_asset_download_screen_status_output(self, event: StatusOutput):
-        self.query_one("#dl_log").write(Markdown(event.status))
+        if "---" in event.status:
+            self.status = event.status
+        else:
+            self.status = self.status + "\n" + event.status
+        self.query_one("#dl_status").update(self.status)
+        # Only keep the highlights in the log
+        for s in ["Failed", "Success", "Mismatch"]:
+            if s in event.status:
+                self.query_one("#dl_log").write(RichMarkdown(event.status))
 
     def on_asset_download_screen_download_complete(self):
         self.query_one("#dl_screen").toggle_class("unhide")

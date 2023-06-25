@@ -93,9 +93,6 @@ class TTSMutility(App):
         self.post_message(self.InitComplete())
 
     def full_initialization(self) -> None:
-        dirs = [MOD_DIR, SAVE_DIR]
-
-        # Wait for DB to be created on first pass
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(MOD_DIR)
         mods = mod_list.get_mods()
