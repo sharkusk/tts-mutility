@@ -1,14 +1,13 @@
 import os
 import os.path
 import sqlite3
-import atexit
 import json
 import re
-import sys
 import pathlib
 import time
 
-from ttsmutility import *
+from ..data.config import load_config
+
 from ttsmutility.parse.FileFinder import (
     ALL_VALID_EXTS,
     find_file,
@@ -29,6 +28,8 @@ class AssetList:
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
         self.save_dir = save_dir
+        config = load_config()
+        self.db_path = config.db_path
 
     def urls_from_save(self, mod_dir):
         with open(mod_dir, "r", encoding="utf-8") as infile:
@@ -136,7 +137,7 @@ class AssetList:
         if filename != "":
             filename, _ = os.path.splitext(filename)
 
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime, asset_size
@@ -162,7 +163,7 @@ class AssetList:
         path, filename = os.path.split(filepath)
         if filename != "":
             filename, _ = os.path.splitext(filename)
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             db.execute(
                 """
                 UPDATE tts_assets
@@ -171,9 +172,10 @@ class AssetList:
                 """,
                 (sha1, steam_sha1, sha1_mtime, filename, path),
             )
+            db.commit()
 
     def get_sha1_mismatches(self):
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT asset_url
@@ -190,7 +192,7 @@ class AssetList:
 
     def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             if asset["filename"] == "":
                 db.execute(
                     """
@@ -250,9 +252,10 @@ class AssetList:
                     """,
                     (asset["url"],),
                 )
+            db.commit()
 
     def get_missing_assets(self, mod_filename: str) -> list:
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail
@@ -287,7 +290,7 @@ class AssetList:
         assets = []
         scan_time = time.time()
         count = 0
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT asset_last_scan_time
@@ -361,7 +364,7 @@ class AssetList:
 
         new_asset_count = 0
 
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             if len(mod_assets) > 0:
                 filenames, urls, trails = zip(*mod_assets)
 
@@ -416,7 +419,7 @@ class AssetList:
 
     def get_mods_using_asset(self, url: str) -> list:
         results = []
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT mod_name
@@ -446,7 +449,7 @@ class AssetList:
         prev_mod_mtime = 0
         mod_mtime = 0
 
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             # Check if we have this mod in our DB
             cursor = db.execute(
                 """

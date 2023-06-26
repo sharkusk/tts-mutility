@@ -1,7 +1,4 @@
 import time
-import platform
-import os
-import sys
 from pathlib import Path
 
 from importlib.metadata import version, PackageNotFoundError
@@ -19,9 +16,9 @@ from .screens.AssetDownloadScreen import AssetDownloadScreen
 
 from .parse import ModList
 from .parse import AssetList
-from .data import load_config
+from .data import load_config, save_config
 
-from . import FIRST_PASS
+from . import create_new_db
 
 
 class TTSMutility(App):
@@ -51,10 +48,15 @@ class TTSMutility(App):
 
     def initialize_database(self) -> None:
         config = load_config()
+
+        # Update config file in case some settings have been added
+        save_config(config)
+
         # Wait for DB to be created on first pass
-        if FIRST_PASS:
+        if not Path(config.db_path).exists():
             self.post_message(self.InitProcessing(f"Creating Database"))
-            time.sleep(1)
+            create_new_db(config.db_path)
+            time.sleep(0.5)
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(config.tts_mods_dir, config.tts_saves_dir)

@@ -1,19 +1,11 @@
 import os
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 
-DB_NAME = os.path.abspath("ttsmutility.sqlite")
-FIRST_PASS = False
-
-if os.path.exists(DB_NAME):
-    _init_table = False
-else:
-    _init_table = True
-
-if _init_table:
-    FIRST_PASS = True
-    with closing(sqlite3.connect(DB_NAME)) as conn:
+def create_new_db(db_path: Path):
+    with closing(sqlite3.connect(db_path)) as conn:
         with closing(conn.cursor()) as cursor:
             cursor.execute(
                 """
@@ -98,7 +90,8 @@ if _init_table:
             CREATE TABLE tts_app (
                 id                      INTEGER PRIMARY KEY,
                 asset_last_scan_time    TIMESTAMP,
-                mod_last_scan_time      TIMESTAMP
+                mod_last_scan_time      TIMESTAMP,
+                db_schema_version       INT
                 )
             """
             )
@@ -106,9 +99,9 @@ if _init_table:
             cursor.execute(
                 """
                 INSERT INTO tts_app
-                    (asset_last_scan_time, mod_last_scan_time)
+                    (asset_last_scan_time, mod_last_scan_time, db_schema_version)
                 VALUES
-                    (0, 0)
+                    (0, 0, 0)
             """
             )
 

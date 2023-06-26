@@ -10,6 +10,7 @@ from pathlib import Path
 from xdg import xdg_config_home
 
 import platform
+from .data_directory import data_directory
 
 gamedata_map = {
     "Windows": "/Documents/My Games/Tabletop Simulator",
@@ -32,6 +33,9 @@ class Config:
 
     tts_saves_dir: Path = str(GAMEDATA_DEFAULT)
     """Location of the Tabletop Simulator user directory (this directory contains the "Saves" subdirectory)"""
+
+    db_path: Path = str(data_directory() / "ttsmutility.sqlite")
+    """Location of the TTSMutility DB file"""
 
 
 def config_file() -> Path:

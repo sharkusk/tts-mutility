@@ -4,23 +4,17 @@ from glob import glob
 import sqlite3
 import re
 import time
+from datetime import datetime
 
-from ttsmutility import *
+from ..data.config import load_config
 
 
 class ModList:
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.save_dir = save_dir
         self.mod_dir = mod_dir
-
-    def get_mod_name(self, filename: str) -> str:
-        filepath = self._get_mod_path(filename)
-        with open(filepath, "r", encoding="utf-8") as infile:
-            for line in infile:
-                if "SaveName" in line:
-                    # "SaveName": "Defenders of the Realm",
-                    return re.findall('"SaveName": "(.*)"', line)[0]
-        return ""
+        config = load_config()
+        self.db_path = config.db_path
 
     def _get_mod_path(self, filename: str) -> str:
         if "Workshop" in filename:
@@ -29,7 +23,7 @@ class ModList:
             path = self.save_dir
         return os.path.join(path, filename)
 
-    def get_mod_details(self, filename: str) -> str:
+    def _get_mod_details(self, filename: str) -> str:
         fields = [
             "SaveName",
             "EpochTime",
@@ -83,7 +77,7 @@ class ModList:
         return details
 
     def get_mods_needing_asset_refresh(self):
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT mod_filename
@@ -142,7 +136,7 @@ class ModList:
 
     def update_mod_counts(self, mod_filename):
         counts = {}
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT mod_total_assets, mod_missing_assets, mod_size
@@ -168,7 +162,7 @@ class ModList:
         return counts
 
     def _calc_asset_size(self, filename: str) -> int:
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
             SELECT SUM(asset_size)
@@ -201,7 +195,7 @@ class ModList:
         return mod_size
 
     def _count_total_assets(self, filename: str) -> int:
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
             SELECT COUNT(asset_id_fk)
@@ -223,7 +217,7 @@ class ModList:
         return result[0]
 
     def _count_missing_assets(self, filename: str) -> int:
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             query = """
             SELECT COUNT(asset_id_fk)
             FROM tts_mod_assets
@@ -246,37 +240,68 @@ class ModList:
             db.commit()
         return result[0]
 
-    def get_mod_from_db(self, filename: str) -> dict or None:
-        mod = None
-        with sqlite3.connect(DB_NAME) as db:
+    def get_mod_details(self, filename: str) -> dict:
+        with sqlite3.connect(self.db_path) as db:
+            # Now that all mods are in the db, extract the data...
             cursor = db.execute(
                 """
-                SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets
-                FROM tts_mods
-                WHERE mod_filename=?""",
+                SELECT
+                    mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets,
+                    mod_epoch, mod_version, mod_game_mode, mod_game_type, mod_game_complexity, mod_min_players,
+                    mod_max_players, mod_min_play_time, mod_max_play_time
+                FROM
+                    tts_mods
+                WHERE
+                    mod_filename=?
+                """,
                 (filename,),
             )
             result = cursor.fetchone()
-            if result is not None:
-                mod = {
-                    "filename": filename,
-                    "name": result[0],
-                    "mtime": result[1],
-                    "size": result[2],
-                    "total_assets": result[3],
-                    "missing_assets": result[4],
-                }
+            mod = {
+                "filename": result[0],
+                "name": result[1],
+                "mtime": result[2],
+                "size": result[3],
+                "total_assets": result[4],
+                "missing_assets": result[5],
+                "epoch": result[6],
+                "version": result[7],
+                "game_mode": result[8],
+                "game_type": result[9],
+                "game_complexity": result[10],
+                "min_players": result[11],
+                "max_players": result[12],
+                "min_play_time": result[13],
+                "max_play_time": result[14],
+            }
+            cursor = db.execute(
+                """
+                SELECT tag_name
+                FROM tts_tags
+                    INNER JOIN tts_mod_tags
+                        ON tts_mod_tags.tag_id_fk=tts_tags.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_tags.mod_id_fk=tts_mods.id
+                WHERE mod_filename=?
+                """,
+                (filename,),
+            )
+            results = cursor.fetchall()
+            if len(results) > 0:
+                mod["tags"] = list(zip(*results))[0]
+            else:
+                mod["tags"] = ()
+
         return mod
 
     def get_mods(self) -> dict:
         mod_list = []
-        detail_list = []
         mods = {}
         tags = set()
         mod_tags = []
         scan_time = time.time()
 
-        with sqlite3.connect(DB_NAME) as db:
+        with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT mod_last_scan_time
@@ -309,7 +334,7 @@ class ModList:
                         break
 
                     if os.path.getmtime(self._get_mod_path(f)) > prev_scan_time:
-                        details = self.get_mod_details(f)
+                        details = self._get_mod_details(f)
                         try:
                             min_players = int(details["PlayerCounts"][0])
                             max_players = int(details["PlayerCounts"][1])
@@ -324,13 +349,24 @@ class ModList:
                             min_play_time = 0
                             max_play_time = 0
 
+                        if details["EpochTime"] == "":
+                            try:
+                                # 9/11/2021 4:55:18 AM
+                                utc_time = datetime.strptime(
+                                    details["Date"], "%m/%d/%Y %I:%M:%S %p"
+                                )
+                                epoch_time = (
+                                    utc_time - datetime(1970, 1, 1)
+                                ).total_seconds()
+                                details["EpochTime"] = epoch_time
+                            except:
+                                details["EpochTime"] = 0
+
                         mod_list.append(
                             (
                                 f,
                                 details["SaveName"],
-                                0
-                                if details["EpochTime"] == ""
-                                else int(details["EpochTime"]),
+                                details["EpochTime"],
                                 details["Date"],
                                 details["VersionNumber"],
                                 details["GameMode"],
