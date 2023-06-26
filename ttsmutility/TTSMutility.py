@@ -9,7 +9,7 @@ from importlib.metadata import version, PackageNotFoundError
 from textual.app import App, ComposeResult
 from textual.widgets import Header
 from textual.message import Message
-from textual.widgets import Static, LoadingIndicator
+from textual.widgets import Static, LoadingIndicator, Markdown
 
 from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
 from ttsmutility.screens.AssetListScreen import AssetListScreen
@@ -82,29 +82,17 @@ class TTSMutility(App):
         if FIRST_PASS:
             self.post_message(self.InitProcessing(f"Creating Database"))
             time.sleep(1)
-            self.full_initialization()
-        else:
-            self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
-            mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
-            mod_asset_list.scan_mod_dir()
 
-        self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
-        time.sleep(0.1)
-        self.post_message(self.InitComplete())
-
-    def full_initialization(self) -> None:
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(MOD_DIR)
+        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
         mods = mod_list.get_mods()
-        self.post_message(self.InitProcessing(f"Loading Save Mods"))
-        save_list = ModList.ModList(SAVE_DIR)
-        saves = save_list.get_mods()
 
         mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
 
-        self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
-        mod_asset_list.scan_mod_dir()
+        self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
+        mod_asset_list.scan_cached_assets()
 
+        mods = mod_list.get_mods_needing_asset_refresh()
         for i, mod_filename in enumerate(mods):
             self.post_message(
                 self.InitProcessing(
@@ -112,35 +100,24 @@ class TTSMutility(App):
                 )
             )
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-        for mod_filename in saves:
-            self.post_message(
-                self.InitProcessing(
-                    f"Finding assets in {mod_filename} ({i}/{len(mods)})"
-                )
-            )
+            mod_list.update_mod_counts(mod_filename)
+
+        self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
+        self.post_message(self.InitComplete())
+
+    def refresh_mods(self) -> None:
+        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
+        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+
+        mods = mod_list.get_mods_needing_asset_refresh()
+        for i, mod_filename in enumerate(mods):
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-
-        self.refresh_mods(init=True)
-
-    def refresh_mods(self, init=False):
-        mod_list = ModList.ModList(MOD_DIR)
-        results = mod_list.get_mods_needing_asset_refresh()
-
-        for i, mod_filename in enumerate(results):
-            if init and i % 5:
-                self.post_message(
-                    self.InitProcessing(
-                        f"Calculating asset counts ({i/len(results):.0%})"
-                    )
-                )
-            missing_assets = mod_list.count_missing_assets(mod_filename)
-            total_assets = mod_list.count_total_assets(mod_filename)
-            mod_size = mod_list.calc_asset_size(mod_filename)
+            counts = mod_list.update_mod_counts(mod_filename)
 
             if self.is_screen_installed("mod_list"):
                 screen = self.get_screen("mod_list")
                 screen.update_counts(
-                    mod_filename, total_assets, missing_assets, mod_size
+                    mod_filename, counts["total"], counts["missing"], counts["size"]
                 )
 
     def on_ttsmutility_init_complete(self):
@@ -190,5 +167,4 @@ class TTSMutility(App):
             screen.update_asset(event.asset)
 
     def on_asset_download_screen_download_complete(self):
-        # This gives error due to sqlite cursor being from wrong thread
         self.refresh_mods()

@@ -181,7 +181,6 @@ class AssetDownloadScreen(ModalScreen):
             urls, self.mod_dir, self.status_cb, ignore_content_type=overwrite
         )
 
-        self.asset_list.commit()
         self.post_message(self.DownloadComplete())
 
     def on_asset_download_screen_status_output(self, event: StatusOutput):

@@ -3,29 +3,84 @@ import os.path
 from glob import glob
 import sqlite3
 import re
+import time
 
 from ttsmutility import *
 
 
 class ModList:
-    def __init__(self, dir_path: str, is_save=False) -> None:
-        self.dir_path = dir_path
-        self.is_save = is_save
+    def __init__(self, mod_dir: str, save_dir: str) -> None:
+        self.save_dir = save_dir
+        self.mod_dir = mod_dir
 
     def get_mod_name(self, filename: str) -> str:
-        file_path = os.path.join(self.dir_path, filename)
-        if False:
-            # This is really slow as the entire JSON file is processed.
-            with open(file_path, "r", encoding="utf-8") as infile:
-                save = json.load(infile)
-            return save["SaveName"]
-        else:
-            with open(file_path, "r", encoding="utf-8") as infile:
-                for line in infile:
-                    if "SaveName" in line:
-                        # "SaveName": "Defenders of the Realm",
-                        return re.findall('"SaveName": "(.*)"', line)[0]
+        filepath = self._get_mod_path(filename)
+        with open(filepath, "r", encoding="utf-8") as infile:
+            for line in infile:
+                if "SaveName" in line:
+                    # "SaveName": "Defenders of the Realm",
+                    return re.findall('"SaveName": "(.*)"', line)[0]
         return ""
+
+    def _get_mod_path(self, filename: str) -> str:
+        if "Workshop" in filename:
+            path = self.mod_dir
+        else:
+            path = self.save_dir
+        return os.path.join(path, filename)
+
+    def get_mod_details(self, filename: str) -> str:
+        fields = [
+            "SaveName",
+            "EpochTime",
+            "Date",
+            "VersionNumber",
+            "GameMode",
+            "GameType",
+            "GameComplexity",
+        ]
+        arrays = ["PlayingTime", "PlayerCounts", "Tags"]
+        details = {}
+        for field in fields:
+            details[field] = ""
+        for array in arrays:
+            details[array] = []
+        cur_array = ""
+        # TODO: Fix this so only two values are returned
+        end_groups = [
+            r"([\d\.]+),",  # "EpochTime": 1687672340,
+            r"(?:\[)",  # "PlayingTime": [
+            r'(?:"(.*)",)',  # "GameType": "Game",
+        ]
+        expr = r'"(.*)": ' + r"(?:" + "|".join(end_groups) + ")"
+        pattern = re.compile(expr)
+        filepath = self._get_mod_path(filename)
+        with open(filepath, "r", encoding="utf-8") as infile:
+            for line in infile:
+                if "{" in line:
+                    # Skip first line
+                    continue
+                if cur_array != "":
+                    if "]" in line:
+                        cur_array = ""
+                    else:
+                        value = line.strip(' \n,"')
+                        details[cur_array].append(value)
+                else:
+                    field, value1, value2 = pattern.findall(line)[0]
+                    if field in fields:
+                        if value1 == "":
+                            details[field] = value2
+                        else:
+                            details[field] = value1
+                    elif field in arrays:
+                        # Empty arrays are contained on same line
+                        if "]" not in line:
+                            cur_array = field
+                    else:
+                        # We don't care about the rest of the file..
+                        break
+        return details
 
     def get_mods_needing_asset_refresh(self):
         with sqlite3.connect(DB_NAME) as db:
@@ -83,43 +138,36 @@ class ModList:
 
             db.commit()
 
-        return combined
+        return sorted(combined)
 
-    def update_mod_counts(self, mod_filename, forced=False):
-        need_total = False
-        need_missing = False
-        need_size = False
-        if forced:
-            need_total = True
-            need_missing = True
-            need_size = True
-        else:
-            with sqlite3.connect(DB_NAME) as db:
-                cursor = db.execute(
-                    """
-                    SELECT mod_total_assets, mod_missing_assets, mod_size
-                    FROM tts_mods
-                    WHERE mod_filename=?
-                    """,
-                    (mod_filename,),
-                )
-                result = cursor.fetchone()
-                if result is None:
-                    return
-                if result[0] == -1:
-                    need_total = True
-                if result[1] == -1:
-                    need_missing = True
-                if result[2] == -1:
-                    need_size = True
-        if need_total:
-            self.count_total_assets(mod_filename)
-        if need_missing:
-            self.count_missing_assets(mod_filename)
-        if need_size:
-            self.calc_asset_size(mod_filename)
+    def update_mod_counts(self, mod_filename):
+        counts = {}
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT mod_total_assets, mod_missing_assets, mod_size
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            result = cursor.fetchone()
+            if result is None:
+                return
+            counts["total"] = result[0]
+            counts["missing"] = result[1]
+            counts["size"] = result[2]
 
-    def calc_asset_size(self, filename: str) -> int:
+        if counts["total"] == -1:
+            counts["total"] = self._count_total_assets(mod_filename)
+        if counts["missing"] == -1:
+            counts["missing"] = self._count_missing_assets(mod_filename)
+        if counts["size"] == -1:
+            counts["size"] = self._calc_asset_size(mod_filename)
+
+        return counts
+
+    def _calc_asset_size(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             cursor = db.execute(
                 """
@@ -152,7 +200,7 @@ class ModList:
             db.commit()
         return mod_size
 
-    def count_total_assets(self, filename: str) -> int:
+    def _count_total_assets(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             cursor = db.execute(
                 """
@@ -174,7 +222,7 @@ class ModList:
             db.commit()
         return result[0]
 
-    def count_missing_assets(self, filename: str) -> int:
+    def _count_missing_assets(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             query = """
             SELECT COUNT(asset_id_fk)
@@ -221,66 +269,160 @@ class ModList:
         return mod
 
     def get_mods(self) -> dict:
-        mods = {}
         mod_list = []
-        if os.path.exists(self.dir_path):
-            # We want the mod filenames to be formatted: Saves/xxxx.json or Workshop/xxxx.json
-            if self.is_save:
-                base_dir = "Saves"
-            else:
-                base_dir = "Workshop"
+        detail_list = []
+        mods = {}
+        tags = set()
+        mod_tags = []
+        scan_time = time.time()
 
-            max_mods = -1  # Debug with fewer mods...
-            for i, f in enumerate(
-                glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)
-            ):
-                if (
-                    "WorkshopFileInfos.json" in f
-                    or "SaveFileInfos.json" in f
-                    or "TS_AutoSave" in f
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT mod_last_scan_time
+                FROM tts_app
+                WHERE id=1
+            """
+            )
+            # This should not fail as we init to zero as part of DB init
+            prev_scan_time = cursor.fetchone()[0]
+
+            for root_dir, base_dir in [
+                (self.mod_dir, "Workshop"),
+                (self.save_dir, "Saves"),
+            ]:
+                # We want the mod filenames to be formatted: Saves/xxxx.json or Workshop/xxxx.json
+
+                max_mods = -1  # Debug with fewer mods...
+                for i, f in enumerate(
+                    glob(os.path.join(base_dir, "*.json"), root_dir=root_dir)
                 ):
-                    continue
-                if max_mods != -1 and i >= max_mods:
-                    break
+                    if (
+                        "WorkshopFileInfos" in f
+                        or "SaveFileInfos" in f
+                        or "TS_AutoSave" in f
+                        or "TS_Save" in f
+                    ):
+                        continue
 
-                name = self.get_mod_name(f)
-                mod_list.append((f, name))
+                    if max_mods != -1 and i >= max_mods:
+                        break
 
-            if len(mod_list) == 0:
-                return mods
+                    if os.path.getmtime(self._get_mod_path(f)) > prev_scan_time:
+                        details = self.get_mod_details(f)
+                        try:
+                            min_players = int(details["PlayerCounts"][0])
+                            max_players = int(details["PlayerCounts"][1])
+                        except:
+                            min_players = 0
+                            max_players = 0
 
-            with sqlite3.connect(DB_NAME) as db:
-                # We could have the same mod filename in both the Save and Workshop
-                # directories.
-                # Default values will come from table definition...
-                db.executemany(
+                        try:
+                            min_play_time = int(details["PlayingTime"][0])
+                            max_play_time = int(details["PlayingTime"][1])
+                        except:
+                            min_play_time = 0
+                            max_play_time = 0
+
+                        mod_list.append(
+                            (
+                                f,
+                                details["SaveName"],
+                                0
+                                if details["EpochTime"] == ""
+                                else int(details["EpochTime"]),
+                                details["Date"],
+                                details["VersionNumber"],
+                                details["GameMode"],
+                                details["GameType"],
+                                details["GameComplexity"],
+                                min_players,
+                                max_players,
+                                min_play_time,
+                                max_play_time,
+                            )
+                        )
+
+                        for tag in details["Tags"]:
+                            mod_tags.append((f, tag))
+                            tags.add((tag,))
+
+            if len(mod_list) > 0:
+                cursor = db.executemany(
                     """
-                    INSERT OR IGNORE INTO tts_mods
-                        (mod_filename, mod_name)
+                    INSERT INTO tts_mods
+                        (mod_filename, mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
+                        mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
+                        mod_min_play_time, mod_max_play_time)
                     VALUES
-                        (?, ?) 
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                    ON CONFLICT (mod_filename)
+                    DO UPDATE SET
+                        mod_name=excluded.mod_name,
+                        mod_epoch=excluded.mod_epoch,
+                        mod_date=excluded.mod_date,
+                        mod_version=excluded.mod_version,
+                        mod_game_mode=excluded.mod_game_mode,
+                        mod_game_type=excluded.mod_game_type,
+                        mod_game_complexity=excluded.mod_game_complexity,
+                        mod_min_players=excluded.mod_min_players,
+                        mod_max_players=excluded.mod_max_players,
+                        mod_min_play_time=excluded.mod_min_play_time,
+                        mod_max_play_time=excluded.mod_max_play_time
                     """,
                     mod_list,
                 )
-                # Now that the mod is in the db, extract the data...
-                for mod_filename in tuple(zip(*mod_list))[0]:
-                    cursor = db.execute(
-                        """
-                        SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets, mod_filename
-                        FROM tts_mods
-                        WHERE mod_filename=?
-                        """,
-                        (mod_filename,),
+                mods_added = cursor.rowcount
+
+                cursor = db.executemany(
+                    """
+                    INSERT OR IGNORE INTO tts_tags
+                        (tag_name)
+                    VALUES
+                        (?)
+                    """,
+                    tags,
+                )
+                tags_added = cursor.rowcount
+
+                cursor = db.executemany(
+                    """
+                    INSERT OR IGNORE INTO tts_mod_tags
+                        (mod_id_fk, tag_id_fk)
+                    VALUES (
+                        (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
+                        (SELECT tts_tags.id FROM tts_tags WHERE tag_name=?)
                     )
-                    result = cursor.fetchone()
-                    if result != None:
-                        mods[result[5]] = {
-                            "name": result[0],
-                            "mtime": result[1],
-                            "size": result[2],
-                            "total_assets": result[3],
-                            "missing_assets": result[4],
-                            "filename": result[5],
-                        }
-                db.commit()
+                    """,
+                    mod_tags,
+                )
+                mod_tags_added = cursor.rowcount
+
+                db.execute(
+                    """
+                    UPDATE tts_app
+                    SET mod_last_scan_time=?
+                    WHERE id=1
+                """,
+                    (scan_time,),
+                )
+
+            # Now that all mods are in the db, extract the data...
+            cursor = db.execute(
+                """
+                SELECT mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets
+                FROM tts_mods
+                """
+            )
+            results = cursor.fetchall()
+            for result in results:
+                mods[result[0]] = {
+                    "filename": result[0],
+                    "name": result[1],
+                    "mtime": result[2],
+                    "size": result[3],
+                    "total_assets": result[4],
+                    "missing_assets": result[5],
+                }
+            db.commit()
         return mods

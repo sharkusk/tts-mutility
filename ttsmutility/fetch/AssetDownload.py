@@ -21,9 +21,6 @@ from ttsmutility.parse.FileFinder import (
 )
 
 DEFAULT_EXT = {
-    "text/plain": ".obj",
-    "application/json": ".obj",
-    "application/x-tgif": ".obj",
     "application/pdf": ".pdf",
     "image/jpeg": ".jpg",
     "image/jpg": ".jpg",
@@ -101,7 +98,11 @@ def download_files(
                 return any(
                     map(
                         mime.startswith,
-                        ("application/binary", "application/octet-stream"),
+                        (
+                            "text/plain",
+                            "application/binary",
+                            "application/octet-stream",
+                        ),
                     )
                 )
 
