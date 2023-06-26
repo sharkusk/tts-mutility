@@ -2,7 +2,6 @@ from contextlib import suppress
 import http.client
 import os
 import socket
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -75,7 +74,7 @@ def download_files(
             continue
 
         # type in the response.
-        if is_obj(trail, url):
+        if is_obj(trail):
             default_ext = ".obj"
 
             def content_expected(mime):
@@ -92,7 +91,7 @@ def download_files(
                     )
                 )
 
-        elif is_assetbundle(trail, url):
+        elif is_assetbundle(trail):
             default_ext = ".unity3d"
 
             def content_expected(mime):
@@ -107,7 +106,7 @@ def download_files(
                     )
                 )
 
-        elif is_image(trail, url):
+        elif is_image(trail):
             default_ext = ".png"
 
             def content_expected(mime):
@@ -120,7 +119,7 @@ def download_files(
                     "video/mp4",
                 )
 
-        elif is_audiolibrary(trail, url):
+        elif is_audiolibrary(trail):
             default_ext = ".WAV"
 
             def content_expected(mime):
@@ -129,7 +128,7 @@ def download_files(
                     "application/binary",
                 ) or mime.startswith("audio/")
 
-        elif is_pdf(trail, url):
+        elif is_pdf(trail):
             default_ext = ".PDF"
 
             def content_expected(mime):
@@ -139,7 +138,7 @@ def download_files(
                     "application/octet-stream",
                 )
 
-        elif is_from_script(trail, url) or is_custom_ui_asset(trail, url):
+        elif is_from_script(trail) or is_custom_ui_asset(trail):
             default_ext = ".png"
 
             def content_expected(mime):

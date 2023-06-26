@@ -1,4 +1,3 @@
-import json
 import os.path
 from glob import glob
 import sqlite3

@@ -5,12 +5,12 @@ import json
 import re
 import pathlib
 import time
+from pathlib import Path
 
 from ..data.config import load_config
 
 from ttsmutility.parse.FileFinder import (
     ALL_VALID_EXTS,
-    find_file,
     recodeURL,
     TTS_RAW_DIRS,
     FILES_TO_IGNORE,
@@ -314,14 +314,17 @@ class AssetList:
                 for filename in files:
                     if filename in ignore_files:
                         continue
-                    mtime = os.path.getmtime(os.path.join(root, filename))
+                    filename = Path(root) / filename
+                    if filename.suffix.upper() in FILES_TO_IGNORE:
+                        continue
+                    stat = filename.stat()
+                    mtime = stat.st_mtime
                     if mtime < prev_scan_time:
                         continue
-                    size = os.path.getsize(os.path.join(root, filename))
-                    filename, ext = os.path.splitext(filename)
-                    if ext.upper() in FILES_TO_IGNORE:
-                        continue
-                    assets.append((path, filename, ext, mtime, size, 1))
+                    size = stat.st_size
+                    assets.append(
+                        (path, filename.stem, filename.suffix, mtime, size, 1)
+                    )
             cursor = db.executemany(
                 """
                 INSERT INTO tts_assets

@@ -86,7 +86,7 @@ class TTSMutility(App):
         mod_asset_list = AssetList.AssetList(config.tts_mods_dir, config.tts_saves_dir)
 
         mods = mod_list.get_mods_needing_asset_refresh()
-        for i, mod_filename in enumerate(mods):
+        for mod_filename in mods:
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
             counts = mod_list.update_mod_counts(mod_filename)
 
