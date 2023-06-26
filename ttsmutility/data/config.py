@@ -7,15 +7,15 @@ from functools import lru_cache
 from json import dumps, loads
 from pathlib import Path
 
-from xdg import xdg_config_home
+from xdg_base_dirs import xdg_config_home
 
 import platform
 from .data_directory import data_directory
 
 gamedata_map = {
-    "Windows": "/Documents/My Games/Tabletop Simulator",
-    "Darwin": "/Library/Tabletop Simulator",  # MacOS
-    "Linux": "/.local/share/Tabletop Simulator",
+    "Windows": "Documents/My Games/Tabletop Simulator",
+    "Darwin": "Library/Tabletop Simulator",  # MacOS
+    "Linux": ".local/share/Tabletop Simulator",
 }
 try:
     active_platform = platform.system()

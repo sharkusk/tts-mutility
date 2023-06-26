@@ -2,7 +2,6 @@
 requires = [
     "setuptools>=42",
     "versioningit",
-    "textual>=0.28.1"
     ]
 build-backend = "setuptools.build_meta"
 
@@ -21,6 +20,7 @@ dynamic = ["version"]
 license = {text = "GPLv3"}
 dependencies = [
     "textual",
+    "xdg-base-dirs",
 ]
 
 [project.urls]
