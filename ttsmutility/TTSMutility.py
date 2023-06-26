@@ -89,8 +89,8 @@ class TTSMutility(App):
 
         mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
 
-        self.post_message(self.InitProcessing(f"Scanning Mod Directory"))
-        mod_asset_list.scan_mod_dir()
+        self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
+        mod_asset_list.scan_cached_assets()
 
         mods = mod_list.get_mods_needing_asset_refresh()
         for i, mod_filename in enumerate(mods):
@@ -104,6 +104,21 @@ class TTSMutility(App):
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         self.post_message(self.InitComplete())
+
+    def refresh_mods(self) -> None:
+        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
+        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+
+        mods = mod_list.get_mods_needing_asset_refresh()
+        for i, mod_filename in enumerate(mods):
+            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
+            counts = mod_list.update_mod_counts(mod_filename)
+
+            if self.is_screen_installed("mod_list"):
+                screen = self.get_screen("mod_list")
+                screen.update_counts(
+                    mod_filename, counts["total"], counts["missing"], counts["size"]
+                )
 
     def on_ttsmutility_init_complete(self):
         self.install_screen(ModListScreen(MOD_DIR, SAVE_DIR), name="mod_list")
@@ -152,8 +167,4 @@ class TTSMutility(App):
             screen.update_asset(event.asset)
 
     def on_asset_download_screen_download_complete(self):
-        # This gives error due to sqlite cursor being from wrong thread
         self.refresh_mods()
-
-    def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
-        print(event.href)
