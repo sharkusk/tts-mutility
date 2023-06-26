@@ -117,14 +117,10 @@ class ModListScreen(Screen):
             for mod_filename in mods.keys():
                 self.add_mod_row(mods[mod_filename])
 
-        mod_list = ModList.ModList(self.mod_dir)
+        mod_list = ModList.ModList(self.mod_dir, self.save_dir)
         self.mods = mod_list.get_mods()
         # mod_list.get_mods_needing_asset_refresh()  # Run once to capture new files added to the fs
         update(self.mods)
-
-        save_list = ModList.ModList(self.save_dir, is_save=True)
-        self.saves = save_list.get_mods()
-        update(self.saves)
 
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
@@ -133,12 +129,11 @@ class ModListScreen(Screen):
         self.query_one("#ml_status_center").remove_class("unhide")
 
     def get_mod_table(self, filename: str) -> tuple:
+        mods = self.mods
         if filename.find("Workshop") == 0:
             id = "#ml_workshop_dt"
-            mods = self.mods
         else:
             id = "#ml_saves_dt"
-            mods = self.saves
 
         table = next(self.query(id).results(DataTable))
         return table, mods

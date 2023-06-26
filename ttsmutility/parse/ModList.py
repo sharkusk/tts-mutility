@@ -8,12 +8,16 @@ from ttsmutility import *
 
 
 class ModList:
-    def __init__(self, dir_path: str, is_save=False) -> None:
-        self.dir_path = dir_path
-        self.is_save = is_save
+    def __init__(self, mod_dir: str, save_dir: str) -> None:
+        self.save_dir = save_dir
+        self.mod_dir = mod_dir
 
     def get_mod_name(self, filename: str) -> str:
-        filepath = os.path.join(self.dir_path, filename)
+        if "Workshop" in filename:
+            path = self.mod_dir
+        else:
+            path = self.save_dir
+        filepath = os.path.join(path, filename)
         with open(filepath, "r", encoding="utf-8") as infile:
             for line in infile:
                 if "SaveName" in line:
@@ -22,7 +26,11 @@ class ModList:
         return ""
 
     def get_mod_details(self, filename: str) -> str:
-        filepath = os.path.join(self.dir_path, filename)
+        if "Workshop" in filename:
+            path = self.mod_dir
+        else:
+            path = self.save_dir
+        filepath = os.path.join(path, filename)
         fields = [
             "SaveName",
             "EpochTime",
@@ -252,18 +260,14 @@ class ModList:
         return mod
 
     def get_mods(self) -> dict:
-        mods = {}
         mod_list = []
-        if os.path.exists(self.dir_path):
+        mods = {}
+        for root_dir, base_dir in [(self.mod_dir, "Workshop"), (self.save_dir, "Saves")]:
             # We want the mod filenames to be formatted: Saves/xxxx.json or Workshop/xxxx.json
-            if self.is_save:
-                base_dir = "Saves"
-            else:
-                base_dir = "Workshop"
 
             max_mods = -1  # Debug with fewer mods...
             for i, f in enumerate(
-                glob(os.path.join(base_dir, "*.json"), root_dir=self.dir_path)
+                glob(os.path.join(base_dir, "*.json"), root_dir=root_dir)
             ):
                 if (
                     "WorkshopFileInfos.json" in f
@@ -279,9 +283,7 @@ class ModList:
                 name = self.get_mod_name(f)
                 mod_list.append((f, name))
 
-            if len(mod_list) == 0:
-                return mods
-
+        if len(mod_list) > 0:
             with sqlite3.connect(DB_NAME) as db:
                 # Default values will come from table definition...
                 db.executemany(

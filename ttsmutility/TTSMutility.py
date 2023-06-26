@@ -84,11 +84,8 @@ class TTSMutility(App):
             time.sleep(1)
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(MOD_DIR)
+        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
         mods = mod_list.get_mods()
-        self.post_message(self.InitProcessing(f"Loading Save Mods"))
-        save_list = ModList.ModList(SAVE_DIR)
-        saves = save_list.get_mods()
 
         mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
 
@@ -104,16 +101,6 @@ class TTSMutility(App):
             )
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
             mod_list.update_mod_counts(mod_filename)
-
-        saves = save_list.get_mods_needing_asset_refresh()
-        for mod_filename in saves:
-            self.post_message(
-                self.InitProcessing(
-                    f"Finding assets in {mod_filename} ({i}/{len(mods)})"
-                )
-            )
-            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-            save_list.update_mod_counts(mod_filename)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         self.post_message(self.InitComplete())
