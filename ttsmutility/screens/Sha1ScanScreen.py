@@ -34,6 +34,8 @@ class Sha1ScanScreen(ModalScreen):
             yield ProgressBar(id="sha1_progress")
             yield Static(id="sha1_status")
             yield Footer()
+
+    def on_mount(self) -> None:
         self.run_worker(self.scan_sha1s)
 
     def action_exit(self) -> None:
@@ -49,15 +51,19 @@ class Sha1ScanScreen(ModalScreen):
         update_frequency = 0
         i = 0
 
+        self.query_one(ProgressBar).update(total=100)
+
         scanner = scan_sha1s(self.mod_dir)
         for result in scanner:
             if result[0] == "new_directory":
-                # Updating bar for every file can be very expensive, so do it 100 times
-                update_frequency = int(result[1] / 100)
-                if update_frequency == 0:
-                    update_frequency = 1
                 i = 0
-                self.query_one(ProgressBar).update(total=result[1], progress=0)
+                # Updating bar for every file can be very expensive, so do it 100 times
+                if result[1] < 100:
+                    update_amount = 1
+                else:
+                    update_amount = int(result[1] / 100)
+                if result[1] > 0:
+                    self.query_one(ProgressBar).update(total=result[1])
                 self.post_message(self.StatusOutput(f"Computing SHA1s for {result[2]}"))
                 continue
             elif result[0] == "filepath":
@@ -67,7 +73,7 @@ class Sha1ScanScreen(ModalScreen):
                 if asset is None:
                     # Skip this filepath since it doesn't exist in our DB
                     skip = True
-                elif asset["sha1_mtime"] is None:
+                elif asset["sha1_mtime"] == 0:
                     skip = False
                 elif mtime > asset["sha1_mtime"]:
                     skip = False
@@ -75,8 +81,8 @@ class Sha1ScanScreen(ModalScreen):
                     skip = True
 
                 i += 1
-                if i % update_frequency:
-                    self.query_one(ProgressBar).advance(1)
+                if (i % update_amount) == 0:
+                    self.query_one(ProgressBar).advance(update_amount)
 
                 if skip:
                     scanner.send(False)
@@ -90,8 +96,6 @@ class Sha1ScanScreen(ModalScreen):
             else:
                 # Our state machine is broken!
                 sys.exit(1)
-        asset_list.commit()
-        self.query_one(ProgressBar).update(total=100, progress=100)
         self.post_message(self.StatusOutput(f"SHA1 Scanning Complete"))
         self.post_message(self.ScanComplete())
 
