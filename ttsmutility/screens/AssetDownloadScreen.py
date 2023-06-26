@@ -74,25 +74,25 @@ class AssetDownloadScreen(ModalScreen):
             self.asset_list.download_done(asset)
             self.post_message(self.FileDownloadComplete(asset))
             self.post_message(
-                self.StatusOutput(f"- Download Failed ({error}): `{url}` \n")
+                self.StatusOutput(f"- Download Failed ({error}): `{url}`")
             )
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.post_message(self.StatusOutput(f"---\n"))
-                self.post_message(self.StatusOutput(f"- Downloading: `{url}`\n"))
+                self.post_message(self.StatusOutput(f"---"))
+                self.post_message(self.StatusOutput(f"- Downloading: `{url}`"))
             else:
-                self.post_message(self.StatusOutput(f"- Retry #{self.cur_retry}\n"))
+                self.post_message(self.StatusOutput(f"- Retry #{self.cur_retry}"))
         elif state == "file_size":
             self.cur_filesize = data
             self.query_one("#dl_progress_cur").update(total=data, progress=0)
-            self.post_message(self.StatusOutput(f"- Filesize: {self.cur_filesize}\n"))
+            self.post_message(self.StatusOutput(f"- Filesize: {self.cur_filesize}"))
         elif state == "data_read":
             self.query_one("#dl_progress_cur").advance(data)
         elif state == "content_name":
             self.cur_content_name = data
             self.post_message(
-                self.StatusOutput(f"- Content Filename: {self.cur_content_name}\n")
+                self.StatusOutput(f"- Content Filename: {self.cur_content_name}")
             )
         elif state == "filepath":
             self.cur_filepath = data
@@ -118,7 +118,7 @@ class AssetDownloadScreen(ModalScreen):
                 self.asset_list.download_done(asset)
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
-                    self.StatusOutput(f"- Download Success: `{self.cur_filepath}`\n")
+                    self.StatusOutput(f"- Download Success: `{self.cur_filepath}`")
                 )
             else:
                 mtime = 0
@@ -136,7 +136,7 @@ class AssetDownloadScreen(ModalScreen):
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
                     self.StatusOutput(
-                        f"- Filesize Mismatch. Expected {self.cur_filesize}; received {filesize} \n- {self.cur_filepath}\n"
+                        f"- Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
         else:
@@ -185,15 +185,16 @@ class AssetDownloadScreen(ModalScreen):
         self.post_message(self.DownloadComplete())
 
     def on_asset_download_screen_status_output(self, event: StatusOutput):
+        # Only keep the highlights in the log
+        for s in ["Failed", "Success", "Mismatch"]:
+            if s in event.status:
+                self.query_one("#dl_log").write(RichMarkdown(event.status))
+
         if "---" in event.status:
             self.status = event.status
         else:
             self.status = self.status + "\n" + event.status
         self.query_one("#dl_status").update(self.status)
-        # Only keep the highlights in the log
-        for s in ["Failed", "Success", "Mismatch"]:
-            if s in event.status:
-                self.query_one("#dl_log").write(RichMarkdown(event.status))
 
     def on_asset_download_screen_download_complete(self):
         self.query_one("#dl_screen").toggle_class("unhide")
