@@ -86,7 +86,7 @@ class AssetDownloadScreen(ModalScreen):
         elif state == "file_size":
             self.cur_filesize = data
             self.query_one("#dl_progress_cur").update(total=data, progress=0)
-            self.post_message(self.StatusOutput(f"- Filesize: {self.cur_filesize}"))
+            self.post_message(self.StatusOutput(f"- Filesize: {self.cur_filesize:,}"))
         elif state == "data_read":
             self.query_one("#dl_progress_cur").advance(data)
         elif state == "content_name":

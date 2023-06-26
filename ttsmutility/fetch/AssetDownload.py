@@ -21,6 +21,7 @@ from ttsmutility.parse.FileFinder import (
 )
 
 DEFAULT_EXT = {
+    "text/plain": ".obj",
     "application/pdf": ".pdf",
     "image/jpeg": ".jpg",
     "image/jpg": ".jpg",
@@ -241,9 +242,9 @@ def download_file(
     # Use them in this order...
     extensions = {
         "content-disposition": "",
-        "mime": "",
         "filepath": "",
         "url": "",
+        "mime": "",
         "trail": "",
     }
 
