@@ -159,6 +159,9 @@ def get_fs_path(trail, url):
         filename = Path(IMGPATH) / recoded_name
 
     else:
-        filename = Path(recoded_name)
+        # We don't know where to store this file,
+        # will defer until we download and determine
+        # the extension.
+        filename = None
 
     return filename
