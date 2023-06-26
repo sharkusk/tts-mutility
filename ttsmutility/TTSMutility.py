@@ -11,45 +11,17 @@ from textual.widgets import Header
 from textual.message import Message
 from textual.widgets import Static, LoadingIndicator, Markdown
 
-from ttsmutility.screens.AssetDetailScreen import AssetDetailScreen
-from ttsmutility.screens.AssetListScreen import AssetListScreen
-from ttsmutility.screens.ModListScreen import ModListScreen
-from ttsmutility.screens.Sha1ScanScreen import Sha1ScanScreen
-from ttsmutility.screens.AssetDownloadScreen import AssetDownloadScreen
+from .screens.AssetDetailScreen import AssetDetailScreen
+from .screens.AssetListScreen import AssetListScreen
+from .screens.ModListScreen import ModListScreen
+from .screens.Sha1ScanScreen import Sha1ScanScreen
+from .screens.AssetDownloadScreen import AssetDownloadScreen
 
-from ttsmutility.parse import ModList
-from ttsmutility.parse import AssetList
+from .parse import ModList
+from .parse import AssetList
+from .data import load_config
 
-from ttsmutility import FIRST_PASS
-
-gamedata_map = {
-    "Windows": "~/Documents/My Games/Tabletop Simulator",
-    "Darwin": "~/Library/Tabletop Simulator",  # MacOS
-    "Linux": "~/.local/share/Tabletop Simulator",
-}
-try:
-    active_platform = platform.system()
-    GAMEDATA_DEFAULT = os.path.expanduser(gamedata_map[active_platform])
-except KeyError:
-    GAMEDATA_DEFAULT = os.path.expanduser(gamedata_map["Windows"])
-
-# If the mod location is somewhere other than the default location we can
-# provide the path to the new location through a simple one-line test file
-mod_link_path = Path(GAMEDATA_DEFAULT, "mod_location.txt")
-if not os.path.exists(Path(GAMEDATA_DEFAULT, "Mods") or os.path.exists(mod_link_path)):
-    print(f"Reading default gamedata directory information from: {mod_link_path}")
-    if os.path.exists(mod_link_path):
-        with open(Path(GAMEDATA_DEFAULT, "mod_location.txt")) as f:
-            GAMEDATA_DEFAULT = f.readline().strip()
-        print(f"Default gamedata directory = {GAMEDATA_DEFAULT}")
-    else:
-        print(
-            f"Warning: default gamedata directory not detected, must specify at command line!"
-        )
-        sys.exit(1)
-
-MOD_DIR = os.path.join(GAMEDATA_DEFAULT, "Mods")
-SAVE_DIR = GAMEDATA_DEFAULT
+from . import FIRST_PASS
 
 
 class TTSMutility(App):
@@ -78,16 +50,17 @@ class TTSMutility(App):
         self.run_worker(self.initialize_database)
 
     def initialize_database(self) -> None:
+        config = load_config()
         # Wait for DB to be created on first pass
         if FIRST_PASS:
             self.post_message(self.InitProcessing(f"Creating Database"))
             time.sleep(1)
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
+        mod_list = ModList.ModList(config.tts_mods_dir, config.tts_saves_dir)
         mods = mod_list.get_mods()
 
-        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+        mod_asset_list = AssetList.AssetList(config.tts_mods_dir, config.tts_saves_dir)
 
         self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
         mod_asset_list.scan_cached_assets()
@@ -106,8 +79,9 @@ class TTSMutility(App):
         self.post_message(self.InitComplete())
 
     def refresh_mods(self) -> None:
-        mod_list = ModList.ModList(MOD_DIR, SAVE_DIR)
-        mod_asset_list = AssetList.AssetList(MOD_DIR, SAVE_DIR)
+        config = load_config()
+        mod_list = ModList.ModList(config.tts_mods_dir, config.tts_saves_dir)
+        mod_asset_list = AssetList.AssetList(config.tts_mods_dir, config.tts_saves_dir)
 
         mods = mod_list.get_mods_needing_asset_refresh()
         for i, mod_filename in enumerate(mods):
@@ -121,7 +95,10 @@ class TTSMutility(App):
                 )
 
     def on_ttsmutility_init_complete(self):
-        self.install_screen(ModListScreen(MOD_DIR, SAVE_DIR), name="mod_list")
+        config = load_config()
+        self.install_screen(
+            ModListScreen(config.tts_mods_dir, config.tts_saves_dir), name="mod_list"
+        )
         self.push_screen("mod_list")
 
     def on_ttsmutility_init_processing(self, event: InitProcessing):
