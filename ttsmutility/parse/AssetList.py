@@ -283,14 +283,14 @@ class AssetList:
                 urls.append((result[0], trailstring_to_trail(result[4])))
         return urls
 
-    def scan_mod_dir(self) -> int:
+    def scan_cached_assets(self) -> int:
         assets = []
         scan_time = time.time()
         count = 0
         with sqlite3.connect(DB_NAME) as db:
             cursor = db.execute(
                 """
-                SELECT app_last_scan_time
+                SELECT asset_last_scan_time
                 FROM tts_app
                 WHERE id=1
             """
@@ -340,7 +340,7 @@ class AssetList:
             db.execute(
                 """
                 UPDATE tts_app
-                SET app_last_scan_time=?
+                SET asset_last_scan_time=?
                 WHERE id=1
             """,
                 (scan_time,),

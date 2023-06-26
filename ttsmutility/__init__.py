@@ -41,6 +41,16 @@ if _init_table:
                 id                  INTEGER PRIMARY KEY,
                 mod_filename        VARCHAR(128)    NOT NULL UNIQUE,
                 mod_name            VARCHAR(128)    NOT NULL,
+                mod_epoch           TIMESTAMP,
+                mod_date            VARCHAR(64),
+                mod_version         VARCHAR(32),
+                mod_game_mode       VARCHAR(128),
+                mod_game_type       VARCHAR(64),
+                mod_game_complexity VARCHAR(32),
+                mod_min_players     INT,
+                mod_max_players     INT,
+                mod_min_play_time   INT,
+                mod_max_play_time   INT,
                 mod_mtime           TIMESTAMP                   DEFAULT 0,
                 mod_fetch_time      TIMESTAMP                   DEFAULT 0,
                 mod_backup_time     TIMESTAMP                   DEFAULT 0,
@@ -65,9 +75,30 @@ if _init_table:
 
             cursor.execute(
                 """
+            CREATE TABLE tts_tags (
+                id              INTEGER PRIMARY KEY,
+                tag_name        VARCHAR(64)     NOT NULL UNIQUE
+                )
+            """
+            )
+
+            cursor.execute(
+                """
+            CREATE TABLE tts_mod_tags (
+                id              INTEGER PRIMARY KEY,
+                tag_id_fk       INT             NOT NULL REFERENCES tts_tags (id),
+                mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id),
+                UNIQUE(tag_id_fk, mod_id_fk)
+                )
+            """
+            )
+
+            cursor.execute(
+                """
             CREATE TABLE tts_app (
-                id                  INTEGER PRIMARY KEY,
-                app_last_scan_time  TIMESTAMP
+                id                      INTEGER PRIMARY KEY,
+                asset_last_scan_time    TIMESTAMP,
+                mod_last_scan_time      TIMESTAMP
                 )
             """
             )
@@ -75,9 +106,9 @@ if _init_table:
             cursor.execute(
                 """
                 INSERT INTO tts_app
-                    (app_last_scan_time)
+                    (asset_last_scan_time, mod_last_scan_time)
                 VALUES
-                    (0)
+                    (0, 0)
             """
             )
 
