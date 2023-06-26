@@ -39,7 +39,6 @@ class AssetListScreen(Screen):
         self.mod_filename = mod_filename
         self.current_row = 0
         self.url_width = 40
-        self.filepath_width = 40
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -53,8 +52,6 @@ class AssetListScreen(Screen):
             "url": False,
             "ext": False,
             "trail": False,
-            "sha1": False,
-            "filename": False,
             "mtime": False,
             "fsize": False,
         }
@@ -78,8 +75,6 @@ class AssetListScreen(Screen):
         table.add_column("Size", key="fsize")
         table.add_column("Trail", key="trail")
         table.add_column("Modified", key="mtime")
-        table.add_column("Filepath", width=self.filepath_width, key="filename")
-        table.add_column("SHA1", key="sha1")
 
         assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
@@ -93,8 +88,6 @@ class AssetListScreen(Screen):
                 readable_asset["fsize"],
                 self.trail_reformat(readable_asset["trail"]),
                 readable_asset["mtime"],
-                readable_asset["filename"],
-                readable_asset["sha1"],
                 key=asset["url"],  # Use original url for our key
             )
         table.cursor_type = "row"
@@ -154,9 +147,6 @@ class AssetListScreen(Screen):
         else:
             new_asset["ext"] = os.path.splitext(asset["filename"])[1]
         new_asset["url"] = self.format_long_entry(asset["url"], self.url_width)
-        new_asset["filename"] = self.format_long_entry(
-            asset["filename"], self.filepath_width
-        )
 
         return new_asset
 
@@ -171,8 +161,6 @@ class AssetListScreen(Screen):
             # and what is shown on the table...
             self.assets[row_key]["mtime"] = asset["mtime"]
             self.assets[row_key]["fsize"] = asset["fsize"]
-            self.assets[row_key]["filename"] = asset["filename"]
-            self.assets[row_key]["sha1"] = asset["sha1"]
             self.assets[row_key]["content_name"] = asset["content_name"]
         except KeyError:
             # This happens if the download process finishes and updates
@@ -181,7 +169,7 @@ class AssetListScreen(Screen):
 
         readable_asset = self.format_asset(asset)
         table = next(self.query("#asset-list").results(DataTable))
-        col_keys = ["url", "mtime", "fsize", "trail", "filename", "sha1", "ext"]
+        col_keys = ["url", "mtime", "fsize", "trail", "ext"]
         table.update_cell(
             row_key, col_keys[0], readable_asset["url"], update_width=True
         )
@@ -193,13 +181,7 @@ class AssetListScreen(Screen):
         )
         # Skip Trail....  It doesn't change anyhow.
         table.update_cell(
-            row_key, col_keys[4], readable_asset["filename"], update_width=True
-        )
-        table.update_cell(
-            row_key, col_keys[5], readable_asset["sha1"], update_width=True
-        )
-        table.update_cell(
-            row_key, col_keys[6], readable_asset["ext"], update_width=True
+            row_key, col_keys[4], readable_asset["ext"], update_width=True
         )
 
     def url_reformat(self, url):
