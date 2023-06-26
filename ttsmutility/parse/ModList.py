@@ -129,7 +129,7 @@ class ModList:
 
             db.commit()
 
-        return combined
+        return sorted(combined)
 
     def update_mod_counts(self, mod_filename):
         counts = {}
@@ -270,9 +270,10 @@ class ModList:
                 glob(os.path.join(base_dir, "*.json"), root_dir=root_dir)
             ):
                 if (
-                    "WorkshopFileInfos.json" in f
-                    or "SaveFileInfos.json" in f
+                    "WorkshopFileInfos" in f
+                    or "SaveFileInfos" in f
                     or "TS_AutoSave" in f
+                    or "TS_Save" in f
                 ):
                     continue
 
