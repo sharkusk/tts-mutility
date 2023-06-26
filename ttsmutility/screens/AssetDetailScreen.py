@@ -1,11 +1,10 @@
 from textual.app import ComposeResult
-from textual.widgets import Static
 from textual.widgets import Footer
-from textual.widgets import Markdown, MarkdownViewer
+from textual.widgets import Markdown
+from textual.containers import Container
 from textual.screen import ModalScreen
 
 import time
-import re
 from pathlib import Path
 from webbrowser import open as open_url
 
@@ -20,12 +19,12 @@ class AssetDetailScreen(ModalScreen):
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield Markdown(
-            self.get_markdown(),
-            id="ad_screen",
-            # show_table_of_contents=False,
-        )
-        yield Footer()
+        with Container(id="ad_screen"):
+            yield Footer()
+            yield Markdown(
+                self.get_markdown(),
+                id="ad_markdown",
+            )
 
     def get_markdown(self) -> str:
         asset_detail_md = ""

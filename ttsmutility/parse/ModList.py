@@ -13,19 +13,57 @@ class ModList:
         self.is_save = is_save
 
     def get_mod_name(self, filename: str) -> str:
-        file_path = os.path.join(self.dir_path, filename)
-        if False:
-            # This is really slow as the entire JSON file is processed.
-            with open(file_path, "r", encoding="utf-8") as infile:
-                save = json.load(infile)
-            return save["SaveName"]
-        else:
-            with open(file_path, "r", encoding="utf-8") as infile:
-                for line in infile:
-                    if "SaveName" in line:
-                        # "SaveName": "Defenders of the Realm",
-                        return re.findall('"SaveName": "(.*)"', line)[0]
+        filepath = os.path.join(self.dir_path, filename)
+        with open(filepath, "r", encoding="utf-8") as infile:
+            for line in infile:
+                if "SaveName" in line:
+                    # "SaveName": "Defenders of the Realm",
+                    return re.findall('"SaveName": "(.*)"', line)[0]
         return ""
+
+    def get_mod_details(self, filename: str) -> str:
+        filepath = os.path.join(self.dir_path, filename)
+        fields = [
+            "SaveName",
+            "EpochTime",
+            "Date",
+            "VersionNumber",
+            "GameMode",
+            "GameType",
+            "GameComplexity",
+        ]
+        arrays = ["PlayingTime", "PlayerCounts", "Tags"]
+        details = {}
+        details["mtime"] = os.path.getmtime(filepath)
+        for field in fields:
+            details[field] = ""
+        for array in arrays:
+            details[array] = []
+        cur_array = ""
+        pattern = re.compile(f'"(.*)": (?:"(.*)"|\[|[\d\.]+)')
+        with open(filepath, "r", encoding="utf-8") as infile:
+            for line in infile:
+                if "{" in line:
+                    # Skip first line
+                    continue
+                if cur_array != "":
+                    if "]" in line:
+                        cur_array = ""
+                    else:
+                        value = line.strip(' \n,"')
+                        details[cur_array].append(value)
+                else:
+                    field, value = pattern.findall(line)[0]
+                    if field in fields:
+                        details[field] = value
+                    elif field in arrays:
+                        # Empty arrays are contained on same line
+                        if "]" not in line:
+                            cur_array = field
+                    else:
+                        # We don't care about the rest of the file..
+                        break
+        return details
 
     def get_mods_needing_asset_refresh(self):
         with sqlite3.connect(DB_NAME) as db:
@@ -85,41 +123,34 @@ class ModList:
 
         return combined
 
-    def update_mod_counts(self, mod_filename, forced=False):
-        need_total = False
-        need_missing = False
-        need_size = False
-        if forced:
-            need_total = True
-            need_missing = True
-            need_size = True
-        else:
-            with sqlite3.connect(DB_NAME) as db:
-                cursor = db.execute(
-                    """
-                    SELECT mod_total_assets, mod_missing_assets, mod_size
-                    FROM tts_mods
-                    WHERE mod_filename=?
-                    """,
-                    (mod_filename,),
-                )
-                result = cursor.fetchone()
-                if result is None:
-                    return
-                if result[0] == -1:
-                    need_total = True
-                if result[1] == -1:
-                    need_missing = True
-                if result[2] == -1:
-                    need_size = True
-        if need_total:
-            self.count_total_assets(mod_filename)
-        if need_missing:
-            self.count_missing_assets(mod_filename)
-        if need_size:
-            self.calc_asset_size(mod_filename)
+    def update_mod_counts(self, mod_filename):
+        counts = {}
+        with sqlite3.connect(DB_NAME) as db:
+            cursor = db.execute(
+                """
+                SELECT mod_total_assets, mod_missing_assets, mod_size
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            result = cursor.fetchone()
+            if result is None:
+                return
+            counts["total"] = result[0]
+            counts["missing"] = result[1]
+            counts["size"] = result[2]
 
-    def calc_asset_size(self, filename: str) -> int:
+        if counts["total"] == -1:
+            counts["total"] = self._count_total_assets(mod_filename)
+        if counts["missing"] == -1:
+            counts["missing"] = self._count_missing_assets(mod_filename)
+        if counts["size"] == -1:
+            counts["size"] = self._calc_asset_size(mod_filename)
+
+        return counts
+
+    def _calc_asset_size(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             cursor = db.execute(
                 """
@@ -152,7 +183,7 @@ class ModList:
             db.commit()
         return mod_size
 
-    def count_total_assets(self, filename: str) -> int:
+    def _count_total_assets(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             cursor = db.execute(
                 """
@@ -174,7 +205,7 @@ class ModList:
             db.commit()
         return result[0]
 
-    def count_missing_assets(self, filename: str) -> int:
+    def _count_missing_assets(self, filename: str) -> int:
         with sqlite3.connect(DB_NAME) as db:
             query = """
             SELECT COUNT(asset_id_fk)
@@ -240,9 +271,11 @@ class ModList:
                     or "TS_AutoSave" in f
                 ):
                     continue
+
                 if max_mods != -1 and i >= max_mods:
                     break
 
+                details = self.get_mod_details(f)
                 name = self.get_mod_name(f)
                 mod_list.append((f, name))
 
@@ -250,8 +283,6 @@ class ModList:
                 return mods
 
             with sqlite3.connect(DB_NAME) as db:
-                # We could have the same mod filename in both the Save and Workshop
-                # directories.
                 # Default values will come from table definition...
                 db.executemany(
                     """
@@ -263,24 +294,21 @@ class ModList:
                     mod_list,
                 )
                 # Now that the mod is in the db, extract the data...
-                for mod_filename in tuple(zip(*mod_list))[0]:
-                    cursor = db.execute(
-                        """
-                        SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets, mod_filename
-                        FROM tts_mods
-                        WHERE mod_filename=?
-                        """,
-                        (mod_filename,),
-                    )
-                    result = cursor.fetchone()
-                    if result != None:
-                        mods[result[5]] = {
-                            "name": result[0],
-                            "mtime": result[1],
-                            "size": result[2],
-                            "total_assets": result[3],
-                            "missing_assets": result[4],
-                            "filename": result[5],
-                        }
+                cursor = db.execute(
+                    """
+                    SELECT mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets, mod_filename
+                    FROM tts_mods
+                    """
+                )
+                results = cursor.fetchall()
+                for result in results:
+                    mods[result[5]] = {
+                        "name": result[0],
+                        "mtime": result[1],
+                        "size": result[2],
+                        "total_assets": result[3],
+                        "missing_assets": result[4],
+                        "filename": result[5],
+                    }
                 db.commit()
         return mods

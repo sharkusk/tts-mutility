@@ -113,22 +113,18 @@ class ModListScreen(Screen):
         self.query_one("#ml_status_center").add_class("unhide")
         mod_asset_list = AssetList(self.mod_dir, self.save_dir)
 
-        def update(mod_list, mods):
-            total_mods = len(mods)
-            for i, mod_filename in enumerate(mods.keys()):
-                self.update_status(f"Scanning Mod {i} of {total_mods}")
-                mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-                mod_list.update_mod_counts(mod_filename)
+        def update(mods):
+            for mod_filename in mods.keys():
                 self.add_mod_row(mods[mod_filename])
 
         mod_list = ModList.ModList(self.mod_dir)
         self.mods = mod_list.get_mods()
-        mod_list.get_mods_needing_asset_refresh()  # Run once to capture new files added to the fs
-        update(mod_list, self.mods)
+        # mod_list.get_mods_needing_asset_refresh()  # Run once to capture new files added to the fs
+        update(self.mods)
 
         save_list = ModList.ModList(self.save_dir, is_save=True)
         self.saves = save_list.get_mods()
-        update(save_list, self.saves)
+        update(self.saves)
 
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
