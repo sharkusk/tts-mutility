@@ -76,11 +76,13 @@ class ModListScreen(Screen):
     def on_mount(self) -> None:
         self.sort_order = {
             "name": False,
+            "created": False,
             "modified": False,
             "size": False,
             "total_assets": False,
             "missing_assets": False,
-            "filename": False,
+            "min_players": False,
+            "max_players": False,
         }
 
         for id in "#ml_workshop_dt", "#ml_saves_dt":
@@ -91,11 +93,13 @@ class ModListScreen(Screen):
                 table.add_column("Mod Name", width=35, key="name")
             else:
                 table.add_column("Save Name", width=35, key="name")
-            table.add_column("Modified", key="modified")
+            table.add_column("Created", key="created")
+            table.add_column("File Modified", key="modified")
             table.add_column("Size (MB)", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")
-            table.add_column("Filename", key="filename")
+            table.add_column("Min P", key="min_players")
+            table.add_column("Max P", key="max_players")
 
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
@@ -134,11 +138,13 @@ class ModListScreen(Screen):
 
         table.add_row(
             mods[filename]["name"].ljust(35),
+            format_time(mods[filename]["epoch"], ""),
             format_time(mods[filename]["mtime"], "Scanning..."),
             mods[filename]["size"] / (1024 * 1024),
             mods[filename]["total_assets"],
             mods[filename]["missing_assets"],
-            filename,
+            mods[filename]["min_players"],
+            mods[filename]["max_players"],
             key=filename,
         )
         self.active_rows[filename] = mods[filename]["name"]
