@@ -8,7 +8,7 @@ from textual.message import Message
 import time
 from pathlib import Path
 from webbrowser import open as open_url
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, quote
 
 from ..data.config import load_config
 from ..parse.ModList import ModList
@@ -49,7 +49,9 @@ class ModDetailScreen(Screen):
         with md_filepath.open("r") as f:
             mod_detail_md = f.read()
 
-        self.mod_detail["asset_detail_url"] = f"{self.ad_uri_prefix}{self.filename}"
+        self.mod_detail["asset_detail_url"] = quote(
+            f"{self.ad_uri_prefix}{self.filename}"
+        )
         self.mod_detail["size"] = self.mod_detail["size"] / (1024)
         self.mod_detail["mtime"] = time.ctime(self.mod_detail["mtime"])
         self.mod_detail["epoch"] = time.ctime(self.mod_detail["epoch"])
