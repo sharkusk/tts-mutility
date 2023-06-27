@@ -8,7 +8,6 @@ from textual.events import Key
 
 from ttsmutility.parse import ModList
 from ttsmutility.util import format_time
-from ttsmutility.parse.AssetList import AssetList
 
 from itertools import filterfalse
 
@@ -49,13 +48,8 @@ class ModListScreen(Screen):
                 yield DataTable(id="ml_saves_dt")
 
     class ModSelected(Message):
-        def __init__(
-            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
-        ) -> None:
-            self.mod_filename = mod_filename
-            self.mod_name = mod_name
-            self.mod_dir = mod_dir
-            self.save_dir = save_dir
+        def __init__(self, mod_filename: str) -> None:
+            self.filename = mod_filename
             super().__init__()
 
     class ModLoaded(Message):
@@ -229,8 +223,7 @@ class ModListScreen(Screen):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if self.prev_selected is not None and event.row_key == self.prev_selected:
-            args = self.get_mod_by_row(event.data_table.id, event.row_key)
-            self.post_message(self.ModSelected(*args))
+            self.post_message(self.ModSelected(event.row_key.value))
         self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):

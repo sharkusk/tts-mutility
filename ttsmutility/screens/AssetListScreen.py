@@ -5,11 +5,14 @@ from textual.widgets import Footer, Header, DataTable
 from textual.widgets import Static
 
 from ttsmutility.parse.AssetList import AssetList
+from ttsmutility.parse.ModList import ModList
 from ttsmutility.util import format_time
 from ttsmutility.fetch.AssetDownload import download_files
 
 import os.path
 import pathlib
+
+from ..data.config import load_config
 
 
 class AssetListScreen(Screen):
@@ -30,12 +33,7 @@ class AssetListScreen(Screen):
             self.assets = assets
             super().__init__()
 
-    def __init__(
-        self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
-    ) -> None:
-        self.mod_dir = mod_dir
-        self.save_dir = save_dir
-        self.mod_name = mod_name
+    def __init__(self, mod_filename: str) -> None:
         self.mod_filename = mod_filename
         self.current_row = 0
         self.url_width = 40
@@ -56,7 +54,15 @@ class AssetListScreen(Screen):
             "fsize": False,
         }
         self.last_sort_key = "url"
-        asset_list = AssetList(self.mod_dir, self.save_dir)
+
+        config = load_config()
+        self.mod_dir = config.tts_mods_dir
+        self.save_dir = config.tts_saves_dir
+
+        asset_list = AssetList(config.tts_mods_dir, config.tts_saves_dir)
+        mod_list = ModList(config.tts_mods_dir, config.tts_saves_dir)
+
+        self.mod_details = mod_list.get_mod_details(self.mod_filename)
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -65,7 +71,7 @@ class AssetListScreen(Screen):
         table.sort("url", reverse=self.sort_order["url"])
 
         static = next(self.query("#al_modname").results(Static))
-        static.update(self.mod_name)
+        static.update(self.mod_details["name"])
 
         table.clear(columns=True)
         table.focus()
@@ -217,7 +223,7 @@ class AssetListScreen(Screen):
         asset_detail = self.assets[event.row_key.value].copy()
         asset_detail["uri"] = pathlib.Path(filepath).as_uri() if filepath != "" else ""
         asset_detail["filepath"] = pathlib.Path(filepath) if filepath != "" else ""
-        asset_detail["mod_name"] = self.mod_name
+        asset_detail["mod_name"] = self.mod_details["name"]
 
         asset_list = AssetList(self.mod_dir, self.save_dir)
         other_mods = asset_list.get_mods_using_asset(asset_detail["url"])

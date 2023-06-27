@@ -173,7 +173,7 @@ class AssetDownloadScreen(ModalScreen):
         else:
             for asset in self.assets:
                 urls.append((asset["url"], trailstring_to_trail(asset["trail"])))
-            overwrite = True
+            overwrite = False
 
         self.query_one("#dl_progress_all").update(total=len(urls), progress=0)
 

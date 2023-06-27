@@ -13,6 +13,7 @@ from .screens.AssetListScreen import AssetListScreen
 from .screens.ModListScreen import ModListScreen
 from .screens.Sha1ScanScreen import Sha1ScanScreen
 from .screens.AssetDownloadScreen import AssetDownloadScreen
+from .screens.ModDetailScreen import ModDetailScreen
 
 from .parse import ModList
 from .parse import AssetList
@@ -96,6 +97,10 @@ class TTSMutility(App):
                     mod_filename, counts["total"], counts["missing"], counts["size"]
                 )
 
+            if self.is_screen_installed("mod_details"):
+                screen = self.get_screen("mod_details")
+                screen.refresh_mod_details()
+
     def on_ttsmutility_init_complete(self):
         config = load_config()
         self.install_screen(
@@ -108,12 +113,21 @@ class TTSMutility(App):
         static.update(event.status)
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
+        if self.is_screen_installed("mod_details"):
+            self.uninstall_screen("mod_details")
+        self.install_screen(
+            ModDetailScreen(event.filename),
+            name="mod_details",
+        )
+        self.push_screen("mod_details")
+
+    def on_mod_detail_screen_assets_selected(
+        self, event: ModDetailScreen.AssetsSelected
+    ):
         if self.is_screen_installed("asset_list"):
             self.uninstall_screen("asset_list")
         self.install_screen(
-            AssetListScreen(
-                event.mod_filename, event.mod_name, event.mod_dir, event.save_dir
-            ),
+            AssetListScreen(event.mod_filename),
             name="asset_list",
         )
         self.push_screen("asset_list")
