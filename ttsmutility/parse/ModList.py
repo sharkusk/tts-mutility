@@ -349,16 +349,29 @@ class ModList:
                             max_play_time = 0
 
                         if details["EpochTime"] == "":
-                            try:
-                                # 9/11/2021 4:55:18 AM
-                                utc_time = datetime.strptime(
-                                    details["Date"], "%m/%d/%Y %I:%M:%S %p"
-                                )
-                                epoch_time = (
-                                    utc_time - datetime(1970, 1, 1)
-                                ).total_seconds()
-                                details["EpochTime"] = epoch_time
-                            except:
+                            if details["Date"] != "":
+                                formats = [
+                                    "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
+                                    "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08
+                                    "%d/%m/%Y %I:%M:%S %p",  # 28/04/2023 11:11:14 PM
+                                    "%d/%m/%Y %H:%M:%S",  # 28/04/2023 14:11:14
+                                ]
+                                for format in formats:
+                                    try:
+                                        utc_time = datetime.strptime(
+                                            details["Date"], format
+                                        )
+                                    except:
+                                        continue
+                                    else:
+                                        epoch_time = (
+                                            utc_time - datetime(1970, 1, 1)
+                                        ).total_seconds()
+                                        details["EpochTime"] = epoch_time
+                                        break
+                                else:
+                                    details["EpochTime"] = 0
+                            else:
                                 details["EpochTime"] = 0
 
                         mod_list.append(
@@ -445,19 +458,50 @@ class ModList:
             # Now that all mods are in the db, extract the data...
             cursor = db.execute(
                 """
-                SELECT mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets
-                FROM tts_mods
-                """
+                SELECT
+                    mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets,
+                    mod_epoch, mod_version, mod_game_mode, mod_game_type, mod_game_complexity, mod_min_players,
+                    mod_max_players, mod_min_play_time, mod_max_play_time
+                FROM
+                    tts_mods
+                """,
             )
             results = cursor.fetchall()
             for result in results:
-                mods[result[0]] = {
+                filename = result[0]
+                mods[filename] = {
                     "filename": result[0],
                     "name": result[1],
                     "mtime": result[2],
                     "size": result[3],
                     "total_assets": result[4],
                     "missing_assets": result[5],
+                    "epoch": result[6],
+                    "version": result[7],
+                    "game_mode": result[8],
+                    "game_type": result[9],
+                    "game_complexity": result[10],
+                    "min_players": result[11],
+                    "max_players": result[12],
+                    "min_play_time": result[13],
+                    "max_play_time": result[14],
                 }
+                cursor = db.execute(
+                    """
+                    SELECT tag_name
+                    FROM tts_tags
+                        INNER JOIN tts_mod_tags
+                            ON tts_mod_tags.tag_id_fk=tts_tags.id
+                        INNER JOIN tts_mods
+                            ON tts_mod_tags.mod_id_fk=tts_mods.id
+                    WHERE mod_filename=?
+                    """,
+                    (filename,),
+                )
+                tag_results = cursor.fetchall()
+                if len(tag_results) > 0:
+                    mods[filename]["tags"] = list(zip(*tag_results))[0]
+                else:
+                    mods[filename]["tags"] = ()
             db.commit()
         return mods
