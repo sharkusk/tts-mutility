@@ -78,7 +78,7 @@ class AssetListScreen(Screen):
 
         table.add_column("URL", width=self.url_width, key="url")
         table.add_column("Extension", key="ext")
-        table.add_column("Size", key="fsize")
+        table.add_column("Size (KB)", key="fsize")
         table.add_column("Trail", key="trail")
         table.add_column("Modified", key="mtime")
 
@@ -128,7 +128,7 @@ class AssetListScreen(Screen):
         new_asset["mtime"] = readable_time
 
         readable_size = sizeof_fmt(asset["fsize"])
-        new_asset["fsize"] = readable_size
+        new_asset["fsize"] = new_asset["fsize"] / 1024
 
         if asset["url"][-1] == "/":
             url_end = asset["url"][:-1].rsplit("/", 1)[-1]

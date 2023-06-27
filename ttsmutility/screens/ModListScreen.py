@@ -14,6 +14,7 @@ from itertools import filterfalse
 
 class ModListScreen(Screen):
     BINDINGS = [
+        ("q", "exit", "Quit"),
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
         ("f", "filter", "Filter"),
@@ -270,6 +271,9 @@ class ModListScreen(Screen):
             self.query_one("#ml_filter").focus()
         else:
             self.get_active_table()[0].focus()
+
+    def action_exit(self) -> None:
+        self.app.exit()
 
     def get_active_table(self) -> tuple:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
