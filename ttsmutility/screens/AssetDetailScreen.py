@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.widgets import Footer
 from textual.widgets import Markdown
-from textual.containers import Container
+from textual.containers import Container, VerticalScroll
 from textual.screen import ModalScreen
 
 import time
@@ -21,10 +21,11 @@ class AssetDetailScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Container(id="ad_screen"):
             yield Footer()
-            yield Markdown(
-                self.get_markdown(),
-                id="ad_markdown",
-            )
+            with VerticalScroll(id="ad_scroll"):
+                yield Markdown(
+                    self.get_markdown(),
+                    id="ad_markdown",
+                )
 
     def get_markdown(self) -> str:
         asset_detail_md = ""

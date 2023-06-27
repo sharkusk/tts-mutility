@@ -16,7 +16,7 @@ class ModListScreen(Screen):
     BINDINGS = [
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
-        ("f", "filter", "Enable Filter"),
+        ("f", "filter", "Filter"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:

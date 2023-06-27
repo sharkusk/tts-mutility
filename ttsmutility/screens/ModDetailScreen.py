@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.widgets import Footer
 from textual.widgets import Markdown
-from textual.containers import Container
+from textual.containers import Container, VerticalScroll
 from textual.screen import Screen
 from textual.message import Message
 
@@ -17,6 +17,7 @@ from ..parse.ModList import ModList
 class ModDetailScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
+        ("a", "asset_list", "Asset List"),
     ]
 
     class AssetsSelected(Message):
@@ -35,10 +36,11 @@ class ModDetailScreen(Screen):
     def compose(self) -> ComposeResult:
         with Container(id="md_screen"):
             yield Footer()
-            yield Markdown(
-                self.get_markdown(),
-                id="md_markdown",
-            )
+            with VerticalScroll(id="md_scroll"):
+                yield Markdown(
+                    self.get_markdown(),
+                    id="md_markdown",
+                )
 
     def get_markdown(self) -> str:
         mod_list = ModList(self.mod_dir, self.save_dir)
@@ -79,3 +81,6 @@ class ModDetailScreen(Screen):
 
     def refresh_mod_details(self):
         self.query_one("#md_markdown").update(self.get_markdown())
+
+    def action_asset_list(self):
+        self.post_message(self.AssetsSelected(self.filename))
