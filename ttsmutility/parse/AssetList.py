@@ -368,7 +368,16 @@ class AssetList:
         new_asset_count = 0
 
         with sqlite3.connect(self.db_path) as db:
-            if len(mod_assets) > 0:
+            if len(mod_assets) == 0:
+                db.execute(
+                    """
+                    UPDATE tts_mods
+                    SET mod_mtime=?
+                    WHERE mod_filename=?
+                    """,
+                    (os.path.getmtime(mod_path), mod_filename),
+                )
+            else:
                 filenames, urls, trails = zip(*mod_assets)
 
                 # Combine the URLs/filenames from the mod with what is already in the DB
