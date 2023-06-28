@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual import work
 from textual.worker import Worker
 from textual.events import Key
+from textual.css.query import NoMatches
 
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
@@ -137,25 +138,34 @@ class TTSMutility(App):
         static.update(event.status)
 
     def on_update_progress(self, event: UpdateProgress):
-        status_center = self.screen_stack[-1].query_one("#worker_status_center")
-        status_center.add_class("unhide")
-        progress = self.screen_stack[-1].query_one("#worker_progress")
-        progress.add_class("unhide")
-        if event.update_total is not None:
-            progress.update(total=event.update_total)
-        if event.advance_amount is not None:
-            progress.advance(event.advance_amount)
+        try:
+            status_center = self.screen_stack[-1].query_one("#worker_status_center")
+            status_center.add_class("unhide")
+            progress = self.screen_stack[-1].query_one("#worker_progress")
+            progress.add_class("unhide")
+            if event.update_total is not None:
+                progress.update(total=event.update_total)
+            if event.advance_amount is not None:
+                progress.advance(event.advance_amount)
+        except NoMatches:
+            pass
 
     def on_update_status(self, event: UpdateStatus):
-        status_center = self.screen_stack[-1].query_one("#worker_status_center")
-        status_center.add_class("unhide")
-        status = self.screen_stack[-1].query_one("#worker_status")
-        status.update(event.status)
+        try:
+            status_center = self.screen_stack[-1].query_one("#worker_status_center")
+            status_center.add_class("unhide")
+            status = self.screen_stack[-1].query_one("#worker_status")
+            status.update(event.status)
+        except NoMatches:
+            pass
 
     def on_key(self, event: Key):
         if event.key == "escape":
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.remove_class("unhide")
+            try:
+                status_center = self.screen_stack[-1].query_one("#worker_status_center")
+                status_center.remove_class("unhide")
+            except NoMatches:
+                pass
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
         self.load_screen(ModDetailScreen(event.filename), "mod_details")
