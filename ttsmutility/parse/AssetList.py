@@ -121,12 +121,16 @@ class AssetList:
                         name = ""
                     else:
                         name = v.replace("Custom_", "")
+                        # Strip inline formatting that may not work properly
+                        name = re.sub(r"(\[.+?\])", "", name)
 
             # Prioritize storing the nickname over the name...
             elif k.lower() == "nickname" and v:
                 # Don't store the same custom name twice in a given trail
                 if v not in newtrail:
                     name = v
+                    # Strip inline formatting that may not work properly
+                    name = re.sub(r"(\[.+?\])", "", name)
 
             elif k == "LuaScript":
                 NO_EXT_SITES = [
