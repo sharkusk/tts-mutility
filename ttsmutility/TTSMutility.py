@@ -51,6 +51,9 @@ class TTSMutility(App):
     def __init__(self, cli_args: Namespace) -> None:
         super().__init__()
         self.args = cli_args
+        self.last_status = ""
+        self.progress_total = 100
+        self.progress_advance = 0
         config = load_config()
         # Update config file in case some settings have been added
         save_config(config)
@@ -121,8 +124,8 @@ class TTSMutility(App):
         screen = self.get_screen(name)
         screen.mount(
             Center(
-                ProgressBar(id="worker_progress"),
-                Static(id="worker_status"),
+                ProgressBar(self.progress_total, id="worker_progress"),
+                Static(self.last_status, id="worker_status"),
                 id="worker_status_center",
             )
         )
@@ -138,26 +141,34 @@ class TTSMutility(App):
         static.update(event.status)
 
     def on_update_progress(self, event: UpdateProgress):
-        try:
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.add_class("unhide")
-            progress = self.screen_stack[-1].query_one("#worker_progress")
-            progress.add_class("unhide")
-            if event.update_total is not None:
-                progress.update(total=event.update_total)
-            if event.advance_amount is not None:
-                progress.advance(event.advance_amount)
-        except NoMatches:
-            pass
+        if event.update_total is not None:
+            self.progress_total = event.update_total
+            self.progress_advance = 0
+        else:
+            self.progress_advance = self.progress_advance + event.advance_amount
+
+        for screen in self.screen_stack:
+            try:
+                status_center = screen.query_one("#worker_status_center")
+                status_center.add_class("unhide")
+                progress = screen.query_one("#worker_progress")
+                progress.add_class("unhide")
+                progress.update(
+                    total=self.progress_total, progress=self.progress_advance
+                )
+            except NoMatches:
+                pass
 
     def on_update_status(self, event: UpdateStatus):
-        try:
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.add_class("unhide")
-            status = self.screen_stack[-1].query_one("#worker_status")
-            status.update(event.status)
-        except NoMatches:
-            pass
+        self.last_status = event.status
+        for screen in self.screen_stack:
+            try:
+                status_center = screen.query_one("#worker_status_center")
+                status_center.add_class("unhide")
+                status = screen.query_one("#worker_status")
+                status.update(event.status)
+            except NoMatches:
+                pass
 
     def on_key(self, event: Key):
         if event.key == "escape":

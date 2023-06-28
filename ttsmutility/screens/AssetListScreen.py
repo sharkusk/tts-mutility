@@ -95,8 +95,8 @@ class AssetListScreen(Screen):
                 key=asset["url"],  # Use original url for our key
             )
         table.cursor_type = "row"
-        table.sort("url", reverse=self.sort_order["url"])
-        self.last_sort_key = "url"
+        table.sort("trail", reverse=self.sort_order["trail"])
+        self.last_sort_key = "trail"
 
     def format_long_entry(self, entry, width):
         if not entry or len(entry) < width:
