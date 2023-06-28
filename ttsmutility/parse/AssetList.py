@@ -8,8 +8,7 @@ import time
 from pathlib import Path
 
 from ..data.config import load_config
-
-from ttsmutility.parse.FileFinder import (
+from ..parse.FileFinder import (
     ALL_VALID_EXTS,
     recodeURL,
     TTS_RAW_DIRS,

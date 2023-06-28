@@ -4,14 +4,13 @@ from textual.message import Message
 from textual.widgets import Footer, Header, DataTable
 from textual.widgets import Static
 
-from ttsmutility.parse.AssetList import AssetList
-from ttsmutility.parse.ModList import ModList
-from ttsmutility.util import format_time
-from ttsmutility.fetch.AssetDownload import download_files
+from ..parse.AssetList import AssetList
+from ..parse.ModList import ModList
+from ..utility.util import format_time
+from ..fetch.AssetDownload import download_files
+from ..data.config import load_config
 
 from pathlib import Path
-
-from ..data.config import load_config
 
 
 class AssetListScreen(Screen):

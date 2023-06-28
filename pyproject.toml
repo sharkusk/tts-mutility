@@ -29,3 +29,6 @@ Repository = "https://github.com/sharkusk/ttsmutility"
 [project.optional-dependencies]
 dev = [
 ]
+
+[project.scripts]
+ttsmutility = "ttsmutility.TTSMutility:run"

@@ -6,8 +6,8 @@ from textual.screen import Screen
 from textual.containers import Center
 from textual.events import Key
 
-from ttsmutility.parse import ModList
-from ttsmutility.util import format_time
+from ..parse import ModList
+from ..utility.util import format_time
 
 from itertools import filterfalse
 

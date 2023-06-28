@@ -4,8 +4,8 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.message import Message
 
-from ttsmutility.parse.Sha1Scan import scan_sha1s
-from ttsmutility.parse.AssetList import AssetList
+from ..parse.Sha1Scan import scan_sha1s
+from ..parse.AssetList import AssetList
 
 import sys
 import os

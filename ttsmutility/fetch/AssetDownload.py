@@ -6,9 +6,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from ttsmutility.parse.FileFinder import UPPER_EXTS, get_fs_path_from_extension
-
-from ttsmutility.parse.FileFinder import (
+from ..parse.FileFinder import UPPER_EXTS, get_fs_path_from_extension
+from ..parse.FileFinder import (
     is_obj,
     is_assetbundle,
     is_audiolibrary,

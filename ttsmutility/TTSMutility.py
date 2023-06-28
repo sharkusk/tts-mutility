@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
-
-from importlib.metadata import version, PackageNotFoundError
+from argparse import ArgumentParser, Namespace
+from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
 
 from textual.app import App, ComposeResult
 from textual.widgets import Header
@@ -18,19 +18,17 @@ from .screens.ModDetailScreen import ModDetailScreen
 from .parse import ModList
 from .parse import AssetList
 from .data import load_config, save_config
+from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
+from . import __version__
 
-from . import create_new_db
+from .data.db import create_new_db
 
 
 class TTSMutility(App):
     CSS_PATH = "ttsmutility.css"
 
-    try:
-        __version__ = version("ttsmutility")
-        SUB_TITLE = __version__
-    except PackageNotFoundError:
-        # package is not installed
-        pass
+    TITLE = APPLICATION_TITLE
+    SUB_TITLE = __version__
 
     class InitComplete(Message):
         def __init__(self) -> None:
@@ -40,6 +38,10 @@ class TTSMutility(App):
         def __init__(self, status: str) -> None:
             self.status = status
             super().__init__()
+
+    def __init__(self, cli_args: Namespace) -> None:
+        super().__init__()
+        self.args = cli_args
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -161,3 +163,35 @@ class TTSMutility(App):
 
     def on_asset_download_screen_download_complete(self):
         self.refresh_mods()
+
+
+def get_args() -> Namespace:
+    """Parse and return the command line arguments.
+
+    Returns:
+        The result of parsing the arguments.
+    """
+
+    # Create the parser object.
+    parser = ArgumentParser(
+        prog=PACKAGE_NAME,
+        description=f"{APPLICATION_TITLE} - Tabletop Simulator Mod and Save Utility",
+        epilog=f"v{__version__}",
+    )
+
+    # Add --version
+    parser.add_argument(
+        "-v",
+        "--version",
+        help="Show version information.",
+        action="version",
+        version=f"%(prog)s {__version__} (Textual v{textual_version})",
+    )
+
+    # Finally, parse the command line.
+    return parser.parse_args()
+
+
+def run() -> None:
+    """Run the application."""
+    TTSMutility(get_args()).run()

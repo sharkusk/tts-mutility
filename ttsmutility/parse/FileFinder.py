@@ -1,4 +1,3 @@
-import urllib
 from pathlib import Path
 import re
 import os.path

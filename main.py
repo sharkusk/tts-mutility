@@ -1,5 +1,4 @@
-from ttsmutility.TTSMutility import TTSMutility
+from ttsmutility.TTSMutility import run
 
 if __name__ == "__main__":
-    app = TTSMutility()
-    app.run()
+    run()

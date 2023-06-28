@@ -4,13 +4,11 @@ from textual.containers import VerticalScroll, Container, Center
 from textual.screen import ModalScreen
 from textual.message import Message
 
-from ttsmutility.parse.AssetList import AssetList
-from ttsmutility.fetch.AssetDownload import download_files
-from ttsmutility.parse.FileFinder import trailstring_to_trail
+from ..parse.AssetList import AssetList
+from ..fetch.AssetDownload import download_files
+from ..parse.FileFinder import trailstring_to_trail
 
 from rich.markdown import Markdown as RichMarkdown
-
-import sys
 import os
 
 

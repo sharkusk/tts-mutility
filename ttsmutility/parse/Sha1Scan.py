@@ -2,7 +2,7 @@ import hashlib
 import os
 import pathlib
 
-from ttsmutility.parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
+from ..parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
 
 # Recursively read each directory
 # Load existing dictionary, for each file not found in dictionary:
