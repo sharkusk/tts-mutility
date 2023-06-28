@@ -67,7 +67,7 @@ class AssetList:
             if name == "":
                 newtrail = trail + [k]
             else:
-                newtrail = trail + [f'"{name}"', k]
+                newtrail = trail + [f'"{name.strip()}"', k]
 
             if k == "AudioLibrary":
                 for elem in v:
