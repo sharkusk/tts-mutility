@@ -9,8 +9,7 @@ from ttsmutility.parse.ModList import ModList
 from ttsmutility.util import format_time
 from ttsmutility.fetch.AssetDownload import download_files
 
-import os.path
-import pathlib
+from pathlib import Path
 
 from ..data.config import load_config
 
@@ -151,7 +150,7 @@ class AssetListScreen(Screen):
         if asset["filename"] is None:
             new_asset["ext"] = None
         else:
-            new_asset["ext"] = os.path.splitext(asset["filename"])[1]
+            new_asset["ext"] = Path(asset["filename"]).suffix
         new_asset["url"] = self.format_long_entry(asset["url"], self.url_width)
 
         return new_asset
@@ -214,16 +213,19 @@ class AssetListScreen(Screen):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if self.assets[event.row_key.value]["filename"] is not None:
-            filepath = os.path.join(
-                self.mod_dir, self.assets[event.row_key.value]["filename"]
-            )
+            filepath = Path(self.mod_dir) / self.assets[event.row_key.value]["filename"]
         else:
             filepath = ""
 
         asset_detail = self.assets[event.row_key.value].copy()
-        asset_detail["uri"] = pathlib.Path(filepath).as_uri() if filepath != "" else ""
-        asset_detail["filepath"] = pathlib.Path(filepath) if filepath != "" else ""
+        asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
+        asset_detail["filepath"] = Path(filepath) if filepath != "" else ""
         asset_detail["mod_name"] = self.mod_details["name"]
+
+        if "Workshop" in self.mod_filename:
+            asset_detail["mod_path"] = Path(self.mod_dir) / self.mod_filename
+        else:
+            asset_detail["mod_path"] = Path(self.save_dir) / self.mod_filename
 
         asset_list = AssetList(self.mod_dir, self.save_dir)
         other_mods = asset_list.get_mods_using_asset(asset_detail["url"])

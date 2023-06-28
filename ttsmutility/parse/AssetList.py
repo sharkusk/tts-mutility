@@ -25,6 +25,17 @@ class IllegalSavegameException(ValueError):
 
 
 class AssetList:
+    # These names are redundant, so don't keep them in our trail
+    NAMES_TO_IGNORE = [
+        "custom_model",
+        "custom_assetbundle",
+        "custom_pdf",
+        "custom_token",
+        "custom content",
+        "deck",
+        "cardcustom",
+    ]
+
     def __init__(self, mod_dir: str, save_dir: str) -> None:
         self.mod_dir = mod_dir
         self.save_dir = save_dir
@@ -51,8 +62,12 @@ class AssetList:
         if done is None:
             done = set()
 
+        name = ""
         for k, v in dic.items():
-            newtrail = trail + [k]
+            if name == "":
+                newtrail = trail + [k]
+            else:
+                newtrail = trail + [f'"{name}"', k]
 
             if k == "AudioLibrary":
                 for elem in v:
@@ -96,6 +111,22 @@ class AssetList:
                     continue
                 done.add(recode)
                 yield (newtrail, v)
+
+            elif k.lower() == "name":
+                if not v or v.lower() in self.NAMES_TO_IGNORE:
+                    name = ""
+                else:
+                    # Don't store the same custom name twice in a given trail
+                    if v in newtrail:
+                        name = ""
+                    else:
+                        name = v.replace("Custom_", "")
+
+            # Prioritize storing the nickname over the name...
+            elif k.lower() == "nickname" and v:
+                # Don't store the same custom name twice in a given trail
+                if v not in newtrail:
+                    name = v
 
             elif k == "LuaScript":
                 NO_EXT_SITES = [
@@ -451,7 +482,9 @@ class AssetList:
             results = list(zip(*cursor.fetchall()))[0]
         return results
 
-    def get_mod_assets(self, mod_filename: str, parse_only=False) -> list:
+    def get_mod_assets(
+        self, mod_filename: str, parse_only=False, force_refresh=False
+    ) -> list:
         assets = []
         if mod_filename.find("Workshop") == 0:
             mod_path = os.path.join(self.mod_dir, mod_filename)
@@ -472,7 +505,7 @@ class AssetList:
                 (mod_filename,),
             )
             result = cursor.fetchone()
-            refresh_mod = False
+            refresh_mod = force_refresh
             if result == None:
                 refresh_mod = True
             else:

@@ -17,5 +17,12 @@
 | SHA1 Hexdigest                | {sha1}                    |
 | Download Error Status         | {dl_status}               |
 
+
+### LUA Snippet
+```
+{LuaScript}
+```
+
+
 ### All TTS Mods Using Asset
 {other_mods}

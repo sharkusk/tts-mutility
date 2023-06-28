@@ -46,6 +46,44 @@ class AssetDetailScreen(ModalScreen):
             "file:///", "//localhost/"
         )
 
+        self.asset_detail["LuaScript"] = "N/A"
+        if "LuaScript" in self.asset_detail["trail"]:
+            # Read in mod file, find string in first LUA script section,
+            # find start/end of function, and extract...
+            with open(self.asset_detail["mod_path"], "r", encoding="utf-8") as f:
+                lines_before = 12
+                lines_after = 12
+                data = f.read()
+                url_loc = data.find(self.asset_detail["url"])
+                start_lua = url_loc
+                for i in range(lines_before):
+                    new_start = data.rfind(r"\n", 0, start_lua)
+                    # Don't go past the LuaScript start section
+                    if data.rfind('"LuaScript":', new_start, start_lua) >= 0:
+                        break
+                    start_lua = new_start
+                end_lua = url_loc + len(self.asset_detail["url"])
+                for i in range(lines_after):
+                    new_end = data.find(r"\n", end_lua + 1)
+                    # Don't go past the end of the LuaScript section.
+                    # This is detected by finding a " mark without it
+                    # being escaped (e.g. not \").
+                    pot_end = data.find('"', end_lua, new_end)
+                    while pot_end >= 0 and data[pot_end - 1] == "\\":
+                        pot_end = data.find('"', pot_end + 1, new_end)
+                    if pot_end >= 0:
+                        end_lua = pot_end
+                        break
+                    end_lua = new_end
+
+                self.asset_detail["LuaScript"] = (
+                    data[start_lua:end_lua]
+                    .replace(r"\r", "")
+                    .replace(r"\n", "\n")
+                    .replace(r"\"", '"')
+                    .replace(r"\t", "\t")
+                )
+
         return asset_detail_md.format(**self.asset_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
