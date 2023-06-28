@@ -17,7 +17,6 @@ from textual.css.query import NoMatches
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
 from .screens.ModListScreen import ModListScreen
-from .screens.Sha1ScanScreen import Sha1ScanScreen
 from .screens.AssetDownloadScreen import AssetDownloadScreen
 from .screens.ModDetailScreen import ModDetailScreen
 
