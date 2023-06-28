@@ -401,9 +401,10 @@ class ModList:
                     INSERT INTO tts_mods
                         (mod_filename, mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
                         mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
-                        mod_min_play_time, mod_max_play_time)
+                        mod_min_play_time, mod_max_play_time, mod_total_assets, mod_missing_assets,
+                        mod_size)
                     VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, -1, -1, -1) 
                     ON CONFLICT (mod_filename)
                     DO UPDATE SET
                         mod_name=excluded.mod_name,
@@ -416,7 +417,10 @@ class ModList:
                         mod_min_players=excluded.mod_min_players,
                         mod_max_players=excluded.mod_max_players,
                         mod_min_play_time=excluded.mod_min_play_time,
-                        mod_max_play_time=excluded.mod_max_play_time
+                        mod_max_play_time=excluded.mod_max_play_time,
+                        mod_total_assets=excluded.mod_total_assets,
+                        mod_missing_assets=excluded.mod_missing_assets,
+                        mod_size=excluded.mod_size
                     """,
                     mod_list,
                 )
