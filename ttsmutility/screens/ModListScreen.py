@@ -34,8 +34,6 @@ class ModListScreen(Screen):
         yield Header()
         yield Footer()
 
-        with Center(id="ml_status_center"):
-            yield Static(id="ml_status")
         with Center(id="ml_filter_center"):
             yield Input(
                 placeholder="Loading. Please wait...",
@@ -109,8 +107,6 @@ class ModListScreen(Screen):
         self.load_mods()
 
     def load_mods(self) -> None:
-        self.query_one("#ml_status_center").add_class("unhide")
-
         mod_list = ModList.ModList(self.mod_dir, self.save_dir)
         self.mods = mod_list.get_mods()
 
@@ -120,8 +116,6 @@ class ModListScreen(Screen):
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
         f.disabled = False
-
-        self.query_one("#ml_status_center").remove_class("unhide")
 
     def get_mod_table(self, filename: str) -> tuple:
         mods = self.mods
@@ -181,10 +175,6 @@ class ModListScreen(Screen):
                 self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
             )
         self.prev_filter = self.filter
-
-    def update_status(self, message: str, disabled=False):
-        status = next(self.query("#ml_status").results(Static))
-        status.update(message)
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         row_key = mod_filename

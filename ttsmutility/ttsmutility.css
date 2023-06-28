@@ -80,21 +80,32 @@ DataTable {
     border: round blue;
 }
 
-#ml_status_center {
+#worker_status_center {
     visibility: hidden;
     height: 0;
 }
 
-#ml_status {
+#worker_status_center.unhide {
+    visibility: visible;
+    height: auto;
+    padding: 0;
+    padding-right: 2;
+    padding-left: 2;
+    border: round green;
+}
+
+#worker_status {
     text-align: center;
 }
 
-#ml_status_center.unhide {
-    height: 1;
+#worker_progress {
+    visibility: hidden;
+    height: 0;
+}
+
+#worker_progress.unhide {
     visibility: visible;
-    /*
-    border: round green;
-    */
+    height: 2;
 }
 
 #dl_screen {
