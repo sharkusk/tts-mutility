@@ -107,7 +107,7 @@ class ModListScreen(Screen):
         self.load_mods()
 
     def load_mods(self) -> None:
-        mod_list = ModList.ModList(self.mod_dir, self.save_dir)
+        mod_list = ModList.ModList()
         self.mods = mod_list.get_mods()
 
         for mod_filename in self.mods.keys():

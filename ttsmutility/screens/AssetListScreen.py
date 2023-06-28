@@ -57,8 +57,8 @@ class AssetListScreen(Screen):
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
 
-        asset_list = AssetList(config.tts_mods_dir, config.tts_saves_dir)
-        mod_list = ModList(config.tts_mods_dir, config.tts_saves_dir)
+        asset_list = AssetList()
+        mod_list = ModList()
 
         self.mod_details = mod_list.get_mod_details(self.mod_filename)
 
@@ -226,7 +226,7 @@ class AssetListScreen(Screen):
         else:
             asset_detail["mod_path"] = Path(self.save_dir) / self.mod_filename
 
-        asset_list = AssetList(self.mod_dir, self.save_dir)
+        asset_list = AssetList()
         other_mods = asset_list.get_mods_using_asset(asset_detail["url"])
         asset_detail["other_mods"] = sorted(other_mods)
         self.post_message(self.AssetSelected(asset_detail))

@@ -4,16 +4,17 @@ import sqlite3
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 from ..data.config import load_config
 
 
 class ModList:
-    def __init__(self, mod_dir: str, save_dir: str) -> None:
-        self.save_dir = save_dir
-        self.mod_dir = mod_dir
+    def __init__(self) -> None:
         config = load_config()
-        self.db_path = config.db_path
+        self.db_path = Path(config.db_path)
+        self.mod_dir = Path(config.tts_mods_dir)
+        self.save_dir = Path(config.tts_saves_dir)
 
     def _get_mod_path(self, filename: str) -> str:
         if "Workshop" in filename:
@@ -21,59 +22,6 @@ class ModList:
         else:
             path = self.save_dir
         return os.path.join(path, filename)
-
-    def _get_mod_details(self, filename: str) -> str:
-        fields = [
-            "SaveName",
-            "EpochTime",
-            "Date",
-            "VersionNumber",
-            "GameMode",
-            "GameType",
-            "GameComplexity",
-        ]
-        arrays = ["PlayingTime", "PlayerCounts", "Tags"]
-        details = {}
-        for field in fields:
-            details[field] = ""
-        for array in arrays:
-            details[array] = []
-        cur_array = ""
-        # TODO: Fix this so only two values are returned
-        end_groups = [
-            r"([\d\.]+),",  # "EpochTime": 1687672340,
-            r"(?:\[)",  # "PlayingTime": [
-            r'(?:"(.*)",)',  # "GameType": "Game",
-        ]
-        expr = r'"(.*)": ' + r"(?:" + "|".join(end_groups) + ")"
-        pattern = re.compile(expr)
-        filepath = self._get_mod_path(filename)
-        with open(filepath, "r", encoding="utf-8") as infile:
-            for line in infile:
-                if "{" in line:
-                    # Skip first line
-                    continue
-                if cur_array != "":
-                    if "]" in line:
-                        cur_array = ""
-                    else:
-                        value = line.strip(' \n,"')
-                        details[cur_array].append(value)
-                else:
-                    field, value1, value2 = pattern.findall(line)[0]
-                    if field in fields:
-                        if value1 == "":
-                            details[field] = value2
-                        else:
-                            details[field] = value1
-                    elif field in arrays:
-                        # Empty arrays are contained on same line
-                        if "]" not in line:
-                            cur_array = field
-                    else:
-                        # We don't care about the rest of the file..
-                        break
-        return details
 
     def get_mods_needing_asset_refresh(self):
         with sqlite3.connect(self.db_path) as db:
@@ -293,11 +241,107 @@ class ModList:
 
         return mod
 
+    def set_mod_details(self, filename: str, details: dict, mtime) -> None:
+        try:
+            min_players = int(details["PlayerCounts"][0])
+            max_players = int(details["PlayerCounts"][1])
+        except:
+            min_players = 0
+            max_players = 0
+
+        try:
+            min_play_time = int(details["PlayingTime"][0])
+            max_play_time = int(details["PlayingTime"][1])
+        except:
+            min_play_time = 0
+            max_play_time = 0
+
+        if details["EpochTime"] == "":
+            if details["Date"] != "":
+                formats = [
+                    "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
+                    "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08
+                    "%d/%m/%Y %I:%M:%S %p",  # 28/04/2023 11:11:14 PM
+                    "%d/%m/%Y %H:%M:%S",  # 28/04/2023 14:11:14
+                ]
+                for format in formats:
+                    try:
+                        utc_time = datetime.strptime(details["Date"], format)
+                    except:
+                        continue
+                    else:
+                        epoch_time = (utc_time - datetime(1970, 1, 1)).total_seconds()
+                        details["EpochTime"] = epoch_time
+                        break
+                else:
+                    details["EpochTime"] = 0
+            else:
+                details["EpochTime"] = 0
+
+        mod_tags = []
+        tags = set()
+        for tag in details["Tags"]:
+            mod_tags.append((filename, tag))
+            tags.add((tag,))
+
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                """
+                UPDATE tts_mods
+                SET
+                    (mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
+                    mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
+                    mod_min_play_time, mod_max_play_time, mod_mtime) = 
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                WHERE
+                    mod_filename=?
+                """,
+                (
+                    details["SaveName"],
+                    details["EpochTime"],
+                    details["Date"],
+                    details["VersionNumber"],
+                    details["GameMode"],
+                    details["GameType"],
+                    details["GameComplexity"],
+                    min_players,
+                    max_players,
+                    min_play_time,
+                    max_play_time,
+                    mtime,
+                    filename,
+                ),
+            )
+            mods_added = cursor.rowcount
+
+            cursor = db.executemany(
+                """
+                INSERT OR IGNORE INTO tts_tags
+                    (tag_name)
+                VALUES
+                    (?)
+                """,
+                tags,
+            )
+            tags_added = cursor.rowcount
+
+            cursor = db.executemany(
+                """
+                INSERT OR IGNORE INTO tts_mod_tags
+                    (mod_id_fk, tag_id_fk)
+                VALUES (
+                    (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
+                    (SELECT tts_tags.id FROM tts_tags WHERE tag_name=?)
+                )
+                """,
+                mod_tags,
+            )
+            mod_tags_added = cursor.rowcount
+            db.commit()
+
     def get_mods(self, parse_only=False) -> dict:
         mod_list = []
         mods = {}
-        tags = set()
-        mod_tags = []
         scan_time = time.time()
 
         with sqlite3.connect(self.db_path) as db:
@@ -333,91 +377,18 @@ class ModList:
                         break
 
                     if os.path.getmtime(self._get_mod_path(f)) > prev_scan_time:
-                        details = self._get_mod_details(f)
-                        try:
-                            min_players = int(details["PlayerCounts"][0])
-                            max_players = int(details["PlayerCounts"][1])
-                        except:
-                            min_players = 0
-                            max_players = 0
-
-                        try:
-                            min_play_time = int(details["PlayingTime"][0])
-                            max_play_time = int(details["PlayingTime"][1])
-                        except:
-                            min_play_time = 0
-                            max_play_time = 0
-
-                        if details["EpochTime"] == "":
-                            if details["Date"] != "":
-                                formats = [
-                                    "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
-                                    "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08
-                                    "%d/%m/%Y %I:%M:%S %p",  # 28/04/2023 11:11:14 PM
-                                    "%d/%m/%Y %H:%M:%S",  # 28/04/2023 14:11:14
-                                ]
-                                for format in formats:
-                                    try:
-                                        utc_time = datetime.strptime(
-                                            details["Date"], format
-                                        )
-                                    except:
-                                        continue
-                                    else:
-                                        epoch_time = (
-                                            utc_time - datetime(1970, 1, 1)
-                                        ).total_seconds()
-                                        details["EpochTime"] = epoch_time
-                                        break
-                                else:
-                                    details["EpochTime"] = 0
-                            else:
-                                details["EpochTime"] = 0
-
-                        mod_list.append(
-                            (
-                                f,
-                                details["SaveName"],
-                                details["EpochTime"],
-                                details["Date"],
-                                details["VersionNumber"],
-                                details["GameMode"],
-                                details["GameType"],
-                                details["GameComplexity"],
-                                min_players,
-                                max_players,
-                                min_play_time,
-                                max_play_time,
-                            )
-                        )
-
-                        for tag in details["Tags"]:
-                            mod_tags.append((f, tag))
-                            tags.add((tag,))
+                        mod_list.append((f,))
 
             if len(mod_list) > 0:
+                # Mod details will be added as part of mod file json scan
                 cursor = db.executemany(
                     """
                     INSERT INTO tts_mods
-                        (mod_filename, mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
-                        mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
-                        mod_min_play_time, mod_max_play_time, mod_total_assets, mod_missing_assets,
-                        mod_size)
+                        (mod_filename, mod_total_assets, mod_missing_assets, mod_size)
                     VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, -1, -1, -1) 
+                        (?, -1, -1, -1) 
                     ON CONFLICT (mod_filename)
                     DO UPDATE SET
-                        mod_name=excluded.mod_name,
-                        mod_epoch=excluded.mod_epoch,
-                        mod_date=excluded.mod_date,
-                        mod_version=excluded.mod_version,
-                        mod_game_mode=excluded.mod_game_mode,
-                        mod_game_type=excluded.mod_game_type,
-                        mod_game_complexity=excluded.mod_game_complexity,
-                        mod_min_players=excluded.mod_min_players,
-                        mod_max_players=excluded.mod_max_players,
-                        mod_min_play_time=excluded.mod_min_play_time,
-                        mod_max_play_time=excluded.mod_max_play_time,
                         mod_total_assets=excluded.mod_total_assets,
                         mod_missing_assets=excluded.mod_missing_assets,
                         mod_size=excluded.mod_size
@@ -425,30 +396,6 @@ class ModList:
                     mod_list,
                 )
                 mods_added = cursor.rowcount
-
-                cursor = db.executemany(
-                    """
-                    INSERT OR IGNORE INTO tts_tags
-                        (tag_name)
-                    VALUES
-                        (?)
-                    """,
-                    tags,
-                )
-                tags_added = cursor.rowcount
-
-                cursor = db.executemany(
-                    """
-                    INSERT OR IGNORE INTO tts_mod_tags
-                        (mod_id_fk, tag_id_fk)
-                    VALUES (
-                        (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
-                        (SELECT tts_tags.id FROM tts_tags WHERE tag_name=?)
-                    )
-                    """,
-                    mod_tags,
-                )
-                mod_tags_added = cursor.rowcount
 
                 db.execute(
                     """

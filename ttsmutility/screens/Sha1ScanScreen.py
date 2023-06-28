@@ -46,7 +46,7 @@ class Sha1ScanScreen(ModalScreen):
         asset = None
         filepath = None
         mtime = 0
-        asset_list = AssetList(self.mod_dir, self.save_dir)
+        asset_list = AssetList()
         skip = False
         update_frequency = 0
         i = 0

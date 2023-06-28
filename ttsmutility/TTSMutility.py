@@ -75,10 +75,10 @@ class TTSMutility(App):
             time.sleep(0.5)
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList(config.tts_mods_dir, config.tts_saves_dir)
+        mod_list = ModList.ModList()
         mod_list.get_mods(parse_only=True)
 
-        mod_asset_list = AssetList.AssetList(config.tts_mods_dir, config.tts_saves_dir)
+        mod_asset_list = AssetList.AssetList()
 
         self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
         mod_asset_list.scan_cached_assets()
@@ -98,8 +98,8 @@ class TTSMutility(App):
 
     def refresh_mods(self) -> None:
         config = load_config()
-        mod_list = ModList.ModList(config.tts_mods_dir, config.tts_saves_dir)
-        mod_asset_list = AssetList.AssetList(config.tts_mods_dir, config.tts_saves_dir)
+        mod_list = ModList.ModList()
+        mod_asset_list = AssetList.AssetList()
 
         mods = mod_list.get_mods_needing_asset_refresh()
         for mod_filename in mods:

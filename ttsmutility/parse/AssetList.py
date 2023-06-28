@@ -1,15 +1,14 @@
 import os
 import os.path
 import sqlite3
-import json
-import re
 import pathlib
 import time
 from pathlib import Path
 
+from ..parse.ModList import ModList
+from .ModParser import ModParser
 from ..data.config import load_config
 from ..parse.FileFinder import (
-    ALL_VALID_EXTS,
     recodeURL,
     TTS_RAW_DIRS,
     FILES_TO_IGNORE,
@@ -35,135 +34,11 @@ class AssetList:
         "cardcustom",
     ]
 
-    def __init__(self, mod_dir: str, save_dir: str) -> None:
-        self.mod_dir = mod_dir
-        self.save_dir = save_dir
+    def __init__(self) -> None:
         config = load_config()
-        self.db_path = config.db_path
-
-    def urls_from_save(self, mod_dir):
-        with open(mod_dir, "r", encoding="utf-8") as infile:
-            try:
-                save = json.load(infile, strict=False)
-            except UnicodeDecodeError:
-                raise IllegalSavegameException
-
-        if not isinstance(save, dict):
-            raise IllegalSavegameException
-
-        return self.seekURL(save)
-
-    def seekURL(self, dic, trail=[], done=None):
-        """Recursively search through the save game structure and return URLs
-        and the paths to them.
-
-        """
-        if done is None:
-            done = set()
-
-        name = ""
-        for k, v in dic.items():
-            if name == "":
-                newtrail = trail + [k]
-            else:
-                newtrail = trail + [f'"{name.strip()}"', k]
-
-            if k == "AudioLibrary":
-                for elem in v:
-                    try:
-                        # It appears that AudioLibrary items are mappings of form
-                        # “Item1” → URL, “Item2” → audio title.
-                        url = elem["Item1"]
-                        recode = recodeURL(url)
-                        if recode in done:
-                            continue
-                        done.add(recode)
-                        yield (newtrail, url)
-                    except KeyError:
-                        raise NotImplementedError(
-                            "AudioLibrary has unexpected structure: {}".format(v)
-                        )
-
-            elif isinstance(v, dict):
-                yield from self.seekURL(v, newtrail, done)
-
-            elif isinstance(v, list):
-                for elem in v:
-                    if not isinstance(elem, dict):
-                        continue
-                    yield from self.seekURL(elem, newtrail, done)
-
-            elif k.lower().endswith("url"):
-                # We don’t want tablet URLs.
-                if k == "PageURL":
-                    continue
-
-                # Some URL keys may be left empty.
-                if not v:
-                    continue
-
-                # Deck art URLs can contain metadata in curly braces
-                # (yikes).
-                v = re.sub(r"{.*}", "", v)
-                recode = recodeURL(v)
-                if recode in done:
-                    continue
-                done.add(recode)
-                yield (newtrail, v)
-
-            elif k.lower() == "name":
-                if not v or v.lower() in self.NAMES_TO_IGNORE:
-                    name = ""
-                else:
-                    # Don't store the same custom name twice in a given trail
-                    if v in newtrail:
-                        name = ""
-                    else:
-                        name = v.replace("Custom_", "")
-                        # Strip inline formatting that may not work properly
-                        name = re.sub(r"(\[.+?\])", "", name)
-
-            # Prioritize storing the nickname over the name...
-            elif k.lower() == "nickname" and v:
-                # Don't store the same custom name twice in a given trail
-                if v not in newtrail:
-                    name = v
-                    # Strip inline formatting that may not work properly
-                    name = re.sub(r"(\[.+?\])", "", name)
-
-            elif k == "LuaScript":
-                NO_EXT_SITES = [
-                    "steamusercontent.com",
-                    "pastebin.com",
-                    "paste.ee",
-                    "drive.google.com",
-                    "steamuserimages-a.akamaihd.net",
-                ]
-                # Parse lauscript for potential URLs
-                url_matches = re.findall(
-                    r"((?:http|https):\/\/(?:[\w\-_]+(?:(?:\.[\w\-_]+)+))(?:[\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?)",
-                    v,
-                )
-                for url in url_matches:
-                    valid_url = False
-
-                    # Detect if URL ends in a valid extension or is from a site which doesn't use extension
-                    for site in NO_EXT_SITES:
-                        if url.lower().find(site) >= 0:
-                            valid_url = True
-                            break
-                    else:
-                        for ext in ALL_VALID_EXTS:
-                            if url.lower().find(ext.lower()) >= 0:
-                                valid_url = True
-                                break
-
-                    if valid_url:
-                        recode = recodeURL(url)
-                        if recode in done:
-                            continue
-                        done.add(recode)
-                        yield (newtrail, url)
+        self.db_path = Path(config.db_path)
+        self.mod_dir = Path(config.tts_mods_dir)
+        self.save_dir = Path(config.tts_saves_dir)
 
     def get_sha1_info(self, filepath: str) -> None:
         # return sha1, steam_sha1, sha1_mtime
@@ -391,27 +266,24 @@ class AssetList:
 
     def update_mod_assets(self, mod_filename: str) -> int:
         if mod_filename.find("Workshop") == 0:
-            mod_path = os.path.join(self.mod_dir, mod_filename)
+            mod_path = Path(self.mod_dir) / mod_filename
         else:
-            mod_path = os.path.join(self.save_dir, mod_filename)
+            mod_path = Path(self.save_dir) / mod_filename
+
+        mod_parser = ModParser(mod_path)
 
         mod_assets = [
-            (recodeURL(url), url, trail) for trail, url in self.urls_from_save(mod_path)
+            (recodeURL(url), url, trail) for trail, url in mod_parser.urls_from_mod()
         ]
+
+        mod_list = ModList()
+        mod_info = mod_parser.get_mod_info()
+        mod_list.set_mod_details(mod_filename, mod_info, os.path.getmtime(mod_path))
 
         new_asset_count = 0
 
-        with sqlite3.connect(self.db_path) as db:
-            if len(mod_assets) == 0:
-                db.execute(
-                    """
-                    UPDATE tts_mods
-                    SET mod_mtime=?
-                    WHERE mod_filename=?
-                    """,
-                    (os.path.getmtime(mod_path), mod_filename),
-                )
-            else:
+        if len(mod_assets) > 0:
+            with sqlite3.connect(self.db_path) as db:
                 filenames, urls, trails = zip(*mod_assets)
 
                 # Combine the URLs/filenames from the mod with what is already in the DB
@@ -451,16 +323,16 @@ class AssetList:
                 )
                 new_asset_trails = cursor.rowcount
 
-            if new_asset_count > 0:
-                db.execute(
-                    """
-                    UPDATE tts_mods
-                    SET mod_mtime=?, mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
-                    WHERE mod_filename=?
-                    """,
-                    (os.path.getmtime(mod_path), mod_filename),
-                )
-            db.commit()
+                if new_asset_count > 0:
+                    db.execute(
+                        """
+                        UPDATE tts_mods
+                        SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                        WHERE mod_filename=?
+                        """,
+                        (mod_filename,),
+                    )
+                db.commit()
         return new_asset_count
 
     def get_mods_using_asset(self, url: str) -> list:

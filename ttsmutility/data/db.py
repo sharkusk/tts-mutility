@@ -31,7 +31,7 @@ def create_new_db(db_path: Path):
             CREATE TABLE tts_mods (
                 id                  INTEGER PRIMARY KEY,
                 mod_filename        VARCHAR(128)    NOT NULL UNIQUE,
-                mod_name            VARCHAR(128)    NOT NULL,
+                mod_name            VARCHAR(128),
                 mod_epoch           TIMESTAMP,
                 mod_date            VARCHAR(64),
                 mod_version         VARCHAR(32),

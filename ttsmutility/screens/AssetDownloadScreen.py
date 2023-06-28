@@ -157,7 +157,7 @@ class AssetDownloadScreen(ModalScreen):
             self.query_one("#dl_progress_cur").update(total=100, progress=0)
 
     def download_assets(self) -> None:
-        self.asset_list = AssetList(self.mod_dir, self.save_dir)
+        self.asset_list = AssetList()
         self.cur_retry = 0
         self.cur_filepath = ""
         self.cur_filesize = 0

@@ -18,7 +18,7 @@ class Sha1Scanner(Worker):
         i = 0
 
         config = load_config()
-        asset_list = AssetList(config.tts_mods_dir, config.tts_saves_dir)
+        asset_list = AssetList()
 
         self.node.post_message(UpdateProgress(100, None))
 

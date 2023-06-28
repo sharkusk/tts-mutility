@@ -43,7 +43,7 @@ class ModDetailScreen(Screen):
                 )
 
     def get_markdown(self) -> str:
-        mod_list = ModList(self.mod_dir, self.save_dir)
+        mod_list = ModList()
         self.mod_detail = mod_list.get_mod_details(self.filename)
 
         mod_detail_md = ""
