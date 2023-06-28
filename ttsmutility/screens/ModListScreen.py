@@ -217,12 +217,8 @@ class ModListScreen(Screen):
         self.log(self.css_tree)
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
-        if id == "ml_workshop_dt":
-            mod_filename = self.mods[row_key.value]["filename"]
-            mod_name = self.mods[row_key.value]["name"]
-        else:
-            mod_filename = self.saves[row_key.value]["filename"]
-            mod_name = self.saves[row_key.value]["name"]
+        mod_filename = self.mods[row_key.value]["filename"]
+        mod_name = self.mods[row_key.value]["name"]
         # assets are always stored in mod_dir
         mod_dir = self.mod_dir
         save_dir = self.save_dir
