@@ -10,11 +10,12 @@ from ..data.config import load_config
 
 
 class ModList:
-    def __init__(self) -> None:
+    def __init__(self, max_mods=-1) -> None:
         config = load_config()
         self.db_path = Path(config.db_path)
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
+        self.max_mods = max_mods
 
     def _get_mod_path(self, filename: str) -> str:
         if "Workshop" in filename:
@@ -241,61 +242,57 @@ class ModList:
 
         return mod
 
-    def set_mod_details(self, filename: str, details: dict, mtime) -> None:
-        try:
-            min_players = int(details["PlayerCounts"][0])
-            max_players = int(details["PlayerCounts"][1])
-        except:
-            min_players = 0
-            max_players = 0
-
-        try:
-            min_play_time = int(details["PlayingTime"][0])
-            max_play_time = int(details["PlayingTime"][1])
-        except:
-            min_play_time = 0
-            max_play_time = 0
-
-        if details["EpochTime"] == "":
-            if details["Date"] != "":
-                formats = [
-                    "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
-                    "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08
-                    "%d/%m/%Y %I:%M:%S %p",  # 28/04/2023 11:11:14 PM
-                    "%d/%m/%Y %H:%M:%S",  # 28/04/2023 14:11:14
-                ]
-                for format in formats:
-                    try:
-                        utc_time = datetime.strptime(details["Date"], format)
-                    except:
-                        continue
-                    else:
-                        epoch_time = (utc_time - datetime(1970, 1, 1)).total_seconds()
-                        details["EpochTime"] = epoch_time
-                        break
-                else:
-                    details["EpochTime"] = 0
-            else:
-                details["EpochTime"] = 0
-
+    def set_mod_details(self, mod_infos: dict) -> None:
+        db_params = []
         mod_tags = []
         tags = set()
-        for tag in details["Tags"]:
-            mod_tags.append((filename, tag))
-            tags.add((tag,))
 
-        with sqlite3.connect(self.db_path) as db:
-            cursor = db.execute(
-                """
-                UPDATE tts_mods
-                SET
-                    (mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
-                    mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
-                    mod_min_play_time, mod_max_play_time, mod_mtime) = 
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
-                WHERE
-                    mod_filename=?
-                """,
+        for mod_filename in mod_infos:
+            details = mod_infos[mod_filename]
+
+            try:
+                min_players = int(details["PlayerCounts"][0])
+                max_players = int(details["PlayerCounts"][1])
+            except:
+                min_players = 0
+                max_players = 0
+
+            try:
+                min_play_time = int(details["PlayingTime"][0])
+                max_play_time = int(details["PlayingTime"][1])
+            except:
+                min_play_time = 0
+                max_play_time = 0
+
+            if details["EpochTime"] == "":
+                if details["Date"] != "":
+                    formats = [
+                        "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
+                        "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08
+                        "%d/%m/%Y %I:%M:%S %p",  # 28/04/2023 11:11:14 PM
+                        "%d/%m/%Y %H:%M:%S",  # 28/04/2023 14:11:14
+                    ]
+                    for format in formats:
+                        try:
+                            utc_time = datetime.strptime(details["Date"], format)
+                        except:
+                            continue
+                        else:
+                            epoch_time = (
+                                utc_time - datetime(1970, 1, 1)
+                            ).total_seconds()
+                            details["EpochTime"] = epoch_time
+                            break
+                    else:
+                        details["EpochTime"] = 0
+                else:
+                    details["EpochTime"] = 0
+
+            for tag in details["Tags"]:
+                mod_tags.append((mod_filename, tag))
+                tags.add((tag,))
+
+            db_params.append(
                 (
                     details["SaveName"],
                     details["EpochTime"],
@@ -308,9 +305,24 @@ class ModList:
                     max_players,
                     min_play_time,
                     max_play_time,
-                    mtime,
-                    filename,
-                ),
+                    details["mtime"],
+                    mod_filename,
+                )
+            )
+
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.executemany(
+                """
+                UPDATE tts_mods
+                SET
+                    (mod_name, mod_epoch, mod_date, mod_version, mod_game_mode,
+                    mod_game_type, mod_game_complexity, mod_min_players, mod_max_players,
+                    mod_min_play_time, mod_max_play_time, mod_mtime) = 
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+                WHERE
+                    mod_filename=?
+                """,
+                db_params,
             )
             mods_added = cursor.rowcount
 
@@ -361,7 +373,6 @@ class ModList:
             ]:
                 # We want the mod filenames to be formatted: Saves/xxxx.json or Workshop/xxxx.json
 
-                max_mods = -1  # Debug with fewer mods...
                 for i, f in enumerate(
                     glob(os.path.join(base_dir, "*.json"), root_dir=root_dir)
                 ):
@@ -373,7 +384,7 @@ class ModList:
                     ):
                         continue
 
-                    if max_mods != -1 and i >= max_mods:
+                    if self.max_mods != -1 and i >= self.max_mods:
                         break
 
                     if os.path.getmtime(self._get_mod_path(f)) > prev_scan_time:

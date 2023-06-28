@@ -5,7 +5,6 @@ import pathlib
 import time
 from pathlib import Path
 
-from ..parse.ModList import ModList
 from .ModParser import ModParser
 from ..data.config import load_config
 from ..parse.FileFinder import (
@@ -39,6 +38,10 @@ class AssetList:
         self.db_path = Path(config.db_path)
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
+        self.mod_infos = {}
+
+    def get_mod_infos(self) -> dict:
+        return self.mod_infos
 
     def get_sha1_info(self, filepath: str) -> None:
         # return sha1, steam_sha1, sha1_mtime
@@ -264,7 +267,7 @@ class AssetList:
             db.commit()
         return count
 
-    def update_mod_assets(self, mod_filename: str) -> int:
+    def update_mod_assets(self, mod_filename: str, mod_mtime) -> int:
         if mod_filename.find("Workshop") == 0:
             mod_path = Path(self.mod_dir) / mod_filename
         else:
@@ -276,9 +279,10 @@ class AssetList:
             (recodeURL(url), url, trail) for trail, url in mod_parser.urls_from_mod()
         ]
 
-        mod_list = ModList()
+        # Defer updating until we are told
         mod_info = mod_parser.get_mod_info()
-        mod_list.set_mod_details(mod_filename, mod_info, os.path.getmtime(mod_path))
+        self.mod_infos[mod_filename] = mod_info
+        self.mod_infos[mod_filename]["mtime"] = mod_mtime
 
         new_asset_count = 0
 
@@ -390,7 +394,7 @@ class AssetList:
                     refresh_mod = True
 
             if refresh_mod:
-                self.update_mod_assets(mod_filename)
+                self.update_mod_assets(mod_filename, mod_mtime)
 
             if not parse_only:
                 cursor = db.execute(
