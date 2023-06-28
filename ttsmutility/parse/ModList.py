@@ -250,6 +250,10 @@ class ModList:
         for mod_filename in mod_infos:
             details = mod_infos[mod_filename]
 
+            # If mod wasn't updated it will be None
+            if details is None:
+                return
+
             try:
                 min_players = int(details["PlayerCounts"][0])
                 max_players = int(details["PlayerCounts"][1])
