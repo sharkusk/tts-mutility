@@ -148,28 +148,26 @@ class TTSMutility(App):
         else:
             self.progress_advance = self.progress_advance + event.advance_amount
 
-        for screen in self.screen_stack:
-            try:
-                status_center = screen.query_one("#worker_status_center")
-                status_center.add_class("unhide")
-                progress = screen.query_one("#worker_progress")
-                progress.add_class("unhide")
-                progress.update(
-                    total=self.progress_total, progress=self.progress_advance
-                )
-            except NoMatches:
-                pass
+        try:
+            status_center = self.screen_stack[-1].query_one("#worker_status_center")
+            status_center.add_class("unhide")
+            progress = self.screen_stack[-1].query_one("#worker_progress")
+            progress.add_class("unhide")
+            progress.update(
+                total=self.progress_total, progress=self.progress_advance
+            )
+        except NoMatches:
+            pass
 
     def on_update_status(self, event: UpdateStatus):
         self.last_status = event.status
-        for screen in self.screen_stack:
-            try:
-                status_center = screen.query_one("#worker_status_center")
-                status_center.add_class("unhide")
-                status = screen.query_one("#worker_status")
-                status.update(event.status)
-            except NoMatches:
-                pass
+        try:
+            status_center = self.screen_stack[-1].query_one("#worker_status_center")
+            status_center.add_class("unhide")
+            status = self.screen_stack[-1].query_one("#worker_status")
+            status.update(event.status)
+        except NoMatches:
+            pass
 
     def on_key(self, event: Key):
         if event.key == "escape":
