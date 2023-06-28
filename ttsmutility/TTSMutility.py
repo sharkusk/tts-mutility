@@ -92,11 +92,8 @@ class TTSMutility(App):
                 )
             )
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
+            mod_list.set_mod_details({mod_filename: mod_asset_list.get_mod_info(mod_filename)})
             mod_list.update_mod_counts(mod_filename)
-
-        # AssetList extracted mod info as part of the scan process, update the db.
-        mod_infos = mod_asset_list.get_mod_infos()
-        mod_list.set_mod_details(mod_infos)
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         self.post_message(self.InitComplete())

@@ -264,8 +264,8 @@ class ModList:
                 min_play_time = 0
                 max_play_time = 0
 
-            if details["EpochTime"] is None:
-                if details["Date"] is not None:
+            if details["EpochTime"] == "":
+                if details["Date"] != "":
                     formats = [
                         "%m/%d/%Y %I:%M:%S %p",  # 9/11/2021 4:55:18 AM
                         "%m/%d/%Y %H:%M:%S",  # 02/01/2019 14:40:08

@@ -42,7 +42,7 @@ class ModParser:
         self.modpath = modpath
         self.mod_info = {}
         for field in self.MOD_INFO_FIELDS:
-            self.mod_info[field] = None
+            self.mod_info[field] = ""
 
     def get_mod_info(self) -> dict:
         return self.mod_info

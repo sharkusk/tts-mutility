@@ -40,6 +40,9 @@ class AssetList:
         self.save_dir = Path(config.tts_saves_dir)
         self.mod_infos = {}
 
+    def get_mod_info(self, mod_filename: Path) -> dict:
+        return self.mod_infos[mod_filename]
+
     def get_mod_infos(self) -> dict:
         return self.mod_infos
 
