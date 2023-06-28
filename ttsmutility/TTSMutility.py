@@ -57,6 +57,7 @@ class TTSMutility(App):
         config = load_config()
         # Update config file in case some settings have been added
         save_config(config)
+        self.max_mods = cli_args.max_mods
 
     def compose(self) -> ComposeResult:
         config = load_config()
@@ -75,7 +76,7 @@ class TTSMutility(App):
             time.sleep(0.5)
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
-        mod_list = ModList.ModList()
+        mod_list = ModList.ModList(max_mods=self.max_mods)
         mod_list.get_mods(parse_only=True)
 
         mod_asset_list = AssetList.AssetList()
@@ -250,6 +251,14 @@ def get_args() -> Namespace:
         help="Show version information.",
         action="version",
         version=f"%(prog)s {__version__} (Textual v{textual_version})",
+    )
+
+    parser.add_argument(
+        "-m",
+        "--max_mods",
+        help="Limit number of mods (for faster debuggin)",
+        default=-1,
+        type=int,
     )
 
     # Finally, parse the command line.
