@@ -17,12 +17,18 @@ from textual.css.query import NoMatches
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
 from .screens.ModListScreen import ModListScreen
-from .screens.AssetDownloadScreen import AssetDownloadScreen
 from .screens.ModDetailScreen import ModDetailScreen
 
-from .workers.messages import UpdateProgress, UpdateStatus, UpdateLog
+from .workers.messages import (
+    UpdateProgress,
+    UpdateStatus,
+    UpdateLog,
+    FileDownloadComplete,
+    DownloadComplete,
+)
 
 from .workers.sha1 import Sha1Scanner
+from .workers.download import AssetDownloader
 from .parse import ModList
 from .parse import AssetList
 from .data import load_config, save_config
@@ -87,15 +93,18 @@ class TTSMutility(App):
 
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
         if self.f_log is not None:
-            self.f_log.write(
-                f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}"
-            )
+            if prefix == "":
+                self.f_log.write(f"{output}{suffix}")
+            else:
+                self.f_log.write(
+                    f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}"
+                )
 
     def initialize_database(self) -> None:
         config = load_config()
 
         init_start_time = time.time()
-        self.write_log(f"Init", prefix="## ")
+        self.write_log(f"## Init", prefix="")
 
         # Wait for DB to be created on first pass
         if not Path(config.db_path).exists():
@@ -205,15 +214,22 @@ class TTSMutility(App):
             pass
 
     def on_update_log(self, event: UpdateLog):
-        self.last_status = event.status
-        try:
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.add_class("unhide")
-            status = self.screen_stack[-1].query_one("#worker_status")
-            status.update(event.status)
-        except NoMatches:
-            pass
-        self.write_log(event.status)
+        if event.update_status:
+            self.last_status = event.status
+            try:
+                status_center = self.screen_stack[-1].query_one("#worker_status_center")
+                status_center.add_class("unhide")
+                status = self.screen_stack[-1].query_one("#worker_status")
+                status.update(event.status)
+            except NoMatches:
+                pass
+
+        params = {
+            "prefix": event.prefix,
+            "suffix": event.suffix,
+        }
+        not_none = {k: v for k, v in params.items() if v is not None}
+        self.write_log(event.status, **not_none)
 
     def on_key(self, event: Key):
         if event.key == "escape":
@@ -234,9 +250,9 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        self.push_screen(
-            AssetDownloadScreen(event.mod_dir, event.save_dir, event.mod_filename)
-        )
+        ad = AssetDownloader(self)
+        ad.add_assets(event.mod_filename)
+        self.run_worker(ad.run, exclusive=True)
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
@@ -244,21 +260,19 @@ class TTSMutility(App):
     def on_asset_list_screen_download_selected(
         self, event: AssetListScreen.DownloadSelected
     ):
-        self.push_screen(
-            AssetDownloadScreen(event.mod_dir, event.save_dir, event.assets)
-        )
+        ad = AssetDownloader(self)
+        ad.add_assets(event.assets)
+        self.run_worker(ad.run, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(Sha1Scanner(self).run, exclusive=True)
 
-    def on_asset_download_screen_file_download_complete(
-        self, event: AssetDownloadScreen.FileDownloadComplete
-    ):
+    def on_file_download_complete(self, event: FileDownloadComplete):
         if self.is_screen_installed("asset_list"):
             screen = self.get_screen("asset_list")
             screen.update_asset(event.asset)
 
-    def on_asset_download_screen_download_complete(self):
+    def on_download_complete(self, event: DownloadComplete):
         self.refresh_mods()
 
     def on_background_task_complete(self):
