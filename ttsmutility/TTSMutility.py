@@ -62,16 +62,18 @@ class TTSMutility(App):
         if cli_args.overwrite_log:
             log_flags = "w"
         else:
-            log_flags = "w+"
+            log_flags = "a"
 
         if cli_args.log:
             self.f_log = open(config.log_path, log_flags)
         else:
             self.f_log = None
-        
+
         self.write_log(f"TTSMutility v{__version__}", prefix="\n# ")
-        self.write_log(f"Started at {time.ctime(self.start_time)}", prefix="", suffix="\n\n")
-    
+        self.write_log(
+            f"Started at {time.ctime(self.start_time)}", prefix="", suffix="\n\n"
+        )
+
     def __del__(self):
         if self.f_log is not None:
             self.f_log.close()
@@ -82,10 +84,12 @@ class TTSMutility(App):
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
         self.run_worker(self.initialize_database)
-    
+
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
         if self.f_log is not None:
-            self.f_log.write(f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}")
+            self.f_log.write(
+                f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}"
+            )
 
     def initialize_database(self) -> None:
         config = load_config()
@@ -97,7 +101,7 @@ class TTSMutility(App):
         if not Path(config.db_path).exists():
             self.post_message(self.InitProcessing(f"Creating Database"))
             db_schema = create_new_db(config.db_path)
-            self.write_log(f"Created DB with scheme version {db_schema}.")
+            self.write_log(f"Created DB with schema version {db_schema}.")
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(max_mods=self.max_mods)
@@ -119,13 +123,16 @@ class TTSMutility(App):
                 )
             )
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-            mod_list.set_mod_details({mod_filename: mod_asset_list.get_mod_info(mod_filename)})
+            mod_list.set_mod_details(
+                {mod_filename: mod_asset_list.get_mod_info(mod_filename)}
+            )
             mod_list.update_mod_counts(mod_filename)
             self.write_log(f"'{mod_filename}' refreshed.")
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         self.post_message(self.InitComplete())
         self.write_log(f"Initialization complete.")
+        self.f_log.flush()
 
     def refresh_mods(self) -> None:
         config = load_config()
@@ -183,9 +190,7 @@ class TTSMutility(App):
             status_center.add_class("unhide")
             progress = self.screen_stack[-1].query_one("#worker_progress")
             progress.add_class("unhide")
-            progress.update(
-                total=self.progress_total, progress=self.progress_advance
-            )
+            progress.update(total=self.progress_total, progress=self.progress_advance)
         except NoMatches:
             pass
 
