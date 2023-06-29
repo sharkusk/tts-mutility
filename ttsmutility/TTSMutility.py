@@ -268,6 +268,7 @@ class TTSMutility(App):
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         self.log(event)
+        self.f_log.flush()
 
 
 def get_args() -> Namespace:
