@@ -22,6 +22,7 @@ import os
 #   Check if matching SHA-1 file is found
 #   Copy and rename to destination directory
 
+
 class Sha1Scanner(Worker):
     def run(self) -> None:
         asset = None
@@ -32,7 +33,7 @@ class Sha1Scanner(Worker):
         config = load_config()
         asset_list = AssetList()
 
-        self.node.post_message(UpdateLog(f"Starting SHA1s scanning"))
+        self.node.post_message(UpdateLog(f"Starting SHA1 scan."))
         self.node.post_message(UpdateProgress(100, None))
         worker = get_current_worker()
 
@@ -54,18 +55,20 @@ class Sha1Scanner(Worker):
             else:
                 update_amount = int(len(files) / 100)
             if update_amount > 10:
-                update_amount = 10 
-            
+                update_amount = 10
+
             skip_update_amount = update_amount * 10
 
             i = 0
             if len(files) > 0:
                 self.node.post_message(UpdateProgress(len(files), None))
-            self.node.post_message(UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)})"))
+            self.node.post_message(
+                UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)}).")
+            )
 
             for filename in files:
                 if worker.is_cancelled:
-                    self.node.post_message(UpdateStatus(f"SHA1 scan cancelled."))
+                    self.node.post_message(UpdateLog(f"SHA1 scan cancelled."))
                     return
 
                 ext = os.path.splitext(filename)[1]
@@ -91,12 +94,20 @@ class Sha1Scanner(Worker):
                 if skip:
                     if (i % skip_update_amount) == 0:
                         self.node.post_message(UpdateProgress(None, skip_update_amount))
-                        self.node.post_message(UpdateStatus(f"Computing SHA1s for {dir_name} ({i}/{len(files)})"))
+                        self.node.post_message(
+                            UpdateStatus(
+                                f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
+                            )
+                        )
                     continue
 
                 if (i % update_amount) == 0:
                     self.node.post_message(UpdateProgress(None, update_amount))
-                    self.node.post_message(UpdateStatus(f"Computing SHA1s for {dir_name} ({i}/{len(files)})"))
+                    self.node.post_message(
+                        UpdateStatus(
+                            f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
+                        )
+                    )
 
                 sha1 = ""
                 steam_sha1 = ""
@@ -111,4 +122,5 @@ class Sha1Scanner(Worker):
                 sha1 = hexdigest.upper()
 
                 asset_list.sha1_scan_done(filepath, sha1, steam_sha1, mtime)
+        self.node.post_message(UpdateLog(f"SHA1 scan complete."))
         os.chdir(old_dir)
