@@ -1,8 +1,4 @@
-from textual.worker import Worker
-from textual.message import Message
-from textual.message import Message
 from textual.worker import Worker, get_current_worker
-from rich.markdown import Markdown as RichMarkdown
 
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.AssetList import AssetList
@@ -25,6 +21,7 @@ from ..workers.messages import (
     UpdateProgress,
     DownloadComplete,
     FileDownloadComplete,
+    UpdateStatus,
 )
 
 from contextlib import suppress
@@ -55,8 +52,8 @@ class AssetDownloader(Worker):
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
-    ) -> None:
-        self.assets = assets
+    ) -> list:
+        self.asset_list = AssetList()
         self.status = ""
         config = load_config()
         self.mod_dir = config.tts_mods_dir
@@ -66,28 +63,45 @@ class AssetDownloader(Worker):
         self.user_agent = user_agent
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
-
-    def run(self) -> None:
-        self.asset_list = AssetList()
-        self.cur_retry = 0
-        self.cur_filepath = ""
-        self.cur_filesize = 0
-
+        self.files_to_dl = {}
         self.urls = []
 
         # A mod name was passed insteam of a list of assets
-        if type(self.assets) is str:
-            self.urls = self.asset_list.get_missing_assets(self.assets)
+        if type(assets) is str:
+            self.urls = self.asset_list.get_missing_assets(assets)
         else:
-            for asset in self.assets:
+            for asset in assets:
                 self.urls.append((asset["url"], trailstring_to_trail(asset["trail"])))
+
+        return self._ready_urls_for_download()
+
+    def set_files_to_dl(self, files_to_dl):
+        self.files_to_dl = files_to_dl
+
+    def run(self) -> None:
+        self.cur_retry = 0
+        self.cur_filepath = ""
+        self.cur_filesize = 0
+        self.worker = get_current_worker()
 
         self.node.post_message(
             UpdateProgress(
                 update_total=len(self.urls), advance_amount=0, status_id=self.status_id
             )
         )
-        self.download_files()
+        self.node.post_message(
+            UpdateLog(
+                f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
+            )
+        )
+        for i, url in enumerate(self.files_to_dl):
+            if self.worker.is_cancelled:
+                self.node.post_message(UpdateLog(f"Download worker cancelled."))
+                return
+            self.node.post_message(
+                UpdateStatus(f"Downloading: `{url}` ({i}/{len(self.files_to_dl)})")
+            )
+            self.download_file(**self.files_to_dl[url])
         self.node.post_message(DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
@@ -112,7 +126,9 @@ class AssetDownloader(Worker):
                 self.node.post_message(
                     UpdateLog(f"---", prefix="", update_status=False)
                 )
-                self.node.post_message(UpdateLog(f"Downloading: `{url}`"))
+                self.node.post_message(
+                    UpdateLog(f"Downloading: `{url}`", update_status=False)
+                )
             else:
                 self.node.post_message(
                     UpdateLog(f"Retry #{self.cur_retry}", update_status=False)
@@ -125,7 +141,7 @@ class AssetDownloader(Worker):
                 )
             )
             self.node.post_message(
-                UpdateLog(f"Filesize: {self.cur_filesize:,}", update_status=False)
+                UpdateLog(f"Filesize: `{self.cur_filesize:,}`", update_status=False)
             )
         elif state == "data_read":
             self.node.post_message(
@@ -135,7 +151,7 @@ class AssetDownloader(Worker):
             self.cur_content_name = data
             self.node.post_message(
                 UpdateLog(
-                    f"Content Filename: {self.cur_content_name}", update_status=False
+                    f"Content Filename: `{self.cur_content_name}`", update_status=False
                 )
             )
         elif state == "filepath":
@@ -143,7 +159,9 @@ class AssetDownloader(Worker):
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
-            self.node.post_message(UpdateLog(f"Asset dir: {data}", update_status=False))
+            self.node.post_message(
+                UpdateLog(f"Asset dir: `{data}`", update_status=False)
+            )
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
@@ -213,15 +231,10 @@ class AssetDownloader(Worker):
         else:
             return ext.lower()
 
-    def download_files(self):
+    def _ready_urls_for_download(self):
         self.state_callback("init", None, None)
-        worker = get_current_worker()
 
         for url, trail in self.urls:
-            if worker.is_cancelled:
-                self.node.post_message(UpdateLog(f"Download worker cancelled."))
-                return
-
             if type(trail) is not list:
                 self.state_callback(
                     "error", url, f"trail '{trail}' not converted to list"
@@ -330,43 +343,56 @@ class AssetDownloader(Worker):
                 errstr = "Do not know how to retrieve URL {url} at {trail}.".format(
                     url=url, trail=trail
                 )
-                raise ValueError(errstr)
+                # raise ValueError(errstr)
+                self.state_callback("error", url, errstr)
+                continue
 
             filepath = get_fs_path(trail, url)
             if filepath is not None:
                 filepath = Path(self.mod_dir) / filepath
 
-            for i in range(self.timeout_retries):
-                self.state_callback("download_starting", url, i)
-                try:
-                    results = self.download_file(
-                        url,
-                        fetch_url,
-                        filepath,
-                        content_expected,
-                        default_ext,
-                    )
-                except socket.timeout as error:
-                    continue
-                except http.client.IncompleteRead as error:
-                    continue
-                if results is not None:
-                    # See if we have some trailing URL options and retry if so
-                    offset = fetch_url.rfind("?")
-                    if offset > 0:
-                        fetch_url = fetch_url[0 : fetch_url.rfind("?")]
-                        continue
-                break
-            else:
-                self.state_callback("error", url, f"Retries exhausted")
+            self.files_to_dl[url] = {
+                "url": url,
+                "fetch_url": fetch_url,
+                "filepath": filepath,
+                "content_expected": content_expected,
+                "default_ext": default_ext,
+            }
+
+    def download_file(self, url, fetch_url, filepath, content_expected, default_ext):
+        for i in range(self.timeout_retries):
+            self.state_callback("download_starting", url, i)
+            try:
+                results = self._download_file(
+                    url,
+                    fetch_url,
+                    filepath,
+                    content_expected,
+                    default_ext,
+                )
+            except socket.timeout as error:
                 continue
+            except http.client.IncompleteRead as error:
+                continue
+            if results is not None:
+                # See if we have some trailing URL options and retry if so
+                offset = fetch_url.rfind("?")
+                if offset > 0:
+                    fetch_url = fetch_url[0 : fetch_url.rfind("?")]
+                    continue
+            break
+        else:
+            self.state_callback("error", url, f"Retries exhausted")
+            results = "Retries exhausted"
 
-            if results is None:
-                self.state_callback("success", url, None)
-            else:
-                self.state_callback("error", url, results)
+        if results is None:
+            self.state_callback("success", url, None)
+            return None
+        else:
+            self.state_callback("error", url, results)
+            return results
 
-    def download_file(
+    def _download_file(
         self, url, fetch_url, filepath, content_expected, default_ext_from_trail
     ):
         headers = {"User-Agent": self.user_agent}
