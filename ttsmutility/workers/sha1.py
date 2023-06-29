@@ -37,10 +37,7 @@ class Sha1Scanner(Worker):
         self.node.post_message(UpdateProgress(100, None))
         worker = get_current_worker()
 
-        old_dir = os.getcwd()
-        os.chdir(config.tts_mods_dir)
-
-        for root, _, files in os.walk("."):
+        for root, _, files in os.walk(config.tts_mods_dir, topdown=True):
             dir_name = pathlib.PurePath(root).name
 
             if dir_name in TTS_RAW_DIRS or dir_name == "":
@@ -123,4 +120,3 @@ class Sha1Scanner(Worker):
 
                 asset_list.sha1_scan_done(filepath, sha1, steam_sha1, mtime)
         self.node.post_message(UpdateLog(f"SHA1 scan complete."))
-        os.chdir(old_dir)
