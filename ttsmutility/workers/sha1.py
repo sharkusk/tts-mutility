@@ -7,7 +7,7 @@ from ..parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
 from textual.worker import Worker, get_current_worker
 
 from ..parse.AssetList import AssetList
-from .messages import UpdateProgress, UpdateStatus
+from .messages import UpdateProgress, UpdateStatus, UpdateLog
 from ..data.config import load_config
 
 import sys
@@ -32,6 +32,7 @@ class Sha1Scanner(Worker):
         config = load_config()
         asset_list = AssetList()
 
+        self.node.post_message(UpdateLog(f"Starting SHA1s scanning"))
         self.node.post_message(UpdateProgress(100, None))
         worker = get_current_worker()
 
@@ -60,7 +61,7 @@ class Sha1Scanner(Worker):
             i = 0
             if len(files) > 0:
                 self.node.post_message(UpdateProgress(len(files), None))
-            self.node.post_message(UpdateStatus(f"Computing SHA1s for {dir_name} ({i}/{len(files)})"))
+            self.node.post_message(UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)})"))
 
             for filename in files:
                 if worker.is_cancelled:

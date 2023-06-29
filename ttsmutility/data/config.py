@@ -37,6 +37,9 @@ class Config:
     db_path: Path = str(data_directory() / "ttsmutility.sqlite")
     """Location of the TTSMutility DB file"""
 
+    log_path: Path = str(data_directory() / "ttsmutility_log.md")
+    """Location of the TTSMutility Log file"""
+
 
 def config_file() -> Path:
     """Get the path to the configuration file.

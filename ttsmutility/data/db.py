@@ -2,8 +2,9 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+DB_SCHEMA_VERSION = 0
 
-def create_new_db(db_path: Path):
+def create_new_db(db_path: Path) -> int:
     with closing(sqlite3.connect(db_path)) as conn:
         with closing(conn.cursor()) as cursor:
             cursor.execute(
@@ -100,8 +101,9 @@ def create_new_db(db_path: Path):
                 INSERT INTO tts_app
                     (asset_last_scan_time, mod_last_scan_time, db_schema_version)
                 VALUES
-                    (0, 0, 0)
-            """
+                    (0, 0, ?)
+            """, (DB_SCHEMA_VERSION,)
             )
 
         conn.commit()
+        return DB_SCHEMA_VERSION

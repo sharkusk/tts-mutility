@@ -20,7 +20,7 @@ from .screens.ModListScreen import ModListScreen
 from .screens.AssetDownloadScreen import AssetDownloadScreen
 from .screens.ModDetailScreen import ModDetailScreen
 
-from .workers.messages import UpdateProgress, UpdateStatus
+from .workers.messages import UpdateProgress, UpdateStatus, UpdateLog
 
 from .workers.sha1 import Sha1Scanner
 from .parse import ModList
@@ -57,6 +57,24 @@ class TTSMutility(App):
         # Update config file in case some settings have been added
         save_config(config)
         self.max_mods = cli_args.max_mods
+        self.start_time = time.time()
+
+        if cli_args.overwrite_log:
+            log_flags = "w"
+        else:
+            log_flags = "w+"
+
+        if cli_args.log:
+            self.f_log = open(config.log_path, log_flags)
+        else:
+            self.f_log = None
+        
+        self.write_log(f"TTSMutility v{__version__}", prefix="\n# ")
+        self.write_log(f"Started at {time.ctime(self.start_time)}", prefix="", suffix="\n\n")
+    
+    def __del__(self):
+        if self.f_log is not None:
+            self.f_log.close()
 
     def compose(self) -> ComposeResult:
         config = load_config()
@@ -64,26 +82,36 @@ class TTSMutility(App):
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
         self.run_worker(self.initialize_database)
+    
+    def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
+        if self.f_log is not None:
+            self.f_log.write(f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}")
 
     def initialize_database(self) -> None:
         config = load_config()
 
+        init_start_time = time.time()
+        self.write_log(f"Init", prefix="## ")
+
         # Wait for DB to be created on first pass
         if not Path(config.db_path).exists():
             self.post_message(self.InitProcessing(f"Creating Database"))
-            create_new_db(config.db_path)
-            time.sleep(0.5)
+            db_schema = create_new_db(config.db_path)
+            self.write_log(f"Created DB with scheme version {db_schema}.")
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(max_mods=self.max_mods)
         mod_list.get_mods(parse_only=True)
+        self.write_log(f"Loaded Mods.")
 
         mod_asset_list = AssetList.AssetList()
 
         self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
-        mod_asset_list.scan_cached_assets()
+        num_assets = mod_asset_list.scan_cached_assets()
+        self.write_log(f"Found {num_assets} new assets.")
 
         mods = mod_list.get_mods_needing_asset_refresh()
+        self.write_log(f"Refreshing {len(mods)} Mods.")
         for i, mod_filename in enumerate(mods):
             self.post_message(
                 self.InitProcessing(
@@ -93,9 +121,11 @@ class TTSMutility(App):
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
             mod_list.set_mod_details({mod_filename: mod_asset_list.get_mod_info(mod_filename)})
             mod_list.update_mod_counts(mod_filename)
+            self.write_log(f"'{mod_filename}' refreshed.")
 
         self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
         self.post_message(self.InitComplete())
+        self.write_log(f"Initialization complete.")
 
     def refresh_mods(self) -> None:
         config = load_config()
@@ -168,6 +198,17 @@ class TTSMutility(App):
             status.update(event.status)
         except NoMatches:
             pass
+
+    def on_update_log(self, event: UpdateLog):
+        self.last_status = event.status
+        try:
+            status_center = self.screen_stack[-1].query_one("#worker_status_center")
+            status_center.add_class("unhide")
+            status = self.screen_stack[-1].query_one("#worker_status")
+            status.update(event.status)
+        except NoMatches:
+            pass
+        self.write_log(event.status)
 
     def on_key(self, event: Key):
         if event.key == "escape":
@@ -253,6 +294,20 @@ def get_args() -> Namespace:
         help="Limit number of mods (for faster debuggin)",
         default=-1,
         type=int,
+    )
+
+    parser.add_argument(
+        "--no-log",
+        help="Disable logging (logfile path specified in config file)",
+        dest="log",
+        action="store_false",
+    )
+
+    parser.add_argument(
+        "--overwrite_log",
+        help="Overwrite the existing log (don't append)",
+        dest="overwrite_log",
+        action="store_true",
     )
 
     # Finally, parse the command line.

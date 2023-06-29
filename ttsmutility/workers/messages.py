@@ -12,3 +12,9 @@ class UpdateStatus(Message):
     def __init__(self, status: str):
         self.status = status
         super().__init__()
+
+
+class UpdateLog(Message):
+    def __init__(self, status: str):
+        self.status = status
+        super().__init__()
