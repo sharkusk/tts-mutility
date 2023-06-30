@@ -1,6 +1,7 @@
 # {name}
 
 - Filename: [{filename}]({uri_short})
+- Steam Link: [Steam Workshop]({steam_link})
 
 | Mod Details | |
 |------------------------------:|:--------------------------|

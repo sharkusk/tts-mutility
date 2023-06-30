@@ -66,6 +66,7 @@ class ModDetailScreen(Screen):
         )
         self.mod_detail["tag_list"] = "`\n- `".join(self.mod_detail["tags"])
         self.mod_detail["tag_list"] = self.mod_detail["tag_list"].join(["\n- `", "`\n"])
+        self.mod_detail["steam_link"] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
 
         return mod_detail_md.format(**self.mod_detail)
 
