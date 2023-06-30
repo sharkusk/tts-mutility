@@ -1,36 +1,30 @@
 import time
-from pathlib import Path
 from argparse import ArgumentParser, Namespace
+from pathlib import Path
+
 from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
-
-from textual.app import App, ComposeResult
-from textual.widgets import Header
-from textual.message import Message
-from textual.containers import Center
-from textual.widgets import Static, LoadingIndicator, Static, ProgressBar
-from textual.screen import Screen
 from textual import work
-from textual.worker import Worker
-from textual.events import Key
+from textual.app import App, ComposeResult
+from textual.containers import Center
 from textual.css.query import NoMatches
+from textual.events import Key
+from textual.message import Message
+from textual.screen import Screen
+from textual.widgets import Header, LoadingIndicator, ProgressBar, Static
+from textual.worker import Worker
 
+from . import __version__
+from .data import load_config, save_config
+from .data.db import create_new_db
+from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
-from .screens.ModListScreen import ModListScreen
 from .screens.ModDetailScreen import ModDetailScreen
-
-from .workers.messages import UpdateLog
-from .workers.TTSWorker import TTSWorker
-
-from .workers.sha1 import Sha1Scanner
-from .workers.downloader import Downloader
-from .parse import ModList
-from .parse import AssetList
-from .data import load_config, save_config
+from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
-from . import __version__
-
-from .data.db import create_new_db
+from .workers.downloader import Downloader
+from .workers.sha1 import Sha1Scanner
+from .workers.TTSWorker import TTSWorker
 
 
 class TTSMutility(App):
@@ -184,21 +178,56 @@ class TTSMutility(App):
         static = next(self.query("#status").results(Static))
         static.update(event.status)
 
-    def on_update_log(self, event: UpdateLog):
-        params = {
-            "prefix": event.prefix,
-            "suffix": event.suffix,
-        }
-        not_none = {k: v for k, v in params.items() if v is not None}
-        self.write_log(event.status, **not_none)
-
     def on_key(self, event: Key):
         if event.key == "escape":
             try:
-                status_center = self.screen_stack[-1].query_one("#worker_status_center")
+                status_center = self.screen_stack[-1].query_one("#worker_center")
                 status_center.remove_class("unhide")
             except NoMatches:
                 pass
+
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        self.f_log.flush()
+
+    #  █████╗ ███████╗███████╗███████╗████████╗██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
+    # ██╔══██╗██╔════╝██╔════╝██╔════╝╚══██╔══╝██║     ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║
+    # ███████║███████╗███████╗█████╗     ██║   ██║     ██║███████╗   ██║   ███████╗██║     ██████╔╝█████╗  █████╗  ██╔██╗ ██║
+    # ██╔══██║╚════██║╚════██║██╔══╝     ██║   ██║     ██║╚════██║   ██║   ╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║
+    # ██║  ██║███████║███████║███████╗   ██║   ███████╗██║███████║   ██║   ███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║
+    # ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝   ╚═╝   ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
+
+    def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
+        self.push_screen(AssetDetailScreen(event.asset_detail))
+
+    def on_asset_list_screen_download_selected(
+        self, event: AssetListScreen.DownloadSelected
+    ):
+        self.ad.add_assets(event.assets)
+        self.run_worker(self.ad.start_download, exclusive=True)
+
+    # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
+    # ██╔══██╗██╔═══██╗██║    ██║████╗  ██║██║     ██╔═══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
+    # ██║  ██║██║   ██║██║ █╗ ██║██╔██╗ ██║██║     ██║   ██║███████║██║  ██║█████╗  ██████╔╝
+    # ██║  ██║██║   ██║██║███╗██║██║╚██╗██║██║     ██║   ██║██╔══██║██║  ██║██╔══╝  ██╔══██╗
+    # ██████╔╝╚██████╔╝╚███╔███╔╝██║ ╚████║███████╗╚██████╔╝██║  ██║██████╔╝███████╗██║  ██║
+    # ╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+
+    def on_downloader_file_download_complete(
+        self, event: Downloader.FileDownloadComplete
+    ):
+        if self.is_screen_installed("asset_list"):
+            screen = self.get_screen("asset_list")
+            screen.update_asset(event.asset)
+
+    def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
+        self.refresh_mods()
+
+    # ███╗   ███╗ ██████╗ ██████╗ ██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
+    # ████╗ ████║██╔═══██╗██╔══██╗██║     ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║
+    # ██╔████╔██║██║   ██║██║  ██║██║     ██║███████╗   ██║   ███████╗██║     ██████╔╝█████╗  █████╗  ██╔██╗ ██║
+    # ██║╚██╔╝██║██║   ██║██║  ██║██║     ██║╚════██║   ██║   ╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║
+    # ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗██║███████║   ██║   ███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║
+    # ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
         self.load_screen(ModDetailScreen(event.filename), "mod_details")
@@ -211,39 +240,29 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
+        self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
         self.ad.add_assets(event.mod_filename)
-        self.run_worker(self.ad.start_download, exclusive=True)
-
-    def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
-        self.push_screen(AssetDetailScreen(event.asset_detail))
-
-    def on_asset_list_screen_download_selected(
-        self, event: AssetListScreen.DownloadSelected
-    ):
-        self.ad.add_assets(event.assets)
         self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)
 
-    def on_downloader_file_download_complete(
-        self, event: Downloader.FileDownloadComplete
-    ):
-        if self.is_screen_installed("asset_list"):
-            screen = self.get_screen("asset_list")
-            screen.update_asset(event.asset)
+    # ████████╗████████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗
+    # ╚══██╔══╝╚══██╔══╝██╔════╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗
+    #    ██║      ██║   ███████╗██║ █╗ ██║██║   ██║██████╔╝█████╔╝ █████╗  ██████╔╝
+    #    ██║      ██║   ╚════██║██║███╗██║██║   ██║██╔══██╗██╔═██╗ ██╔══╝  ██╔══██╗
+    #    ██║      ██║   ███████║╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████╗██║  ██║
+    #    ╚═╝      ╚═╝   ╚══════╝ ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-    def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
-        self.refresh_mods()
-
-    def on_background_task_complete(self):
-        next(
-            self.screen_stack[-1].query("#worker_status_center").results(Center)
-        ).remove_class("unhide")
-
-    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
-        self.log(event)
-        self.f_log.flush()
+    def on_ttsworker_update_log(self, event: TTSWorker.UpdateLog):
+        params = {
+            "prefix": event.prefix,
+            "suffix": event.suffix,
+        }
+        not_none = {k: v for k, v in params.items() if v is not None}
+        self.write_log(event.status, **not_none)
+        if event.flush:
+            self.f_log.flush()
 
     def on_ttsworker_update_progress(self, event: Downloader.UpdateProgress):
         if event.update_total is not None:
@@ -262,6 +281,7 @@ class TTSMutility(App):
             pass
 
     def on_ttsworker_update_status(self, event: Downloader.UpdateStatus):
+        self.last_status = event.status
         try:
             status_center = self.screen_stack[-1].query_one("#worker_center")
             status_center.add_class("unhide")

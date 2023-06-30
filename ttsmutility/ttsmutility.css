@@ -24,10 +24,6 @@ TTSWorker {
     height: auto;
 }
 
-Downloader {
-    height: auto;
-}
-
 TabbedContent {
     height: 1fr;
 }
@@ -88,18 +84,18 @@ DataTable {
     border: round blue;
 }
 
-#worker_status_center {
+#worker_center {
     visibility: hidden;
     height: 0;
 }
 
-#worker_status_center.unhide {
+#worker_center.unhide {
     visibility: visible;
     height: auto;
     padding: 0;
     padding-right: 2;
     padding-left: 2;
-    border: round green;
+    border: round yellow;
 }
 
 #worker_status {
@@ -113,34 +109,6 @@ DataTable {
 
 #worker_progress.unhide {
     visibility: visible;
-    height: 2;
-}
-
-#dl_center {
-    visibility: hidden;
-    height: 0;
-}
-
-#dl_center.unhide {
-    visibility: visible;
-    height: auto;
-    padding-left: 2;
-    padding-right: 2;
-}
-
-#dl_progress {
-    height: 0;
-}
-
-#dl_progress.unhide {
-    height: 2;
-}
-
-#dl_status {
-    height: 0;
-}
-
-#dl_status.unhide {
     height: 2;
 }
 

@@ -1,15 +1,21 @@
+from itertools import filterfalse
+
 from textual.app import ComposeResult
-from textual.widgets import Footer, Header, DataTable
-from textual.message import Message
-from textual.widgets import TabbedContent, TabPane, Static, Input
-from textual.screen import Screen
 from textual.containers import Center
-from textual.events import Key
+from textual.events import Key, ScreenResume
+from textual.message import Message
+from textual.screen import Screen
+from textual.widgets import (
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    TabbedContent,
+    TabPane,
+)
 
 from ..parse import ModList
 from ..utility.util import format_time
-
-from itertools import filterfalse
 
 
 class ModListScreen(Screen):
@@ -105,6 +111,9 @@ class ModListScreen(Screen):
             self.last_sort_key = "name"
 
         self.load_mods()
+
+    def on_screen_resume(self, event: ScreenResume):
+        pass
 
     def load_mods(self) -> None:
         mod_list = ModList.ModList()

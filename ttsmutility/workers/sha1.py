@@ -4,13 +4,10 @@ import pathlib
 
 from textual.worker import Worker, get_current_worker
 
-from ..parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
-from ..parse.AssetList import AssetList
-from .messages import UpdateLog
 from ..data.config import load_config
+from ..parse.AssetList import AssetList
+from ..parse.FileFinder import FILES_TO_IGNORE, TTS_RAW_DIRS
 from .TTSWorker import TTSWorker
-
-import os
 
 # Recursively read each directory
 # Load existing dictionary, for each file not found in dictionary:
@@ -32,7 +29,7 @@ class Sha1Scanner(TTSWorker):
         config = load_config()
         asset_list = AssetList()
 
-        self.app.post_message(UpdateLog(f"Starting SHA1 scan."))
+        self.app.post_message(self.UpdateLog(f"Starting SHA1 scan."))
         self.app.post_message(self.UpdateProgress(100, None))
         worker = get_current_worker()
 
@@ -59,12 +56,12 @@ class Sha1Scanner(TTSWorker):
             if len(files) > 0:
                 self.app.post_message(self.UpdateProgress(len(files), None))
             self.app.post_message(
-                UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)}).")
+                self.UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)}).")
             )
 
             for filename in files:
                 if worker.is_cancelled:
-                    self.app.post_message(UpdateLog(f"SHA1 scan cancelled."))
+                    self.app.post_message(self.UpdateLog(f"SHA1 scan cancelled."))
                     return
 
                 ext = os.path.splitext(filename)[1]
@@ -120,4 +117,6 @@ class Sha1Scanner(TTSWorker):
                 sha1 = hexdigest.upper()
 
                 asset_list.sha1_scan_done(filepath, sha1, steam_sha1, mtime)
-        self.app.post_message(UpdateLog(f"SHA1 scan complete."))
+
+        self.app.post_message(self.UpdateLog(f"SHA1 scan complete."))
+        self.app.post_message(self.UpdateStatus(f"SHA1 scan complete."))

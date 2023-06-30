@@ -1,8 +1,8 @@
-from textual.widget import Widget
-from textual.widgets import Static, ProgressBar
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.message import Message
+from textual.widget import Widget
+from textual.widgets import ProgressBar, Static
 
 
 class TTSWorker(Widget):
@@ -20,6 +20,22 @@ class TTSWorker(Widget):
             self.status_id = status_id
             self.prefix = prefix
             self.suffix = suffix
+
+    class UpdateLog(Message):
+        def __init__(
+            self,
+            status: str,
+            status_id: int = 0,
+            prefix=None,
+            suffix=None,
+            flush=False,
+        ):
+            super().__init__()
+            self.status = status
+            self.status_id = status_id
+            self.prefix = prefix
+            self.suffix = suffix
+            self.flush = flush
 
     def compose(self) -> ComposeResult:
         with Center(id="worker_center"):
