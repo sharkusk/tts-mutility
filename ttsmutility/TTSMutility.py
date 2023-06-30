@@ -19,6 +19,7 @@ from .data.db import create_new_db
 from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
+from .screens.DebugScreen import DebugScreen
 from .screens.ModDetailScreen import ModDetailScreen
 from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
@@ -94,7 +95,6 @@ class TTSMutility(App):
     def initialize_database(self) -> None:
         config = load_config()
 
-        init_start_time = time.time()
         self.write_log(f"## Init", prefix="")
 
         # Wait for DB to be created on first pass
@@ -135,7 +135,6 @@ class TTSMutility(App):
         self.f_log.flush()
 
     def refresh_mods(self) -> None:
-        config = load_config()
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
 
@@ -160,12 +159,11 @@ class TTSMutility(App):
         self.install_screen(new_screen, name)
         self.push_screen(name)
         screen = self.get_screen(name)
-        # Mount the actual worker screen so we messages bubbled
-        # if name == "mod_list":
-        #    screen.mount(self.ad)
-        # Just the worker status widgets on other screens
-        # else:
-        #    screen.mount(TTSWorker())
+
+        # Mount the worker screens so our messages bubbled
+        if name == "mod_list":
+            screen.mount(self.ad)
+            screen.mount(self.sha1)
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
@@ -185,6 +183,8 @@ class TTSMutility(App):
                 status_center.remove_class("unhide")
             except NoMatches:
                 pass
+        if event.key == "ctrl+t":
+            self.push_screen(DebugScreen(self.screen_stack[-1].css_tree))
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         self.f_log.flush()

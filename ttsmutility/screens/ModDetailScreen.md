@@ -6,7 +6,7 @@
 | Mod Details | |
 |------------------------------:|:--------------------------|
 | Mod Creation Time             | {epoch}                   |
-| Total Mod Size                | {size:,.2f} KBytes        |
+| Size on Disk                  | {size:,.2f} KBytes        |
 | Total Number of Assets        | {total_assets:,}          |
 | Missing Assets                | {missing_assets:,}        |
 | TTS Version                   | {version}                 |

@@ -24,6 +24,16 @@ TTSWorker {
     height: auto;
 }
 
+Downloader {
+    height: 0;
+    visibility: hidden;
+}
+
+Sha1Scanner {
+    height: 0;
+    visibility: hidden;
+}
+
 TabbedContent {
     height: 1fr;
 }
@@ -41,6 +51,18 @@ TabPane {
 DataTable {
     background: $panel;
     height: 1fr;
+}
+
+#info_container {
+    height: 90%;
+    width: 90%;
+    border: round green;
+}
+
+#debug_container {
+    height: 90%;
+    width: 90%;
+    border: round green;
 }
 
 #loading {

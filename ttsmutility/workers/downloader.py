@@ -7,6 +7,7 @@ import urllib.request
 from contextlib import suppress
 from pathlib import Path
 
+from textual.app import ComposeResult
 from textual.message import Message
 from textual.worker import get_current_worker
 
@@ -106,7 +107,7 @@ class Downloader(TTSWorker):
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
-        chunk_size: int = 64*1024,
+        chunk_size: int = 64 * 1024,
     ):
         super().__init__()
         self.asset_list = AssetList()
@@ -121,6 +122,11 @@ class Downloader(TTSWorker):
         self.ignore_content_type = ignore_content_type
         self.files_to_dl = {}
         self.chunk_size = chunk_size
+
+    # Base class is installed in each screen, so we don't want
+    # to inherit the same widgets when this subclass is mounted
+    def compose(self) -> ComposeResult:
+        return []
 
     def add_assets(
         self,
@@ -146,12 +152,12 @@ class Downloader(TTSWorker):
         self.cur_filesize = 0
 
         self.worker = get_current_worker()
-        self.worker.node.post_message(
+        self.post_message(
             self.UpdateLog(
                 f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
             )
         )
-        self.worker.node.post_message(
+        self.post_message(
             self.UpdateProgress(
                 update_total=len(self.urls), advance_amount=0, status_id=self.status_id
             )
@@ -159,13 +165,13 @@ class Downloader(TTSWorker):
 
         for i, url in enumerate(self.files_to_dl):
             if self.worker.is_cancelled:
-                self.worker.node.post_message(self.UpdateLog(f"Download worker cancelled."))
+                self.post_message(self.UpdateLog(f"Download worker cancelled."))
                 return
-            self.worker.node.post_message(
+            self.post_message(
                 self.UpdateStatus(f"Downloading ({i}/{len(self.files_to_dl)}): `{url}`")
             )
             self.download_file(**self.files_to_dl[url])
-        self.worker.node.post_message(self.DownloadComplete(status_id=self.status_id))
+        self.post_message(self.DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
@@ -181,35 +187,33 @@ class Downloader(TTSWorker):
                 "content_name": self.cur_content_name,
             }
             self.asset_list.download_done(asset)
-            self.app.post_message(self.FileDownloadComplete(asset))
-            self.app.post_message(
+            self.post_message(self.FileDownloadComplete(asset))
+            self.post_message(
                 self.UpdateLog(f"Download Failed ({error}): `{url}`", flush=True)
             )
-            self.app.post_message(
-                self.UpdateStatus(f"Download Failed ({error}): `{url}`")
-            )
+            self.post_message(self.UpdateStatus(f"Download Failed ({error}): `{url}`"))
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.app.post_message(self.UpdateLog(f"---", prefix=""))
-                self.app.post_message(self.UpdateLog(f"Downloading: `{url}`"))
+                self.post_message(self.UpdateLog(f"---", prefix=""))
+                self.post_message(self.UpdateLog(f"Downloading: `{url}`"))
             else:
-                self.app.post_message(self.UpdateLog(f"Retry #{self.cur_retry}"))
+                self.post_message(self.UpdateLog(f"Retry #{self.cur_retry}"))
         elif state == "file_size":
             self.cur_filesize = data
-            self.app.post_message(
+            self.post_message(
                 self.UpdateProgress(
                     update_total=data, advance_amount=0, status_id=self.status_id
                 )
             )
-            self.app.post_message(self.UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
+            self.post_message(self.UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
         elif state == "data_read":
-            self.app.post_message(
+            self.post_message(
                 self.UpdateProgress(advance_amount=data, status_id=self.status_id)
             )
         elif state == "content_name":
             self.cur_content_name = data
-            self.app.post_message(
+            self.post_message(
                 self.UpdateLog(f"Content Filename: `{self.cur_content_name}`")
             )
         elif state == "filepath":
@@ -217,7 +221,7 @@ class Downloader(TTSWorker):
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
-            self.app.post_message(self.UpdateLog(f"Asset dir: `{data}`"))
+            self.post_message(self.UpdateLog(f"Asset dir: `{data}`"))
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
@@ -234,13 +238,13 @@ class Downloader(TTSWorker):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.app.post_message(self.FileDownloadComplete(asset))
-                self.app.post_message(
+                self.post_message(self.FileDownloadComplete(asset))
+                self.post_message(
                     self.UpdateLog(
                         f"Download Success: `{self.cur_filepath}`", flush=True
                     )
                 )
-                self.app.post_message(
+                self.post_message(
                     self.UpdateStatus(f"Download Success: `{self.cur_filepath}`")
                 )
             else:
@@ -256,21 +260,21 @@ class Downloader(TTSWorker):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.app.post_message(self.FileDownloadComplete(asset))
-                self.app.post_message(
+                self.post_message(self.FileDownloadComplete(asset))
+                self.post_message(
                     self.UpdateLog(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`",
                         flush=True,
                     )
                 )
-                self.app.post_message(
+                self.post_message(
                     self.UpdateStatus(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
         else:
             # Generic status for logging...
-            self.app.post_message(self.UpdateLog(f"{state}: {data}"))
+            self.post_message(self.UpdateLog(f"{state}: {data}"))
 
         if state in ["error", "success"]:
             # Increment overall progress here
@@ -286,7 +290,7 @@ class Downloader(TTSWorker):
             self.steam_sha1 = ""
 
         if state in ["download_starting"]:
-            self.app.post_message(
+            self.post_message(
                 self.UpdateProgress(
                     update_total=100, advance_amount=0, status_id=self.status_id
                 )

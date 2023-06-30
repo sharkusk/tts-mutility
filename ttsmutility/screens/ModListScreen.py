@@ -14,6 +14,9 @@ from textual.widgets import (
     TabPane,
 )
 
+from .InfoScreen import InfoScreen
+from .DebugScreen import DebugScreen
+from ..data.config import load_config
 from ..parse import ModList
 from ..utility.util import format_time
 
@@ -21,9 +24,10 @@ from ..utility.util import format_time
 class ModListScreen(Screen):
     BINDINGS = [
         ("q", "exit", "Quit"),
+        ("f", "filter", "Filter"),
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
-        ("f", "filter", "Filter"),
+        ("l", "view_log", "View Log"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -213,7 +217,6 @@ class ModListScreen(Screen):
         table.focus()
         table.sort("name", reverse=self.sort_order["name"])
         self.last_sort_key = "name"
-        self.log(self.css_tree)
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
         mod_filename = self.mods[row_key.value]["filename"]
@@ -269,6 +272,11 @@ class ModListScreen(Screen):
 
     def action_exit(self) -> None:
         self.app.exit()
+
+    def action_view_log(self) -> None:
+        config = load_config()
+        with open(config.log_path, "r") as f:
+            self.app.push_screen(DebugScreen(f.read()))
 
     def get_active_table(self) -> tuple:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
