@@ -16,7 +16,6 @@ class DebugScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(id="debug_container"):
-            yield Footer()
             with VerticalScroll(id="debug_scroll"):
                 yield Static(
                     self.message,

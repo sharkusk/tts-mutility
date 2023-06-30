@@ -13,6 +13,7 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
 )
+from rich.markdown import Markdown
 
 from .InfoScreen import InfoScreen
 from .DebugScreen import DebugScreen
@@ -276,7 +277,7 @@ class ModListScreen(Screen):
     def action_view_log(self) -> None:
         config = load_config()
         with open(config.log_path, "r") as f:
-            self.app.push_screen(DebugScreen(f.read()))
+            self.app.push_screen(DebugScreen(Markdown(f.read())))
 
     def get_active_table(self) -> tuple:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
