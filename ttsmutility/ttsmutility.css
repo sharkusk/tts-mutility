@@ -20,6 +20,10 @@ Bar {
     width: 1fr;
 }
 
+Downloader {
+    height: auto;
+}
+
 TabbedContent {
     height: 1fr;
 }
@@ -108,48 +112,32 @@ DataTable {
     height: 2;
 }
 
-#dl_screen {
-    height: 90%;
-    width: 90%;
-    padding: 1;
-    padding-bottom: 0;
-    border: round blue 75%
+#dl_center {
+    visibility: hidden;
+    height: 0;
+}
+
+#dl_center.unhide {
+    visibility: visible;
+    height: auto;
+    padding-left: 2;
+    padding-right: 2;
 }
 
 #dl_progress {
-    /*
-    border: round green;
-    */
+    height: 0;
+}
+
+#dl_progress.unhide {
     height: 2;
-    padding-left: 2;
-    padding-right: 0;
 }
 
 #dl_status {
-    height: 1fr;
+    height: 0;
 }
 
-#dl_scroll {
-    width: 100%;
-    height: 1.5fr;
-    padding-left: 1;
-    border: round green;
-}
-
-#dl_log {
-    width: 100%;
-    padding: 0;
-    /*
-    border: round yellow;
-    */
-}
-
-#dl_screen Footer {
-    visibility: hidden;
-}
-
-#dl_screen.unhide Footer {
-    visibility: visible;
+#dl_status.unhide {
+    height: 2;
 }
 
 #ad_screen {

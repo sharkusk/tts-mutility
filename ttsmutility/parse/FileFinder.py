@@ -48,7 +48,7 @@ def trail_to_trailstring(trail: list) -> str:
     return "->".join(["%s"] * len(trail)) % tuple(trail)
 
 
-def is_obj(trail):
+def is_model(trail):
     # TODO: None of my mods have NormalURL set (normal maps?). I’m
     # assuming these are image files.
     obj_keys = ("MeshURL", "ColliderURL")
@@ -59,7 +59,7 @@ def is_image(trail):
     # This assumes that we only have mesh, assetbundle, audio, PDF and image
     # URLs.
     return not (
-        is_obj(trail)
+        is_model(trail)
         or is_assetbundle(trail)
         or is_audiolibrary(trail)
         or is_pdf(trail)
@@ -133,7 +133,7 @@ def get_fs_path(trail, url):
 
     recoded_name = recodeURL(url)
 
-    if is_obj(trail):
+    if is_model(trail):
         filename = recoded_name + ".obj"
         filename = Path(OBJPATH) / filename
 

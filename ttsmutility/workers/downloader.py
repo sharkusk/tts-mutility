@@ -1,4 +1,10 @@
-from textual.worker import Worker, get_current_worker
+from textual.worker import get_current_worker
+from textual.widget import Widget
+from textual.widgets import Static, ProgressBar
+from textual.app import ComposeResult
+from textual.containers import Center
+from textual.message import Message
+from textual.css.query import NoMatches
 
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.AssetList import AssetList
@@ -6,7 +12,7 @@ from ..data.config import load_config
 from ..parse.FileFinder import (
     UPPER_EXTS,
     get_fs_path_from_extension,
-    is_obj,
+    is_model,
     is_assetbundle,
     is_audiolibrary,
     is_custom_ui_asset,
@@ -18,10 +24,6 @@ from ..parse.FileFinder import (
 from ..utility.advertising import USER_AGENT
 from ..workers.messages import (
     UpdateLog,
-    UpdateProgress,
-    DownloadComplete,
-    FileDownloadComplete,
-    UpdateStatus,
 )
 
 from contextlib import suppress
@@ -34,7 +36,7 @@ import urllib.request
 from pathlib import Path
 
 
-class AssetDownloader(Worker):
+class Downloader(Widget):
     DEFAULT_EXT = {
         "text/plain": ".obj",
         "application/pdf": ".pdf",
@@ -44,15 +46,90 @@ class AssetDownloader(Worker):
         "video/mp4": ".mp4",
     }
 
-    def add_assets(
+    MIME_TYPES = {
+        "model": (
+            "text/plain",
+            "application/binary",
+            "application/octet-stream",
+            "application/json",
+            "application/x-tgif",
+        ),
+        "assetbundle": (
+            "text/plain",
+            "application/binary",
+            "application/octet-stream",
+        ),
+        "image": (
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "application/octet-stream",
+            "application/binary",
+            "video/mp4",
+        ),
+        "audiolibrary": (
+            "application/octet-stream",
+            "application/binary",
+            "audio/",
+        ),
+        "pdf": (
+            "application/pdf",
+            "application/binary",
+            "application/octet-stream",
+        ),
+        "script": (
+            "text/plain",
+            "application/pdf",
+            "application/binary",
+            "application/octet-stream",
+            "application/json",
+            "application/x-tgif",
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "video/mp4",
+        ),
+    }
+
+    class UpdateProgress(Message):
+        def __init__(self, update_total=None, advance_amount=None, status_id: int = 0):
+            super().__init__()
+            self.update_total = update_total
+            self.advance_amount = advance_amount
+            self.status_id = status_id
+
+    class UpdateStatus(Message):
+        def __init__(self, status: str, status_id: int = 0, prefix=None, suffix=None):
+            super().__init__()
+            self.status = status
+            self.status_id = status_id
+            self.prefix = prefix
+            self.suffix = suffix
+
+    class FileDownloadComplete(Message):
+        def __init__(
+            self,
+            asset: dict,
+            status_id: int = 0,
+        ) -> None:
+            super().__init__()
+            self.asset = asset
+            self.status_id = status_id
+
+    class DownloadComplete(Message):
+        def __init__(self, status_id: int = 0) -> None:
+            super().__init__()
+            self.status_id = status_id
+
+    def __init__(
         self,
-        assets: list or str,
         timeout: int = 10,
         timeout_retries: int = 10,
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
-    ) -> list:
+    ):
+        super().__init__()
         self.asset_list = AssetList()
         self.status = ""
         config = load_config()
@@ -64,6 +141,17 @@ class AssetDownloader(Worker):
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
         self.files_to_dl = {}
+        self.id = "downloader"
+
+    def compose(self) -> ComposeResult:
+        with Center(id="dl_center"):
+            yield ProgressBar(id="dl_progress")
+            yield Static(id="dl_status")
+
+    def add_assets(
+        self,
+        assets: list or str,
+    ) -> list:
         self.urls = []
 
         # A mod name was passed insteam of a list of assets
@@ -78,31 +166,31 @@ class AssetDownloader(Worker):
     def set_files_to_dl(self, files_to_dl):
         self.files_to_dl = files_to_dl
 
-    def run(self) -> None:
+    def start_download(self) -> None:
         self.cur_retry = 0
         self.cur_filepath = ""
         self.cur_filesize = 0
         self.worker = get_current_worker()
 
-        self.node.post_message(
-            UpdateProgress(
+        self.post_message(
+            self.UpdateProgress(
                 update_total=len(self.urls), advance_amount=0, status_id=self.status_id
             )
         )
-        self.node.post_message(
+        self.post_message(
             UpdateLog(
                 f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
             )
         )
         for i, url in enumerate(self.files_to_dl):
             if self.worker.is_cancelled:
-                self.node.post_message(UpdateLog(f"Download worker cancelled."))
+                self.post_message(UpdateLog(f"Download worker cancelled."))
                 return
-            self.node.post_message(
-                UpdateStatus(f"Downloading: `{url}` ({i}/{len(self.files_to_dl)})")
+            self.post_message(
+                self.UpdateStatus(f"Downloading: `{url}` ({i}/{len(self.files_to_dl)})")
             )
             self.download_file(**self.files_to_dl[url])
-        self.node.post_message(DownloadComplete(status_id=self.status_id))
+        self.post_message(self.DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
@@ -118,50 +206,37 @@ class AssetDownloader(Worker):
                 "content_name": self.cur_content_name,
             }
             self.asset_list.download_done(asset)
-            self.node.post_message(FileDownloadComplete(asset))
-            self.node.post_message(UpdateLog(f"Download Failed ({error}): `{url}`"))
+            self.post_message(self.FileDownloadComplete(asset))
+            self.post_message(UpdateLog(f"Download Failed ({error}): `{url}`"))
+            self.post_message(self.UpdateStatus(f"Download Failed ({error}): `{url}`"))
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.node.post_message(
-                    UpdateLog(f"---", prefix="", update_status=False)
-                )
-                self.node.post_message(
-                    UpdateLog(f"Downloading: `{url}`", update_status=False)
-                )
+                self.post_message(UpdateLog(f"---", prefix=""))
+                self.post_message(UpdateLog(f"Downloading: `{url}`"))
             else:
-                self.node.post_message(
-                    UpdateLog(f"Retry #{self.cur_retry}", update_status=False)
-                )
+                self.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
         elif state == "file_size":
             self.cur_filesize = data
-            self.node.post_message(
-                UpdateProgress(
+            self.post_message(
+                self.UpdateProgress(
                     update_total=data, advance_amount=0, status_id=self.status_id
                 )
             )
-            self.node.post_message(
-                UpdateLog(f"Filesize: `{self.cur_filesize:,}`", update_status=False)
-            )
+            self.post_message(UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
         elif state == "data_read":
-            self.node.post_message(
-                UpdateProgress(advance_amount=data, status_id=self.status_id)
+            self.post_message(
+                self.UpdateProgress(advance_amount=data, status_id=self.status_id)
             )
         elif state == "content_name":
             self.cur_content_name = data
-            self.node.post_message(
-                UpdateLog(
-                    f"Content Filename: `{self.cur_content_name}`", update_status=False
-                )
-            )
+            self.post_message(UpdateLog(f"Content Filename: `{self.cur_content_name}`"))
         elif state == "filepath":
             self.cur_filepath = data
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
-            self.node.post_message(
-                UpdateLog(f"Asset dir: `{data}`", update_status=False)
-            )
+            self.post_message(UpdateLog(f"Asset dir: `{data}`"))
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
@@ -178,9 +253,10 @@ class AssetDownloader(Worker):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.node.post_message(FileDownloadComplete(asset))
-                self.node.post_message(
-                    UpdateLog(f"Download Success: `{self.cur_filepath}`")
+                self.post_message(self.FileDownloadComplete(asset))
+                self.post_message(UpdateLog(f"Download Success: `{self.cur_filepath}`"))
+                self.post_message(
+                    self.UpdateStatus(f"Download Success: `{self.cur_filepath}`")
                 )
             else:
                 mtime = 0
@@ -195,15 +271,20 @@ class AssetDownloader(Worker):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.node.post_message(FileDownloadComplete(asset))
-                self.node.post_message(
+                self.post_message(self.FileDownloadComplete(asset))
+                self.post_message(
                     UpdateLog(
+                        f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
+                    )
+                )
+                self.post_message(
+                    self.UpdateStatus(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
         else:
             # Generic status for logging...
-            self.node.post_message(UpdateLog(f"{state}: {data}", update_status=False))
+            self.post_message(UpdateLog(f"{state}: {data}"))
 
         if state in ["error", "success"]:
             # Increment overall progress here
@@ -219,8 +300,8 @@ class AssetDownloader(Worker):
             self.steam_sha1 = ""
 
         if state in ["download_starting"]:
-            self.node.post_message(
-                UpdateProgress(
+            self.post_message(
+                self.UpdateProgress(
                     update_total=100, advance_amount=0, status_id=self.status_id
                 )
             )
@@ -230,6 +311,14 @@ class AssetDownloader(Worker):
             return ext.upper()
         else:
             return ext.lower()
+
+    def content_expected(self, mime, tts_asset_type):
+        return any(
+            map(
+                mime.startswith,
+                self.MIME_TYPES[tts_asset_type],
+            )
+        )
 
     def _ready_urls_for_download(self):
         self.state_callback("init", None, None)
@@ -258,86 +347,28 @@ class AssetDownloader(Worker):
                 continue
 
             # type in the response.
-            if is_obj(trail):
+            if is_model(trail):
                 default_ext = ".obj"
-
-                def content_expected(mime):
-                    return any(
-                        map(
-                            mime.startswith,
-                            (
-                                "text/plain",
-                                "application/binary",
-                                "application/octet-stream",
-                                "application/json",
-                                "application/x-tgif",
-                            ),
-                        )
-                    )
 
             elif is_assetbundle(trail):
                 default_ext = ".unity3d"
-
-                def content_expected(mime):
-                    return any(
-                        map(
-                            mime.startswith,
-                            (
-                                "text/plain",
-                                "application/binary",
-                                "application/octet-stream",
-                            ),
-                        )
-                    )
+                tts_type = "assetbundle"
 
             elif is_image(trail):
                 default_ext = ".png"
-
-                def content_expected(mime):
-                    return mime in (
-                        "image/jpeg",
-                        "image/jpg",
-                        "image/png",
-                        "application/octet-stream",
-                        "application/binary",
-                        "video/mp4",
-                    )
+                tts_type = "image"
 
             elif is_audiolibrary(trail):
                 default_ext = ".WAV"
-
-                def content_expected(mime):
-                    return mime in (
-                        "application/octet-stream",
-                        "application/binary",
-                    ) or mime.startswith("audio/")
+                tts_type = "audiolibrary"
 
             elif is_pdf(trail):
                 default_ext = ".PDF"
-
-                def content_expected(mime):
-                    return mime in (
-                        "application/pdf",
-                        "application/binary",
-                        "application/octet-stream",
-                    )
+                tts_type = "pdf"
 
             elif is_from_script(trail) or is_custom_ui_asset(trail):
                 default_ext = ".png"
-
-                def content_expected(mime):
-                    return mime in (
-                        "text/plain",
-                        "application/pdf",
-                        "application/binary",
-                        "application/octet-stream",
-                        "application/json",
-                        "application/x-tgif",
-                        "image/jpeg",
-                        "image/jpg",
-                        "image/png",
-                        "video/mp4",
-                    )
+                tts_type = "script"
 
             else:
                 errstr = "Do not know how to retrieve URL {url} at {trail}.".format(
@@ -355,11 +386,11 @@ class AssetDownloader(Worker):
                 "url": url,
                 "fetch_url": fetch_url,
                 "filepath": filepath,
-                "content_expected": content_expected,
+                "tts_type": tts_type,
                 "default_ext": default_ext,
             }
 
-    def download_file(self, url, fetch_url, filepath, content_expected, default_ext):
+    def download_file(self, url, fetch_url, filepath, tts_type, default_ext):
         for i in range(self.timeout_retries):
             self.state_callback("download_starting", url, i)
             try:
@@ -367,7 +398,7 @@ class AssetDownloader(Worker):
                     url,
                     fetch_url,
                     filepath,
-                    content_expected,
+                    tts_type,
                     default_ext,
                 )
             except socket.timeout as error:
@@ -393,7 +424,7 @@ class AssetDownloader(Worker):
             return results
 
     def _download_file(
-        self, url, fetch_url, filepath, content_expected, default_ext_from_trail
+        self, url, fetch_url, filepath, tts_type, default_ext_from_trail
     ):
         headers = {"User-Agent": self.user_agent}
         request = urllib.request.Request(url=fetch_url, headers=headers)
@@ -438,7 +469,7 @@ class AssetDownloader(Worker):
         # Some content_type arrives as: 'text/plain; charset=utf-8', we only care about
         # the first part...
         content_type = response.getheader("Content-Type", "").split(";")[0].strip()
-        is_expected = not content_type or content_expected(content_type)
+        is_expected = not content_type or self.content_expected(content_type, tts_type)
         if not (is_expected or self.ignore_content_type):
             # Google drive sends html error page when file is removed/missing
             return f"Wrong context type ({content_type})"

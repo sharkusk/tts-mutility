@@ -8,7 +8,7 @@ import urllib.request
 
 from ..parse.FileFinder import UPPER_EXTS, get_fs_path_from_extension
 from ..parse.FileFinder import (
-    is_obj,
+    is_model,
     is_assetbundle,
     is_audiolibrary,
     is_custom_ui_asset,
@@ -73,7 +73,7 @@ def download_files(
             continue
 
         # type in the response.
-        if is_obj(trail):
+        if is_model(trail):
             default_ext = ".obj"
 
             def content_expected(mime):

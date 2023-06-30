@@ -19,16 +19,10 @@ from .screens.AssetListScreen import AssetListScreen
 from .screens.ModListScreen import ModListScreen
 from .screens.ModDetailScreen import ModDetailScreen
 
-from .workers.messages import (
-    UpdateProgress,
-    UpdateStatus,
-    UpdateLog,
-    FileDownloadComplete,
-    DownloadComplete,
-)
+from .workers.messages import UpdateLog
 
 from .workers.sha1 import Sha1Scanner
-from .workers.download import AssetDownloader
+from .workers.downloader import Downloader
 from .parse import ModList
 from .parse import AssetList
 from .data import load_config, save_config
@@ -64,6 +58,7 @@ class TTSMutility(App):
         save_config(config)
         self.max_mods = cli_args.max_mods
         self.start_time = time.time()
+        self.ad = Downloader()
 
         if cli_args.overwrite_log:
             log_flags = "w"
@@ -169,13 +164,7 @@ class TTSMutility(App):
         self.install_screen(new_screen, name)
         self.push_screen(name)
         screen = self.get_screen(name)
-        screen.mount(
-            Center(
-                ProgressBar(self.progress_total, id="worker_progress"),
-                Static(self.last_status, id="worker_status"),
-                id="worker_status_center",
-            )
-        )
+        screen.mount(self.ad)
 
     def on_ttsmutility_init_complete(self):
         config = load_config()
@@ -187,43 +176,7 @@ class TTSMutility(App):
         static = next(self.query("#status").results(Static))
         static.update(event.status)
 
-    def on_update_progress(self, event: UpdateProgress):
-        if event.update_total is not None:
-            self.progress_total = event.update_total
-            self.progress_advance = 0
-        else:
-            self.progress_advance = self.progress_advance + event.advance_amount
-
-        try:
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.add_class("unhide")
-            progress = self.screen_stack[-1].query_one("#worker_progress")
-            progress.add_class("unhide")
-            progress.update(total=self.progress_total, progress=self.progress_advance)
-        except NoMatches:
-            pass
-
-    def on_update_status(self, event: UpdateStatus):
-        self.last_status = event.status
-        try:
-            status_center = self.screen_stack[-1].query_one("#worker_status_center")
-            status_center.add_class("unhide")
-            status = self.screen_stack[-1].query_one("#worker_status")
-            status.update(event.status)
-        except NoMatches:
-            pass
-
     def on_update_log(self, event: UpdateLog):
-        if event.update_status:
-            self.last_status = event.status
-            try:
-                status_center = self.screen_stack[-1].query_one("#worker_status_center")
-                status_center.add_class("unhide")
-                status = self.screen_stack[-1].query_one("#worker_status")
-                status.update(event.status)
-            except NoMatches:
-                pass
-
         params = {
             "prefix": event.prefix,
             "suffix": event.suffix,
@@ -250,9 +203,8 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        ad = AssetDownloader(self)
-        ad.add_assets(event.mod_filename)
-        self.run_worker(ad.run, exclusive=True)
+        self.ad.add_assets(event.mod_filename)
+        self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
@@ -260,19 +212,20 @@ class TTSMutility(App):
     def on_asset_list_screen_download_selected(
         self, event: AssetListScreen.DownloadSelected
     ):
-        ad = AssetDownloader(self)
-        ad.add_assets(event.assets)
-        self.run_worker(ad.run, exclusive=True)
+        self.ad.add_assets(event.assets)
+        self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(Sha1Scanner(self).run, exclusive=True)
 
-    def on_file_download_complete(self, event: FileDownloadComplete):
+    def on_downloader_file_download_complete(
+        self, event: Downloader.FileDownloadComplete
+    ):
         if self.is_screen_installed("asset_list"):
             screen = self.get_screen("asset_list")
             screen.update_asset(event.asset)
 
-    def on_download_complete(self, event: DownloadComplete):
+    def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
         self.refresh_mods()
 
     def on_background_task_complete(self):
@@ -283,6 +236,32 @@ class TTSMutility(App):
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         self.log(event)
         self.f_log.flush()
+
+    def on_downloader_update_progress(self, event: Downloader.UpdateProgress):
+        if event.update_total is not None:
+            self.progress_total = event.update_total
+            self.progress_advance = 0
+        else:
+            self.progress_advance = self.progress_advance + event.advance_amount
+
+        try:
+            status_center = self.screen_stack[-1].query_one("#dl_center")
+            status_center.add_class("unhide")
+            progress = self.screen_stack[-1].query_one("#dl_progress")
+            progress.add_class("unhide")
+            progress.update(total=self.progress_total, progress=self.progress_advance)
+        except NoMatches:
+            pass
+
+    def on_downloader_update_status(self, event: Downloader.UpdateStatus):
+        try:
+            status_center = self.screen_stack[-1].query_one("#dl_center")
+            status_center.add_class("unhide")
+            status = self.screen_stack[-1].query_one("#dl_status")
+            status.add_class("unhide")
+            status.update(event.status)
+        except NoMatches:
+            pass
 
 
 def get_args() -> Namespace:
