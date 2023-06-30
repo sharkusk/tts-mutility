@@ -7,12 +7,7 @@ import urllib.request
 from contextlib import suppress
 from pathlib import Path
 
-from textual.app import ComposeResult
-from textual.containers import Center
-from textual.css.query import NoMatches
 from textual.message import Message
-from textual.widget import Widget
-from textual.widgets import ProgressBar, Static
 from textual.worker import get_current_worker
 
 from ..data.config import load_config
@@ -111,6 +106,7 @@ class Downloader(TTSWorker):
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
+        chunk_size: int = 64*1024,
     ):
         super().__init__()
         self.asset_list = AssetList()
@@ -124,7 +120,7 @@ class Downloader(TTSWorker):
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
         self.files_to_dl = {}
-        self.id = "downloader"
+        self.chunk_size = chunk_size
 
     def add_assets(
         self,
@@ -148,27 +144,28 @@ class Downloader(TTSWorker):
         self.cur_retry = 0
         self.cur_filepath = ""
         self.cur_filesize = 0
-        self.worker = get_current_worker()
 
-        self.app.post_message(
-            self.UpdateProgress(
-                update_total=len(self.urls), advance_amount=0, status_id=self.status_id
-            )
-        )
-        self.app.post_message(
+        self.worker = get_current_worker()
+        self.worker.node.post_message(
             self.UpdateLog(
                 f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
             )
         )
+        self.worker.node.post_message(
+            self.UpdateProgress(
+                update_total=len(self.urls), advance_amount=0, status_id=self.status_id
+            )
+        )
+
         for i, url in enumerate(self.files_to_dl):
             if self.worker.is_cancelled:
-                self.app.post_message(self.UpdateLog(f"Download worker cancelled."))
+                self.worker.node.post_message(self.UpdateLog(f"Download worker cancelled."))
                 return
-            self.app.post_message(
-                self.UpdateStatus(f"Downloading: `{url}` ({i}/{len(self.files_to_dl)})")
+            self.worker.node.post_message(
+                self.UpdateStatus(f"Downloading ({i}/{len(self.files_to_dl)}): `{url}`")
             )
             self.download_file(**self.files_to_dl[url])
-        self.app.post_message(self.DownloadComplete(status_id=self.status_id))
+        self.worker.node.post_message(self.DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
@@ -438,9 +435,6 @@ class Downloader(TTSWorker):
         except UnboundLocalError:
             pass
 
-        length = response.getheader("Content-Length", 0)
-        self.state_callback("file_size", url, int(length))
-
         # Possible ways to determine the file extension.
         # Use them in this order...
         extensions = {
@@ -520,13 +514,16 @@ class Downloader(TTSWorker):
         asset_dir = os.path.split(os.path.split(filepath)[0])[1]
         self.state_callback("asset_dir", url, f"Mods/{asset_dir}")
 
+        length = response.getheader("Content-Length", 0)
+        self.state_callback("file_size", url, int(length))
+
         try:
             with open(filepath, "wb") as outfile:
-                data = response.read(1024 * 8)
+                data = response.read(self.chunk_size)
                 while data:
-                    self.state_callback("data_read", url, 1024 * 8)
+                    self.state_callback("data_read", url, self.chunk_size)
                     outfile.write(data)
-                    data = response.read(1024 * 8)
+                    data = response.read(self.chunk_size)
 
         except FileNotFoundError as error:
             return f"Error writing object to disk: {error}"
