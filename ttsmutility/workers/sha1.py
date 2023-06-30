@@ -2,15 +2,14 @@ import hashlib
 import os
 import pathlib
 
-from ..parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
-
 from textual.worker import Worker, get_current_worker
 
+from ..parse.FileFinder import TTS_RAW_DIRS, FILES_TO_IGNORE
 from ..parse.AssetList import AssetList
-from .messages import UpdateProgress, UpdateStatus, UpdateLog
+from .messages import UpdateLog
 from ..data.config import load_config
+from .TTSWorker import TTSWorker
 
-import sys
 import os
 
 # Recursively read each directory
@@ -23,8 +22,8 @@ import os
 #   Copy and rename to destination directory
 
 
-class Sha1Scanner(Worker):
-    def run(self) -> None:
+class Sha1Scanner(TTSWorker):
+    def scan_sha1s(self) -> None:
         asset = None
         filepath = None
         mtime = 0
@@ -33,8 +32,8 @@ class Sha1Scanner(Worker):
         config = load_config()
         asset_list = AssetList()
 
-        self.node.post_message(UpdateLog(f"Starting SHA1 scan."))
-        self.node.post_message(UpdateProgress(100, None))
+        self.app.post_message(UpdateLog(f"Starting SHA1 scan."))
+        self.app.post_message(self.UpdateProgress(100, None))
         worker = get_current_worker()
 
         for root, _, files in os.walk(config.tts_mods_dir, topdown=True):
@@ -43,7 +42,7 @@ class Sha1Scanner(Worker):
             if dir_name in TTS_RAW_DIRS or dir_name == "":
                 continue
 
-            self.node.post_message(UpdateProgress(len(files), None))
+            self.app.post_message(self.UpdateProgress(len(files), None))
 
             # Updating bar for every file can be very expensive, so scale it to
             # a min of 100 times, but no more than every 10 files
@@ -58,14 +57,14 @@ class Sha1Scanner(Worker):
 
             i = 0
             if len(files) > 0:
-                self.node.post_message(UpdateProgress(len(files), None))
-            self.node.post_message(
+                self.app.post_message(self.UpdateProgress(len(files), None))
+            self.app.post_message(
                 UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)}).")
             )
 
             for filename in files:
                 if worker.is_cancelled:
-                    self.node.post_message(UpdateLog(f"SHA1 scan cancelled."))
+                    self.app.post_message(UpdateLog(f"SHA1 scan cancelled."))
                     return
 
                 ext = os.path.splitext(filename)[1]
@@ -90,18 +89,20 @@ class Sha1Scanner(Worker):
                 i += 1
                 if skip:
                     if (i % skip_update_amount) == 0:
-                        self.node.post_message(UpdateProgress(None, skip_update_amount))
-                        self.node.post_message(
-                            UpdateStatus(
+                        self.app.post_message(
+                            self.UpdateProgress(None, skip_update_amount)
+                        )
+                        self.app.post_message(
+                            self.UpdateStatus(
                                 f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
                             )
                         )
                     continue
 
                 if (i % update_amount) == 0:
-                    self.node.post_message(UpdateProgress(None, update_amount))
-                    self.node.post_message(
-                        UpdateStatus(
+                    self.app.post_message(self.UpdateProgress(None, update_amount))
+                    self.app.post_message(
+                        self.UpdateStatus(
                             f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
                         )
                     )
@@ -119,4 +120,4 @@ class Sha1Scanner(Worker):
                 sha1 = hexdigest.upper()
 
                 asset_list.sha1_scan_done(filepath, sha1, steam_sha1, mtime)
-        self.node.post_message(UpdateLog(f"SHA1 scan complete."))
+        self.app.post_message(UpdateLog(f"SHA1 scan complete."))

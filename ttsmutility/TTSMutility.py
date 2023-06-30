@@ -20,6 +20,7 @@ from .screens.ModListScreen import ModListScreen
 from .screens.ModDetailScreen import ModDetailScreen
 
 from .workers.messages import UpdateLog
+from .workers.TTSWorker import TTSWorker
 
 from .workers.sha1 import Sha1Scanner
 from .workers.downloader import Downloader
@@ -59,6 +60,7 @@ class TTSMutility(App):
         self.max_mods = cli_args.max_mods
         self.start_time = time.time()
         self.ad = Downloader()
+        self.sha1 = Sha1Scanner()
 
         if cli_args.overwrite_log:
             log_flags = "w"
@@ -164,7 +166,13 @@ class TTSMutility(App):
         self.install_screen(new_screen, name)
         self.push_screen(name)
         screen = self.get_screen(name)
-        screen.mount(self.ad)
+        # Mount the actual worker screen so we messages bubbled
+        # if name == "mod_list":
+        #    screen.mount(self.ad)
+        # Just the worker status widgets on other screens
+        # else:
+        #    screen.mount(TTSWorker())
+        screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
         config = load_config()
@@ -216,7 +224,7 @@ class TTSMutility(App):
         self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
-        self.run_worker(Sha1Scanner(self).run, exclusive=True)
+        self.run_worker(self.sha1.scan_sha1s, exclusive=True)
 
     def on_downloader_file_download_complete(
         self, event: Downloader.FileDownloadComplete
@@ -237,7 +245,7 @@ class TTSMutility(App):
         self.log(event)
         self.f_log.flush()
 
-    def on_downloader_update_progress(self, event: Downloader.UpdateProgress):
+    def on_ttsworker_update_progress(self, event: Downloader.UpdateProgress):
         if event.update_total is not None:
             self.progress_total = event.update_total
             self.progress_advance = 0
@@ -245,19 +253,19 @@ class TTSMutility(App):
             self.progress_advance = self.progress_advance + event.advance_amount
 
         try:
-            status_center = self.screen_stack[-1].query_one("#dl_center")
+            status_center = self.screen_stack[-1].query_one("#worker_center")
             status_center.add_class("unhide")
-            progress = self.screen_stack[-1].query_one("#dl_progress")
+            progress = self.screen_stack[-1].query_one("#worker_progress")
             progress.add_class("unhide")
             progress.update(total=self.progress_total, progress=self.progress_advance)
         except NoMatches:
             pass
 
-    def on_downloader_update_status(self, event: Downloader.UpdateStatus):
+    def on_ttsworker_update_status(self, event: Downloader.UpdateStatus):
         try:
-            status_center = self.screen_stack[-1].query_one("#dl_center")
+            status_center = self.screen_stack[-1].query_one("#worker_center")
             status_center.add_class("unhide")
-            status = self.screen_stack[-1].query_one("#dl_status")
+            status = self.screen_stack[-1].query_one("#worker_status")
             status.add_class("unhide")
             status.update(event.status)
         except NoMatches:

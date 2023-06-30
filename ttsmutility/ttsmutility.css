@@ -20,6 +20,10 @@ Bar {
     width: 1fr;
 }
 
+TTSWorker {
+    height: auto;
+}
+
 Downloader {
     height: auto;
 }

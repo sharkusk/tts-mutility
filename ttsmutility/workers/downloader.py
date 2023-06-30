@@ -6,6 +6,7 @@ from textual.containers import Center
 from textual.message import Message
 from textual.css.query import NoMatches
 
+from .TTSWorker import TTSWorker
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.AssetList import AssetList
 from ..data.config import load_config
@@ -36,7 +37,7 @@ import urllib.request
 from pathlib import Path
 
 
-class Downloader(Widget):
+class Downloader(TTSWorker):
     DEFAULT_EXT = {
         "text/plain": ".obj",
         "application/pdf": ".pdf",
@@ -91,21 +92,6 @@ class Downloader(Widget):
         ),
     }
 
-    class UpdateProgress(Message):
-        def __init__(self, update_total=None, advance_amount=None, status_id: int = 0):
-            super().__init__()
-            self.update_total = update_total
-            self.advance_amount = advance_amount
-            self.status_id = status_id
-
-    class UpdateStatus(Message):
-        def __init__(self, status: str, status_id: int = 0, prefix=None, suffix=None):
-            super().__init__()
-            self.status = status
-            self.status_id = status_id
-            self.prefix = prefix
-            self.suffix = suffix
-
     class FileDownloadComplete(Message):
         def __init__(
             self,
@@ -143,11 +129,6 @@ class Downloader(Widget):
         self.files_to_dl = {}
         self.id = "downloader"
 
-    def compose(self) -> ComposeResult:
-        with Center(id="dl_center"):
-            yield ProgressBar(id="dl_progress")
-            yield Static(id="dl_status")
-
     def add_assets(
         self,
         assets: list or str,
@@ -172,25 +153,25 @@ class Downloader(Widget):
         self.cur_filesize = 0
         self.worker = get_current_worker()
 
-        self.post_message(
+        self.app.post_message(
             self.UpdateProgress(
                 update_total=len(self.urls), advance_amount=0, status_id=self.status_id
             )
         )
-        self.post_message(
+        self.app.post_message(
             UpdateLog(
                 f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
             )
         )
         for i, url in enumerate(self.files_to_dl):
             if self.worker.is_cancelled:
-                self.post_message(UpdateLog(f"Download worker cancelled."))
+                self.app.post_message(UpdateLog(f"Download worker cancelled."))
                 return
-            self.post_message(
+            self.app.post_message(
                 self.UpdateStatus(f"Downloading: `{url}` ({i}/{len(self.files_to_dl)})")
             )
             self.download_file(**self.files_to_dl[url])
-        self.post_message(self.DownloadComplete(status_id=self.status_id))
+        self.app.post_message(self.DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
@@ -206,37 +187,41 @@ class Downloader(Widget):
                 "content_name": self.cur_content_name,
             }
             self.asset_list.download_done(asset)
-            self.post_message(self.FileDownloadComplete(asset))
-            self.post_message(UpdateLog(f"Download Failed ({error}): `{url}`"))
-            self.post_message(self.UpdateStatus(f"Download Failed ({error}): `{url}`"))
+            self.app.post_message(self.FileDownloadComplete(asset))
+            self.app.post_message(UpdateLog(f"Download Failed ({error}): `{url}`"))
+            self.app.post_message(
+                self.UpdateStatus(f"Download Failed ({error}): `{url}`")
+            )
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.post_message(UpdateLog(f"---", prefix=""))
-                self.post_message(UpdateLog(f"Downloading: `{url}`"))
+                self.app.post_message(UpdateLog(f"---", prefix=""))
+                self.app.post_message(UpdateLog(f"Downloading: `{url}`"))
             else:
-                self.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
+                self.app.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
         elif state == "file_size":
             self.cur_filesize = data
-            self.post_message(
+            self.app.post_message(
                 self.UpdateProgress(
                     update_total=data, advance_amount=0, status_id=self.status_id
                 )
             )
-            self.post_message(UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
+            self.app.post_message(UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
         elif state == "data_read":
-            self.post_message(
+            self.app.post_message(
                 self.UpdateProgress(advance_amount=data, status_id=self.status_id)
             )
         elif state == "content_name":
             self.cur_content_name = data
-            self.post_message(UpdateLog(f"Content Filename: `{self.cur_content_name}`"))
+            self.app.post_message(
+                UpdateLog(f"Content Filename: `{self.cur_content_name}`")
+            )
         elif state == "filepath":
             self.cur_filepath = data
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
-            self.post_message(UpdateLog(f"Asset dir: `{data}`"))
+            self.app.post_message(UpdateLog(f"Asset dir: `{data}`"))
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filepath)
             filesize = os.path.getsize(filepath)
@@ -253,9 +238,11 @@ class Downloader(Widget):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.post_message(self.FileDownloadComplete(asset))
-                self.post_message(UpdateLog(f"Download Success: `{self.cur_filepath}`"))
-                self.post_message(
+                self.app.post_message(self.FileDownloadComplete(asset))
+                self.app.post_message(
+                    UpdateLog(f"Download Success: `{self.cur_filepath}`")
+                )
+                self.app.post_message(
                     self.UpdateStatus(f"Download Success: `{self.cur_filepath}`")
                 )
             else:
@@ -271,20 +258,20 @@ class Downloader(Widget):
                     "content_name": self.cur_content_name,
                 }
                 self.asset_list.download_done(asset)
-                self.post_message(self.FileDownloadComplete(asset))
-                self.post_message(
+                self.app.post_message(self.FileDownloadComplete(asset))
+                self.app.post_message(
                     UpdateLog(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
-                self.post_message(
+                self.app.post_message(
                     self.UpdateStatus(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
         else:
             # Generic status for logging...
-            self.post_message(UpdateLog(f"{state}: {data}"))
+            self.app.post_message(UpdateLog(f"{state}: {data}"))
 
         if state in ["error", "success"]:
             # Increment overall progress here
@@ -300,7 +287,7 @@ class Downloader(Widget):
             self.steam_sha1 = ""
 
         if state in ["download_starting"]:
-            self.post_message(
+            self.app.post_message(
                 self.UpdateProgress(
                     update_total=100, advance_amount=0, status_id=self.status_id
                 )
@@ -349,6 +336,7 @@ class Downloader(Widget):
             # type in the response.
             if is_model(trail):
                 default_ext = ".obj"
+                tts_type = "model"
 
             elif is_assetbundle(trail):
                 default_ext = ".unity3d"
