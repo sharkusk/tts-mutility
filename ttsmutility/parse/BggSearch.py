@@ -43,7 +43,7 @@ class BggSearch:
         "playingtime",
         "minplaytime",
         "maxplaytime",
-        "age",
+        "minage",
         "description",
         "thumbnail",
         "image",
@@ -55,10 +55,37 @@ class BggSearch:
         "boardgameartist",
         "boardgamecategory",
         "boardgamemechanic",
+        "boardgamehonor",
+        "boardgamefamily",
     ]
 
-    BGG_SEARCH = "https://api.geekdo.com/xmlapi/search?%s"
-    BGG_GAME = "https://api.geekdo.com/xmlapi/boardgame/%s"
+    BGG_POLLS = [
+        "suggested_numplayers",
+        "suggested_playerage",
+        "language_dependence",
+    ]
+
+    BGG_STATS = [
+        "usersrated",
+        "average",
+        "bayesaverage",
+        "stddev",
+        "median",
+        "owned",
+        "trading",
+        "wanting",
+        "wishing",
+        "numcomments",
+        "numweights",
+        "averageweight",
+    ]
+
+    BGG_STATS_LISTS = [
+        "ranks",
+    ]
+
+    BGG_SEARCH = "https://api.geekdo.com/xmlapi2/search?%s"
+    BGG_GAME = "https://api.geekdo.com/xmlapi2/thing?%s"
     BGG_GAME_URL = "https://boardgamegeek.com/boardgame/%s"
 
     def __ini__(self):
@@ -69,18 +96,14 @@ class BggSearch:
         for e in root:
             name = ""
             id = ""
-            if e.tag == "boardgame":
+            if e.tag == "item" and e.attrib["type"] == "boardgame":
                 # We found our games!
-                id = e.attrib["objectid"]
+                id = e.attrib["id"]
                 for g in e:
-                    if (
-                        g.tag == "name"
-                        and "primary" in g.attrib
-                        and g.attrib["primary"] == "true"
-                    ):
-                        name = g.text
+                    if g.tag == "name" and g.attrib["type"] == "primary":
+                        name = g.attrib["value"]
                     elif g.tag == "yearpublished":
-                        year = g.text
+                        year = g.attrib["value"]
                 games[name] = (id, year)
         return games
 
@@ -94,7 +117,12 @@ class BggSearch:
             name = name.replace(s, r)
         name = name.strip()
 
-        params = urlencode({"search": name})
+        params = urlencode(
+            {
+                "query": name,
+                "type": "boardgame",
+            }
+        )
         url = self.BGG_SEARCH % params
         with urllib.request.urlopen(url) as f:
             data = f.read().decode("utf-8")
@@ -114,7 +142,14 @@ class BggSearch:
                         and d.attrib["primary"] == "true"
                     ):
                         game_info["name"] = d.text
-                    if d.tag in self.BGG_FIELDS:
+                    if d.tag == "statistics":
+                        for s in d[0][0]:
+                            if s.tag in self.BGG_STATS:
+                                game_info[s.tag] = s.text
+                            elif s.tag in self.BGG_STATS_LISTS:
+                                # TODO
+                                pass
+                    elif d.tag in self.BGG_FIELDS:
                         game_info[d.tag] = d.text
                     elif d.tag in self.BGG_LISTS:
                         if d.tag in game_info:
@@ -123,10 +158,19 @@ class BggSearch:
                             game_info[d.tag] = [
                                 d.text,
                             ]
+                    elif d.tag in self.BGG_POLLS:
+                        # TODO
+                        pass
         return game_info
 
     def get_game_info(self, bgg_id):
-        url = self.BGG_SEARCH % bgg_id
+        params = urlencode(
+            {
+                "id": bgg_id,
+                "stats": "1",
+            }
+        )
+        url = self.BGG_GAME % params
         with urllib.request.urlopen(url) as f:
             data = f.read().decode("utf-8")
         root = ET.fromstring(data)
