@@ -2,7 +2,53 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-DB_SCHEMA_VERSION = 0
+DB_SCHEMA_VERSION = 1
+
+
+def update_db_schema(db_path: Path) -> int:
+    with closing(sqlite3.connect(db_path)) as db:
+        cursor = db.execute(
+            """
+            SELECT
+                db_schema_version
+            FROM
+                tts_app
+            """
+        )
+        result = cursor.fetchone()
+        if result[0] != DB_SCHEMA_VERSION:
+            updated = False
+            if result[0] == 0:
+                cursor.execute(
+                    """
+                    ALTER TABLE
+                        tts_mods
+                    ADD
+                        mod_bgg_id      VARCHAR(16)
+                    """,
+                )
+                updated = True
+            if result[0] <= 1:
+                # TBD when DB is updated to schema 2.
+                # This is here for templating purposes.
+                pass
+
+            if not updated:
+                # We don't know how to upgrade from here!
+                return -1
+
+            cursor.execute(
+                """
+                UPDATE
+                    tts_app
+                SET
+                    db_schema_version=?
+                """,
+                (DB_SCHEMA_VERSION,),
+            )
+            db.commit()
+    return DB_SCHEMA_VERSION
+
 
 def create_new_db(db_path: Path) -> int:
     with closing(sqlite3.connect(db_path)) as conn:
@@ -43,6 +89,7 @@ def create_new_db(db_path: Path) -> int:
                 mod_max_players     INT,
                 mod_min_play_time   INT,
                 mod_max_play_time   INT,
+                mod_bgg_id          VARCHAR(16),
                 mod_mtime           TIMESTAMP                   DEFAULT 0,
                 mod_fetch_time      TIMESTAMP                   DEFAULT 0,
                 mod_backup_time     TIMESTAMP                   DEFAULT 0,
@@ -102,7 +149,8 @@ def create_new_db(db_path: Path) -> int:
                     (asset_last_scan_time, mod_last_scan_time, db_schema_version)
                 VALUES
                     (0, 0, ?)
-            """, (DB_SCHEMA_VERSION,)
+            """,
+                (DB_SCHEMA_VERSION,),
             )
 
         conn.commit()

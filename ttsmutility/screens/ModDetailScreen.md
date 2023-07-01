@@ -1,7 +1,8 @@
 # {name}
 
 - Filename: [{filename}]({uri_short})
-- Steam Link: [Steam Workshop]({steam_link})
+- Steam Link: [{steam_link}]({steam_link})
+- BoardGameGeek Link: [{bgg_link}]({bgg_link})
 
 | Mod Details | |
 |------------------------------:|:--------------------------|

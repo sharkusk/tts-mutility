@@ -196,7 +196,7 @@ class ModList:
                 SELECT
                     mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets,
                     mod_epoch, mod_version, mod_game_mode, mod_game_type, mod_game_complexity, mod_min_players,
-                    mod_max_players, mod_min_play_time, mod_max_play_time
+                    mod_max_players, mod_min_play_time, mod_max_play_time, mod_bgg_id
                 FROM
                     tts_mods
                 WHERE
@@ -221,6 +221,7 @@ class ModList:
                 "max_players": result[12],
                 "min_play_time": result[13],
                 "max_play_time": result[14],
+                "bgg_id": result[15],
             }
             cursor = db.execute(
                 """
@@ -428,7 +429,7 @@ class ModList:
                     SELECT
                         mod_filename, mod_name, mod_mtime, mod_size, mod_total_assets, mod_missing_assets,
                         mod_epoch, mod_version, mod_game_mode, mod_game_type, mod_game_complexity, mod_min_players,
-                        mod_max_players, mod_min_play_time, mod_max_play_time
+                        mod_max_players, mod_min_play_time, mod_max_play_time, mod_bgg_id
                     FROM
                         tts_mods
                     """,
@@ -452,6 +453,7 @@ class ModList:
                         "max_players": result[12],
                         "min_play_time": result[13],
                         "max_play_time": result[14],
+                        "bgg_id": result[15],
                     }
                     cursor = db.execute(
                         """
@@ -472,3 +474,18 @@ class ModList:
                         mods[filename]["tags"] = ()
             db.commit()
         return mods
+
+    def set_bgg_id(self, mod_filename: str, bgg_id: str) -> None:
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                """
+                UPDATE
+                    tts_mods
+                SET
+                    mod_bgg_id=?
+                WHERE
+                    mod_filename=?
+                """,
+                (bgg_id, mod_filename),
+            )
+            db.commit()

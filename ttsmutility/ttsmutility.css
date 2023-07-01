@@ -144,6 +144,14 @@ DataTable {
     padding-bottom: 0;
 }
 
+#sod_option_list {
+    width: 75%;
+}
+
+#id_input {
+    width: 75%
+}
+
 #status {
     height: 0.5fr;
     text-align: center;

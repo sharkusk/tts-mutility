@@ -15,7 +15,7 @@ from textual.worker import Worker
 
 from . import __version__
 from .data import load_config, save_config
-from .data.db import create_new_db
+from .data.db import create_new_db, update_db_schema
 from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
@@ -102,6 +102,9 @@ class TTSMutility(App):
             self.post_message(self.InitProcessing(f"Creating Database"))
             db_schema = create_new_db(config.db_path)
             self.write_log(f"Created DB with schema version {db_schema}.")
+        else:
+            db_schema = update_db_schema(config.db_path)
+            self.write_log(f"Using DB schema version {db_schema}.")
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(max_mods=self.max_mods)
