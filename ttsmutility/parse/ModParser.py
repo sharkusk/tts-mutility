@@ -70,7 +70,10 @@ class ModParser:
         name = ""
         for k, v in dic.items():
             if k in self.MOD_INFO_FIELDS:
-                self.mod_info[k] = v
+                if isinstance(v, str):
+                    self.mod_info[k] = v.strip()
+                else:
+                    self.mod_info[k] = v
 
             if name == "":
                 newtrail = trail + [k]

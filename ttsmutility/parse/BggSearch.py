@@ -2,6 +2,10 @@ import xml.etree.ElementTree as ET
 from html import unescape
 from urllib.parse import urlencode
 from urllib.request import urlopen
+from ..data.config import load_config
+from ..parse.FileFinder import recodeURL
+
+from pathlib import Path
 
 
 class BggSearch:
@@ -19,8 +23,7 @@ class BggSearch:
         ("Fully", ""),
         ("English", ""),
         ("+", ""),
-        ("revisde", ""),
-        ("!", ""),
+        ("revised", ""),
     )
 
     DELETE_AFTER = [
@@ -34,7 +37,6 @@ class BggSearch:
         " everything ",
         " expansion ",
         " all ",
-        " cs",
     ]
 
     BGG_TEXT_FIELDS = [
@@ -92,11 +94,11 @@ class BggSearch:
     BGG_GAME = "https://api.geekdo.com/xmlapi2/thing?%s"
     BGG_GAME_URL = "https://boardgamegeek.com/boardgame/%s"
 
-    def __ini__(self):
-        pass
+    def __init__(self):
+        self.config = load_config()
 
     def _parse_games(self, root):
-        games = {}
+        games = []
         for e in root:
             name = ""
             id = ""
@@ -108,7 +110,7 @@ class BggSearch:
                         name = g.attrib["value"]
                     elif g.tag == "yearpublished":
                         year = g.attrib["value"]
-                games[name] = (id, year)
+                games.append((name, id, year))
         return games
 
     def search(self, name: str) -> dict:
@@ -128,28 +130,50 @@ class BggSearch:
             }
         )
         url = self.BGG_SEARCH % params
-        with urlopen(url) as f:
-            data = f.read().decode("utf-8")
+
+        cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
+            ".xml"
+        )
+        if cache_path.exists():
+            with open(cache_path, "r") as f:
+                data = f.read()
+        else:
+            with urlopen(url) as f:
+                data = f.read().decode("utf-8")
+                with open(cache_path, "w") as f:
+                    f.write(data)
         root = ET.fromstring(data)
         return self._parse_games(root)
 
     def _parse_game(self, root):
         game_info = {}
         for e in root:
-            if e.tag == "item" and e.attrib["type"] == "boardgame":
+            if e.tag == "item" and (
+                e.attrib["type"] == "boardgame"
+                or e.attrib["type"] == "boardgameexpansion"
+            ):
                 game_info["id"] = e.attrib["id"]
                 for d in e:
                     # Only store the primary name
                     if d.tag == "name" and d.attrib["type"] == "primary":
                         game_info["name"] = d.attrib["value"]
                     elif d.tag in self.BGG_TEXT_FIELDS:
-                        game_info[d.tag] = unescape(d.text)
+                        # For some reason BGG lists do not contain anything other
+                        # than 4 or 5 spaces.  Replace with appropriate markdown
+                        # compatible lists.
+                        game_info[d.tag] = (
+                            unescape(d.text)
+                            .replace("     ", "- ")
+                            .replace("    ", "- ")
+                        )
                     elif d.tag in self.BGG_FIELDS:
                         game_info[d.tag] = d.attrib["value"]
+                    elif d.tag == "link" and d.attrib["type"] in self.BGG_FIELDS:
+                        game_info[d.attrib["type"]] = d.attrib["value"]
                     elif d.tag == "statistics":
-                        for s in d[0][0]:
+                        for s in d[0]:
                             if s.tag in self.BGG_STATS:
-                                game_info[s.tag] = unescape(s.text)
+                                game_info[s.tag] = s.attrib["value"]
                             elif s.tag in self.BGG_STATS_LISTS:
                                 game_info[s.tag] = []
                                 """
@@ -163,12 +187,12 @@ class BggSearch:
                                     for key in r.attrib.keys():
                                         d[key] = r.attrib[key]
                                     game_info[s.tag].append(d)
-                    elif d.tag in self.BGG_LISTS:
-                        if d.tag in game_info:
-                            game_info[d.tag].append(unescape(d.text))
+                    elif d.tag == "link" and d.attrib["type"] in self.BGG_LISTS:
+                        if d.attrib["type"] in game_info:
+                            game_info[d.attrib["type"]].append(d.attrib["value"])
                         else:
-                            game_info[d.tag] = [
-                                unescape(d.text),
+                            game_info[d.attrib["type"]] = [
+                                d.attrib["value"],
                             ]
                     elif d.tag == "poll" and d.attrib["name"] in self.BGG_POLLS:
                         """
@@ -232,8 +256,17 @@ class BggSearch:
             }
         )
         url = self.BGG_GAME % params
-        with urlopen(url) as f:
-            data = f.read().decode("utf-8")
+        cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
+            ".xml"
+        )
+        if cache_path.exists():
+            with open(cache_path, "r") as f:
+                data = f.read()
+        else:
+            with urlopen(url) as f:
+                data = f.read().decode("utf-8")
+                with open(cache_path, "w") as f:
+                    f.write(data)
         root = ET.fromstring(data)
         return self._parse_game(root)
 

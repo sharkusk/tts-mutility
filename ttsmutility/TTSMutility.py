@@ -62,6 +62,11 @@ class TTSMutility(App):
         else:
             log_flags = "a"
 
+        if cli_args.force_refresh:
+            self.force_refresh = True
+        else:
+            self.force_refresh = False
+
         if cli_args.log:
             self.f_log = open(config.log_path, log_flags)
         else:
@@ -117,7 +122,11 @@ class TTSMutility(App):
         num_assets = mod_asset_list.scan_cached_assets()
         self.write_log(f"Found {num_assets} new assets.")
 
-        mods = mod_list.get_mods_needing_asset_refresh()
+        if self.force_refresh:
+            mods = mod_list.get_all_mod_filenames()
+        else:
+            mods = mod_list.get_mods_needing_asset_refresh()
+
         self.write_log(f"Refreshing {len(mods)} Mods.")
         for i, mod_filename in enumerate(mods):
             self.post_message(
@@ -125,7 +134,9 @@ class TTSMutility(App):
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
                 )
             )
-            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
+            mod_asset_list.get_mod_assets(
+                mod_filename, parse_only=True, force_refresh=self.force_refresh
+            )
             mod_list.set_mod_details(
                 {mod_filename: mod_asset_list.get_mod_info(mod_filename)}
             )
@@ -337,6 +348,13 @@ def get_args() -> Namespace:
         "--overwrite_log",
         help="Overwrite the existing log (don't append)",
         dest="overwrite_log",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--force_refresh",
+        help="Re-process all mod files (useful if bug fix requires a rescan)",
+        dest="force_refresh",
         action="store_true",
     )
 

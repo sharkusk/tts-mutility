@@ -24,6 +24,17 @@ class ModList:
             path = self.save_dir
         return os.path.join(path, filename)
 
+    def get_all_mod_filenames(self):
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                """
+                SELECT mod_filename
+                FROM tts_mods
+                """
+            )
+            results = cursor.fetchall()
+            return list(zip(*results))[0]
+
     def get_mods_needing_asset_refresh(self):
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(

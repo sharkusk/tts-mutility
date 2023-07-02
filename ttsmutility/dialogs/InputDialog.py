@@ -14,7 +14,7 @@ class InputDialog(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        yield Input(placeholder=self.starting_input, id="id_input")
+        yield Input(value=self.starting_input, id="id_input")
 
     def on_input_submitted(self, event: Input.Submitted):
         self.dismiss(event.value)

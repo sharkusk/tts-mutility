@@ -53,6 +53,13 @@ DataTable {
     height: 1fr;
 }
 
+MarkdownH1
+{
+    padding: 1;
+    border: none;
+    height: auto;
+}
+
 #info_container {
     height: 90%;
     width: 90%;
@@ -135,7 +142,7 @@ DataTable {
 }
 
 #ad_screen {
-    border: round blue 75%;
+    border: round blue;
     align: center middle;
     width: 90%;
     background: $panel;
@@ -144,8 +151,16 @@ DataTable {
     padding-bottom: 0;
 }
 
+#sod_option_scroll {
+    height: auto;
+    width: 80%;
+    border: round green;
+}
+
+
 #sod_option_list {
-    width: 75%;
+    width: 100%;
+    border: none;
 }
 
 #id_input {
@@ -156,4 +171,18 @@ DataTable {
     height: 0.5fr;
     text-align: center;
     width: 100%;
+}
+
+#al_center {
+    width: 100%;
+}
+
+#al_modname {
+    padding: 0;
+}
+
+#asset-list {
+    width: 100%;
+    padding-left: 1;
+    padding-right: 1;
 }

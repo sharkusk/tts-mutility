@@ -1,5 +1,6 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, OptionList
+from textual.containers import VerticalScroll
+from textual.widgets import Footer, OptionList
 from textual.screen import ModalScreen
 
 
@@ -14,7 +15,8 @@ class SelectOptionDialog(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        yield OptionList(*self.options, id="sod_option_list")
+        with VerticalScroll(id="sod_option_scroll"):
+            yield OptionList(*self.options, id="sod_option_list")
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         self.dismiss(event.option_index)

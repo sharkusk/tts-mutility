@@ -10,7 +10,7 @@ from pathlib import Path
 from xdg_base_dirs import xdg_config_home
 
 import platform
-from .data_directory import data_directory
+from .data_directory import data_directory, bgg_cache_directory
 
 gamedata_map = {
     "Windows": "Documents/My Games/Tabletop Simulator",
@@ -38,6 +38,9 @@ class Config:
     """Location of the TTSMutility DB file"""
 
     log_path: Path = str(data_directory() / "ttsmutility_log.md")
+    """Location of the TTSMutility Log file"""
+
+    bgg_cache_dir: Path = str(bgg_cache_directory())
     """Location of the TTSMutility Log file"""
 
 

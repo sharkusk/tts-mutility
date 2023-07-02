@@ -50,6 +50,9 @@ class ModDetailScreen(Screen):
                     id="md_markdown",
                 )
 
+    def format_list(self, l):
+        return "`\n- `".join(l).join(["\n- `", "`\n"])
+
     def get_markdown(self) -> str:
         mod_detail_md = ""
         md_filepath = Path(__file__).with_name("ModDetailScreen.md")
@@ -67,17 +70,33 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["uri"] = (Path(self.save_dir) / self.filename).as_uri()
         mod_detail["uri_short"] = mod_detail["uri"].replace("file:///", "//localhost/")
-        mod_detail["tag_list"] = "`\n- `".join(mod_detail["tags"])
-        mod_detail["tag_list"] = mod_detail["tag_list"].join(["\n- `", "`\n"])
+        mod_detail["tag_list"] = self.format_list(mod_detail["tags"])
         mod_detail[
             "steam_link"
         ] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
-        if "bgg_id" in mod_detail:
-            mod_detail["bgg_link"] = self.bs.get_game_url(mod_detail["bgg_id"])
-        else:
+        if mod_detail["bgg_id"] is None:
             mod_detail["bgg_link"] = ""
+            bgg_md = ""
+        else:
+            mod_detail["bgg_link"] = self.bs.get_game_url(mod_detail["bgg_id"])
+            bgg_md = self.get_bgg_markdown(mod_detail["bgg_id"])
 
-        return mod_detail_md.format(**mod_detail)
+        main_md = mod_detail_md.format(**mod_detail)
+
+        return main_md + bgg_md
+
+    def get_bgg_markdown(self, bgg_id) -> str:
+        bgg_detail_md = ""
+        md_filepath = Path(__file__).with_name("BGGDetailScreen.md")
+        with md_filepath.open("r") as f:
+            bgg_detail_md = f.read()
+
+        bgg_detail = self.bs.get_game_info(bgg_id)
+        for field in self.bs.BGG_LISTS:
+            if field in bgg_detail:
+                bgg_detail[f"{field}_list"] = self.format_list(bgg_detail[field])
+
+        return bgg_detail_md.format(**bgg_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
         if "//localhost/" in event.href:
@@ -107,9 +126,7 @@ class ModDetailScreen(Screen):
 
         bgg_matches = self.bs.search(mod_name)
 
-        options = [
-            f"{m} ({bgg_matches[m][1]}) [{bgg_matches[m][0]}]" for m in bgg_matches
-        ]
+        options = [f"{name} ({year}) [{id}]" for name, id, year in bgg_matches]
 
         if len(options) > 0:
 

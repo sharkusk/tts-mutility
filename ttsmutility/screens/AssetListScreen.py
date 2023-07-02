@@ -1,8 +1,8 @@
 from textual.app import ComposeResult
+from textual.containers import Center
 from textual.screen import Screen
 from textual.message import Message
-from textual.widgets import Footer, Header, DataTable
-from textual.widgets import Static
+from textual.widgets import Footer, Header, DataTable, Markdown
 
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
@@ -39,9 +39,10 @@ class AssetListScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static(id="al_modname")
-        yield DataTable(id="asset-list")
         yield Footer()
+        with Center(id="al_center"):
+            yield Markdown(id="al_modname")
+            yield DataTable(id="asset-list")
 
     def on_mount(self) -> None:
         self.sort_order = {
@@ -68,8 +69,8 @@ class AssetListScreen(Screen):
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order["url"])
 
-        static = next(self.query("#al_modname").results(Static))
-        static.update(self.mod_details["name"])
+        name = self.query_one("#al_modname")
+        name.update(f"# {self.mod_details['name']}")
 
         table.clear(columns=True)
         table.focus()
