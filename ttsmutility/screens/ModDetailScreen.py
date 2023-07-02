@@ -70,7 +70,11 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["uri"] = (Path(self.save_dir) / self.filename).as_uri()
         mod_detail["uri_short"] = mod_detail["uri"].replace("file:///", "//localhost/")
-        mod_detail["tag_list"] = self.format_list(mod_detail["tags"])
+        if len(mod_detail["tags"]) > 0:
+            mod_detail["tag_list"] = self.format_list(mod_detail["tags"])
+        else:
+            mod_detail["tag_list"] = "- N/A"
+
         mod_detail[
             "steam_link"
         ] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
@@ -85,6 +89,103 @@ class ModDetailScreen(Screen):
 
         return main_md + bgg_md
 
+    def create_chart(self, results, width):
+        TICKS = "▏▎▍▌▋▊▉█"
+
+        # Find min and max values, used determine block size
+        # Find max label size, determine start of chart blocks
+        # For each row, print spaces, label, then blocks
+
+        # Find largest and smallest number of votes
+        max_votes = 0
+        min_votes = 10000000
+        bar_name_max_size = 0
+        multi_bar = False
+
+        chart_name = results["name"]
+        chart_title = results["title"]
+        total_votes = results["totalvotes"]
+
+        chart = f"## {chart_title}\n"
+
+        for bar_name in results[chart_name]:
+            bar_values = results[chart_name][bar_name]
+            if isinstance(bar_values, list):
+                multi_bar = True
+                # Multi-bar per result
+                for sub_result in bar_values:
+                    value = sub_result["value"]
+                    if 3 + len(bar_name) + len(value) > bar_name_max_size:
+                        bar_name_max_size = 3 + len(bar_name) + len(value)
+                    if int(sub_result["numvotes"]) < min_votes:
+                        min_votes = int(sub_result["numvotes"])
+                    if int(sub_result["numvotes"]) > max_votes:
+                        max_votes = int(sub_result["numvotes"])
+            else:
+                # Single-bar per result
+                if len(bar_name) > bar_name_max_size:
+                    bar_name_max_size = len(bar_name)
+                if int(bar_values["numvotes"]) < min_votes:
+                    min_votes = int(bar_values["numvotes"])
+                if int(bar_values["numvotes"]) > max_votes:
+                    max_votes = int(bar_values["numvotes"])
+
+        if bar_name_max_size > int(width / 1.5):
+            bar_name_max_size = int(width / 1.5)
+        votes_per_tick = 1 + int((max_votes - min_votes) / (width - bar_name_max_size))
+
+        line = "```\n"
+        chart += line
+
+        for bar_name in results[chart_name]:
+            bar_values = results[chart_name][bar_name]
+            if len(bar_name) > bar_name_max_size:
+                bar_name = bar_name[0:bar_name_max_size]
+            if multi_bar:
+                line = "─" * width
+                line += "  \n"
+                chart += line
+                for i, sub_result in enumerate(bar_values):
+                    value = sub_result["value"]
+                    numvotes = sub_result["numvotes"]
+                    if i == 1:
+                        line = bar_name + " " * (
+                            bar_name_max_size - len(bar_name) - len(value) - 1
+                        )
+                    else:
+                        line = " " * (bar_name_max_size - len(value) - 1)
+                    line += value + "▕"
+                    num_ticks = int(int(numvotes) / votes_per_tick)
+                    line += TICKS[-1] * num_ticks
+                    remainder = (int(numvotes) / votes_per_tick) % 1
+                    if remainder != 0:
+                        tick = int(remainder / 0.125)
+                        line += TICKS[tick]
+                    line += " " + numvotes
+                    line += "  \n"
+                    chart += line
+            else:
+                line = " " * (bar_name_max_size - len(bar_name))
+                line += bar_name + "▕"
+                num_ticks = int(int(bar_values["numvotes"]) / votes_per_tick)
+                line += TICKS[-1] * num_ticks
+                remainder = (int(bar_values["numvotes"]) / votes_per_tick) % 1
+                if remainder != 0:
+                    tick = int(remainder / 0.125)
+                    line += TICKS[tick]
+                line += " " + bar_values["numvotes"]
+                line += "\n"
+                chart += line
+
+        if multi_bar:
+            line = "─" * width
+            line += "  \n"
+            chart += line
+
+        line = "```\n"
+        chart += line
+        return chart
+
     def get_bgg_markdown(self, bgg_id) -> str:
         bgg_detail_md = ""
         md_filepath = Path(__file__).with_name("BGGDetailScreen.md")
@@ -95,6 +196,18 @@ class ModDetailScreen(Screen):
         for field in self.bs.BGG_LISTS:
             if field in bgg_detail:
                 bgg_detail[f"{field}_list"] = self.format_list(bgg_detail[field])
+            else:
+                bgg_detail[f"{field}_list"] = "- N/A"
+
+        for poll in self.bs.BGG_POLLS:
+            if poll in bgg_detail:
+                bgg_detail[poll + "_chart"] = self.create_chart(bgg_detail[poll], 90)
+
+        for stat in self.bs.BGG_STATS_LISTS:
+            if stat in bgg_detail:
+                bgg_detail["ranking"] = ""
+                for v in bgg_detail[stat]:
+                    bgg_detail["ranking"] += f"- {v['friendlyname']}: {v['value']}  \n"
 
         return bgg_detail_md.format(**bgg_detail)
 

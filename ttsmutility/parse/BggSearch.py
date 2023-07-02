@@ -220,22 +220,24 @@ class BggSearch:
                         p = {}
                         for key in d.attrib.keys():
                             p[key] = d.attrib[key]
+                        name = p["name"]
                         for r in d:
                             if r.tag == "results":
                                 if len(r.attrib) > 0:
+                                    # suggested_numplayers style poll
                                     results_key = list(r.attrib.keys())[0]
-                                    if results_key not in p:
-                                        p[results_key] = {}
-                                    if r.attrib[results_key] not in p[results_key]:
-                                        p[results_key][r.attrib[results_key]] = []
+                                    if name not in p:
+                                        p[name] = {}
+                                    if r.attrib[results_key] not in p[name]:
+                                        p[name][r.attrib[results_key]] = []
                                     for s in r:
                                         v = {}
                                         if s.tag == "result":
                                             for key in s.attrib.keys():
                                                 v[key] = s.attrib[key]
-                                        p[results_key][r.attrib[results_key]].append(v)
+                                        p[name][r.attrib[results_key]].append(v)
                                 else:
-                                    name = p["name"]
+                                    # suggested_playerage style poll
                                     p[name] = {}
                                     for s in r:
                                         if s.tag == "result":

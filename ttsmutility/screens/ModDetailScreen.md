@@ -18,6 +18,5 @@
 | Play Time                     | {min_play_time} - {max_play_time} |
 | File Modified Time            | {mtime}                   |
 
-
 ### Tags
 {tag_list}
