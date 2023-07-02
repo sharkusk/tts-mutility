@@ -150,28 +150,36 @@ class Downloader(TTSWorker):
         self.cur_retry = 0
         self.cur_filepath = ""
         self.cur_filesize = 0
-
+        self.cur_content_name = ""
         self.worker = get_current_worker()
-        self.post_message(
-            self.UpdateLog(
-                f"Starting Download of {len(self.files_to_dl)} assets.", prefix="## "
-            )
-        )
-        self.post_message(
-            self.UpdateProgress(
-                update_total=len(self.urls), advance_amount=0, status_id=self.status_id
-            )
-        )
 
-        for i, url in enumerate(self.files_to_dl):
-            if self.worker.is_cancelled:
-                self.post_message(self.UpdateLog(f"Download worker cancelled."))
-                return
+        if len(self.files_to_dl) > 0:
             self.post_message(
-                self.UpdateStatus(f"Downloading ({i}/{len(self.files_to_dl)}): `{url}`")
+                self.UpdateLog(
+                    f"Starting Download of {len(self.files_to_dl)} assets.",
+                    prefix="## ",
+                )
             )
-            self.download_file(**self.files_to_dl[url])
-        self.post_message(self.DownloadComplete(status_id=self.status_id))
+            self.post_message(
+                self.UpdateProgress(
+                    update_total=len(self.urls),
+                    advance_amount=0,
+                    status_id=self.status_id,
+                )
+            )
+
+            for i, url in enumerate(self.files_to_dl):
+                if self.worker.is_cancelled:
+                    self.post_message(self.UpdateLog(f"Download worker cancelled."))
+                    return
+                self.post_message(
+                    self.UpdateStatus(
+                        f"Downloading ({i}/{len(self.files_to_dl)}): `{url}`"
+                    )
+                )
+                self.download_file(**self.files_to_dl[url])
+            self.files_to_dl = {}
+            self.post_message(self.DownloadComplete(status_id=self.status_id))
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
