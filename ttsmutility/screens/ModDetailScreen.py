@@ -51,7 +51,8 @@ class ModDetailScreen(Screen):
                 )
 
     def format_list(self, l):
-        return "`\n- `".join(l).join(["\n- `", "`\n"])
+        return "\n- ".join(l).join(["\n- ", "\n"])
+        # return "`\n- `".join(l).join(["\n- `", "`\n"])
 
     def get_markdown(self) -> str:
         mod_detail_md = ""

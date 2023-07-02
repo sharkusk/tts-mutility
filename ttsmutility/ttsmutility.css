@@ -56,7 +56,7 @@ DataTable {
 MarkdownH1
 {
     padding: 1;
-    border: none;
+    border-top: none;
     height: auto;
 }
 
@@ -132,9 +132,10 @@ MarkdownH1
 }
 
 #sod_option_scroll {
-    height: auto;
     width: 80%;
     border: round green;
+    height: auto;
+    max-height: 80%;
 }
 
 #sod_option_list {

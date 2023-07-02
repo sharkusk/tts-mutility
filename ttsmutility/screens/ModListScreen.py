@@ -1,25 +1,19 @@
 from itertools import filterfalse
+from pathlib import Path
+from webbrowser import open as open_url
 
+from rich.markdown import Markdown
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.events import Key, ScreenResume
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import (
-    DataTable,
-    Footer,
-    Header,
-    Input,
-    TabbedContent,
-    TabPane,
-)
-from rich.markdown import Markdown
+from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
 
-from .InfoScreen import InfoScreen
-from .DebugScreen import DebugScreen
-from ..data.config import load_config
+from ..data.config import config_file, load_config
 from ..parse import ModList
 from ..utility.util import format_time
+from .DebugScreen import DebugScreen
 
 
 class ModListScreen(Screen):
@@ -29,6 +23,7 @@ class ModListScreen(Screen):
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
         ("l", "view_log", "View Log"),
+        ("c", "open_config", "Open Config"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -278,6 +273,9 @@ class ModListScreen(Screen):
         config = load_config()
         with open(config.log_path, "r") as f:
             self.app.push_screen(DebugScreen(Markdown(f.read())))
+
+    def action_open_config(self) -> None:
+        open_url(config_file().as_uri())
 
     def get_active_table(self) -> tuple:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":

@@ -5,12 +5,11 @@ from pathlib import Path
 from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
 from textual import work
 from textual.app import App, ComposeResult
-from textual.containers import Center
 from textual.css.query import NoMatches
 from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Header, LoadingIndicator, ProgressBar, Static
+from textual.widgets import Header, LoadingIndicator, Static
 from textual.worker import Worker
 
 from . import __version__
@@ -72,7 +71,7 @@ class TTSMutility(App):
         else:
             self.f_log = None
 
-        self.write_log(f"TTSMutility v{__version__}", prefix="\n# ")
+        self.write_log(f"\n# TTSMutility v{__version__}", prefix="")
         self.write_log(
             f"Started at {time.ctime(self.start_time)}", prefix="", suffix="\n\n"
         )

@@ -5,8 +5,11 @@
 
 {description}
 
-## Ranking
+### Ranking
 {ranking}
+
+### Designers
+{boardgamedesigner_list}
 
 | BGG Game Details | |
 |------------------------------:|:--------------------------|
@@ -18,6 +21,21 @@
 | Minimum Age | {minage} |
 
 {suggested_numplayers_chart}
+
+### Family
+{boardgamefamily_list}
+
+### Artists
+{boardgameartist_list}
+
+### Categories
+{boardgamecategory_list}
+
+### Mechanics
+{boardgamemechanic_list}
+
+### Publisher(s)
+{boardgamepublisher_list}
 
 {suggested_playerage_chart}
 

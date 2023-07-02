@@ -18,5 +18,8 @@ class SelectOptionDialog(ModalScreen):
         with VerticalScroll(id="sod_option_scroll"):
             yield OptionList(*self.options, id="sod_option_list")
 
+    def on_mount(self) -> None:
+        self.query_one("#sod_option_list").focus()
+
     def on_option_list_option_selected(self, event: OptionList.OptionSelected):
         self.dismiss(event.option_index)

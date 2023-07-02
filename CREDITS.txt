@@ -1,5 +1,7 @@
+This application uses the Textual TUI framework (https://textual.textualize.io/).
+
 Portions of this application have been adapted from the following projects:
 
-https://github.com/Textualize/frogmouth
+https://github.com/eigengrau/tts-backup (and my fork: https://github.com/sharkusk/tts-backup)
 
-https://github.com/eigengrau/tts-backup
+https://github.com/Textualize/frogmouth
