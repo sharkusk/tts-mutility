@@ -267,7 +267,7 @@ class BggSearch:
         else:
             with urlopen(url) as f:
                 data = f.read().decode("utf-8")
-                with open(cache_path, "w") as f:
+                with open(cache_path, "w", encoding="utf-8") as f:
                     f.write(data)
         root = ET.fromstring(data)
         return self._parse_game(root)

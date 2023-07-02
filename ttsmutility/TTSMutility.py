@@ -193,8 +193,9 @@ class TTSMutility(App):
     def on_key(self, event: Key):
         if event.key == "escape":
             try:
-                status_center = self.screen_stack[-1].query_one("#worker_center")
-                status_center.remove_class("unhide")
+                for s in reversed(self.screen_stack):
+                    status_center = s.query_one("#worker_center")
+                    status_center.remove_class("unhide")
             except NoMatches:
                 pass
         if event.key == "ctrl+t":
@@ -235,6 +236,9 @@ class TTSMutility(App):
 
     def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
         self.refresh_mods()
+        self.progress_advance = 0
+        self.progress_total = 100
+        self.last_status = ""
 
     # ███╗   ███╗ ██████╗ ██████╗ ██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
     # ████╗ ████║██╔═══██╗██╔══██╗██║     ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║
@@ -294,6 +298,13 @@ class TTSMutility(App):
         except NoMatches:
             pass
 
+        try:
+            status = self.screen_stack[-1].query_one("#worker_status")
+            status.add_class("unhide")
+            status.update(self.last_status)
+        except NoMatches:
+            pass
+
     def on_ttsworker_update_status(self, event: Downloader.UpdateStatus):
         self.last_status = event.status
         try:
@@ -301,7 +312,13 @@ class TTSMutility(App):
             status_center.add_class("unhide")
             status = self.screen_stack[-1].query_one("#worker_status")
             status.add_class("unhide")
-            status.update(event.status)
+            status.update(self.last_status)
+        except NoMatches:
+            pass
+
+        try:
+            progress = self.screen_stack[-1].query_one("#worker_progress")
+            progress.update(total=self.progress_total, progress=self.progress_advance)
         except NoMatches:
             pass
 

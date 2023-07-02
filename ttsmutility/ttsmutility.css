@@ -77,27 +77,6 @@ MarkdownH1
     height: 1fr;
 }
 
-#sha1_screen {
-    height: 10;
-    width: 90%;
-    padding: 1;
-    padding-bottom: 0;
-    border: round blue 75%
-}
-
-#sha1_status {
-    padding: 1;
-    text-align: center;
-}
-
-#sha1_screen Footer {
-    visibility: hidden;
-}
-
-#sha1_screen.unhide Footer {
-    visibility: visible;
-}
-
 #ml_filter_center {
     visibility: hidden;
     height: 0;
@@ -110,7 +89,7 @@ MarkdownH1
 }
 
 #ml_filter {
-    border: round blue;
+    border: round blue 75%;
 }
 
 #worker_center {
@@ -129,6 +108,7 @@ MarkdownH1
 
 #worker_status {
     text-align: center;
+    height: auto;
 }
 
 #worker_progress {
@@ -157,7 +137,6 @@ MarkdownH1
     border: round green;
 }
 
-
 #sod_option_list {
     width: 100%;
     border: none;
@@ -175,6 +154,7 @@ MarkdownH1
 
 #al_center {
     width: 100%;
+    height: 1fr;
 }
 
 #al_modname {
@@ -185,4 +165,5 @@ MarkdownH1
     width: 100%;
     padding-left: 1;
     padding-right: 1;
+    height: 1fr;
 }
