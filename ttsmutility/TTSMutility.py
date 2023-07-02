@@ -10,7 +10,7 @@ from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Header, LoadingIndicator, Static
-from textual.worker import Worker
+from textual.worker import Worker, get_current_worker
 
 from . import __version__
 from .data import load_config, save_config
@@ -126,8 +126,14 @@ class TTSMutility(App):
         else:
             mods = mod_list.get_mods_needing_asset_refresh()
 
+        worker = get_current_worker()
+
         self.write_log(f"Refreshing {len(mods)} Mods.")
         for i, mod_filename in enumerate(mods):
+            if worker.is_cancelled:
+                self.post_message(self.UpdateLog(f"Init cancelled."))
+                return
+
             self.post_message(
                 self.InitProcessing(
                     f"Finding assets in {mod_filename} ({i}/{len(mods)})"
@@ -347,7 +353,7 @@ def get_args() -> Namespace:
 
     parser.add_argument(
         "-m",
-        "--max_mods",
+        "--max-mods",
         help="Limit number of mods (for faster debuggin)",
         default=-1,
         type=int,
@@ -361,14 +367,14 @@ def get_args() -> Namespace:
     )
 
     parser.add_argument(
-        "--overwrite_log",
+        "--overwrite-log",
         help="Overwrite the existing log (don't append)",
         dest="overwrite_log",
         action="store_true",
     )
 
     parser.add_argument(
-        "--force_refresh",
+        "--force-refresh",
         help="Re-process all mod files (useful if bug fix requires a rescan)",
         dest="force_refresh",
         action="store_true",

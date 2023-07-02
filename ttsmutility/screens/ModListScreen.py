@@ -3,6 +3,7 @@ from pathlib import Path
 from webbrowser import open as open_url
 
 from rich.markdown import Markdown
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.events import Key, ScreenResume
@@ -12,8 +13,27 @@ from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, Tab
 
 from ..data.config import config_file, load_config
 from ..parse import ModList
+from ..parse.AssetList import AssetList
+from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
 from .DebugScreen import DebugScreen
+
+
+# Remove this once Rich accepts pull request #3016
+class MyText(Text):
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self.plain < other
+        elif isinstance(other, MyText):
+            return self.plain < other.plain
+        return False
+
+    def __gt__(self, other: object) -> bool:
+        if isinstance(other, str):
+            return self.plain > other
+        elif isinstance(other, MyText):
+            return self.plain > other.plain
+        return False
 
 
 class ModListScreen(Screen):
@@ -119,6 +139,9 @@ class ModListScreen(Screen):
         mod_list = ModList.ModList()
         self.mods = mod_list.get_mods()
 
+        asset_list = AssetList()
+        self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+
         for mod_filename in self.mods.keys():
             self.add_mod_row(self.mods[mod_filename])
 
@@ -136,22 +159,40 @@ class ModListScreen(Screen):
         table = next(self.query(id).results(DataTable))
         return table, mods
 
+    def clean_name(self, name):
+        if name[0] == "[":
+            # Move [] to end of name
+            e = name.find("]")
+            name = (name[e + 1 :] + " " + name[0 : e + 1]).strip()
+        if name.find("the") == 0:
+            name = name.replace("the", "The")
+        if name.find("TTS-") == 0:
+            name = name[4:].strip()
+        if name[0] == "+":
+            name = name[1:].strip()
+
+        return name
+
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
-        table, mods = self.get_mod_table(filename)
+        table, _ = self.get_mod_table(filename)
+
+        name = self.clean_name(mod["name"])
+        if name in self.infected_mods:
+            name = MyText(name, style="#FF0000")
 
         table.add_row(
-            mods[filename]["name"].ljust(35),
-            format_time(mods[filename]["epoch"], ""),
-            format_time(mods[filename]["mtime"], "Scanning..."),
-            mods[filename]["size"] / (1024 * 1024),
-            mods[filename]["total_assets"],
-            mods[filename]["missing_assets"],
-            mods[filename]["min_players"],
-            mods[filename]["max_players"],
+            name,
+            format_time(mod["epoch"], ""),
+            format_time(mod["mtime"], "Scanning..."),
+            mod["size"] / (1024 * 1024),
+            mod["total_assets"],
+            mod["missing_assets"],
+            mod["min_players"],
+            mod["max_players"],
             key=filename,
         )
-        self.active_rows[filename] = mods[filename]["name"]
+        self.active_rows[filename] = mod["name"]
 
     def update_filtered_rows(self) -> None:
         if len(self.filter) > len(self.prev_filter):

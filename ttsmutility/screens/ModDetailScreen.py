@@ -11,7 +11,9 @@ from webbrowser import open as open_url
 from urllib.parse import unquote, urlparse, quote
 
 from ..data.config import load_config
+from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
+from ..parse.ModParser import INFECTION_URL
 from ..parse.BggSearch import BggSearch
 from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..dialogs.InputDialog import InputDialog
@@ -61,6 +63,15 @@ class ModDetailScreen(Screen):
             mod_detail_md = f.read()
 
         mod_detail = self.mod_detail.copy()
+
+        asset_list = AssetList()
+        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        if mod_detail["name"] in infected_mods:
+            mod_detail[
+                "infection_warning"
+            ] = "\n\n\n## WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!\n\n\n"
+        else:
+            mod_detail["infection_warning"] = ""
 
         mod_detail["asset_detail_url"] = quote(f"{self.ad_uri_prefix}{self.filename}")
         mod_detail["size"] = mod_detail["size"] / (1024)

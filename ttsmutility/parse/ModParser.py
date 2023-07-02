@@ -8,6 +8,11 @@ from ..parse.FileFinder import (
     recodeURL,
 )
 
+# This URL is used to identify the TTS Luascript infection
+INFECTION_URL = (
+    "https://media.defense.gov/2020/Mar/03/2002258347/825/780/0/200303-D-ZZ999-112M.JPG"
+)
+
 
 class IllegalSavegameException(ValueError):
     def __init__(self):
@@ -151,6 +156,11 @@ class ModParser:
                     "drive.google.com",
                     "steamuserimages-a.akamaihd.net",
                 ]
+                # Check for TTS virus signature
+                if v.find("tcejbo gninwapS") != -1:
+                    # Don't add these to the set, report all infected objects/trails...
+                    yield (newtrail, INFECTION_URL)
+
                 # Parse lauscript for potential URLs
                 url_matches = re.findall(
                     r"((?:http|https):\/\/(?:[\w\-_]+(?:(?:\.[\w\-_]+)+))(?:[\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?)",
