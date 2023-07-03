@@ -364,7 +364,9 @@ class AssetList:
                 """,
                 (url,),
             )
-            results = list(zip(*cursor.fetchall()))[0]
+            results = cursor.fetchall()
+            if len(results) > 0:
+                results = list(zip(*results))[0]
         return results
 
     def get_mod_assets(
