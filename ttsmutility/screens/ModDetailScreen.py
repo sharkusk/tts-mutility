@@ -9,6 +9,9 @@ import time
 from pathlib import Path
 from webbrowser import open as open_url
 from urllib.parse import unquote, urlparse, quote
+from PIL import Image
+import requests
+from io import BytesIO
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
@@ -17,6 +20,7 @@ from ..parse.ModParser import INFECTION_URL
 from ..parse.BggSearch import BggSearch
 from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..dialogs.InputDialog import InputDialog
+from ..dialogs.InfoDialog import InfoDialog
 
 
 class ModDetailScreen(Screen):
@@ -24,7 +28,8 @@ class ModDetailScreen(Screen):
         ("escape", "app.pop_screen", "OK"),
         ("a", "asset_list", "Asset List"),
         ("b", "bgg_lookup", "BGG Lookup"),
-        ("n", "bgg_lookup_input", "BGG Lookup (Input Name)"),
+        ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
+        ("t", "set_tts_thumb", "Set TTS Thumbnail"),
     ]
 
     class AssetsSelected(Message):
@@ -37,8 +42,8 @@ class ModDetailScreen(Screen):
         self.ad_uri_prefix = "//asset_detail/"
         self.dl_image_uri_prefix = "//dl_image/"
         config = load_config()
-        self.mod_dir = config.tts_mods_dir
-        self.save_dir = config.tts_saves_dir
+        self.mod_dir = Path(config.tts_mods_dir)
+        self.save_dir = Path(config.tts_saves_dir)
         self.mod_list = ModList()
         self.mod_detail = self.mod_list.get_mod_details(self.filename)
         self.bs = BggSearch()
@@ -57,6 +62,13 @@ class ModDetailScreen(Screen):
         return "\n- ".join(l).join(["\n- ", "\n"])
         # return "`\n- `".join(l).join(["\n- `", "`\n"])
 
+    def get_mod_image_path(self) -> Path:
+        if self.filename.find("Workshop") == 0:
+            image_path = self.mod_dir / Path(self.filename).with_suffix(".png")
+        else:
+            image_path = self.save_dir / Path(self.filename).with_suffix(".png")
+        return image_path
+
     def get_markdown(self) -> str:
         mod_detail_md = ""
         md_filepath = Path(__file__).with_name("ModDetailScreen.md")
@@ -64,6 +76,13 @@ class ModDetailScreen(Screen):
             mod_detail_md = f.read()
 
         mod_detail = self.mod_detail.copy()
+
+        if (image_path := self.get_mod_image_path()).exists():
+            mod_detail[
+                "mod_image"
+            ] = f"- TTS Image: [Mod Image]({image_path.as_uri().replace('file:///', '//localhost/')})"
+        else:
+            mod_detail["mod_image"] = ""
 
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
@@ -79,9 +98,9 @@ class ModDetailScreen(Screen):
         mod_detail["mtime"] = time.ctime(mod_detail["mtime"])
         mod_detail["epoch"] = time.ctime(mod_detail["epoch"])
         if "Workshop" in self.filename:
-            mod_detail["uri"] = (Path(self.mod_dir) / self.filename).as_uri()
+            mod_detail["uri"] = (self.mod_dir / self.filename).as_uri()
         else:
-            mod_detail["uri"] = (Path(self.save_dir) / self.filename).as_uri()
+            mod_detail["uri"] = (self.save_dir / self.filename).as_uri()
         mod_detail["uri_short"] = mod_detail["uri"].replace("file:///", "//localhost/")
         if len(mod_detail["tags"]) > 0:
             mod_detail["tag_list"] = self.format_list(mod_detail["tags"])
@@ -221,9 +240,10 @@ class ModDetailScreen(Screen):
                 bgg_detail["ranking"] = ""
                 for v in bgg_detail[stat]:
                     bgg_detail["ranking"] += f"- {v['friendlyname']}: {v['value']}  \n"
-        
 
         bgg_detail["dl_image_url"] = quote(f"{self.dl_image_uri_prefix}/dl_image")
+
+        self.bgg_detail = bgg_detail
 
         return bgg_detail_md.format(**bgg_detail)
 
@@ -245,13 +265,13 @@ class ModDetailScreen(Screen):
     def action_asset_list(self):
         self.post_message(self.AssetsSelected(self.filename))
 
-    def action_bgg_lookup_input(self):
+    def action_bgg_lookup_input(self, msg: str = "Please enter search string:"):
         def set_name(name: str) -> None:
             self.action_bgg_lookup(name)
 
-        self.app.push_screen(InputDialog(self.mod_detail["name"]), set_name)
+        self.app.push_screen(InputDialog(self.mod_detail["name"], msg=msg), set_name)
 
-    def action_bgg_lookup(self, mod_name=""):
+    def action_bgg_lookup(self, mod_name: str = ""):
         if mod_name == "":
             mod_name = self.mod_detail["name"]
 
@@ -270,6 +290,22 @@ class ModDetailScreen(Screen):
                 self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
-    
+        else:
+            self.action_bgg_lookup_input(
+                msg="No matches found. Please update search string:"
+            )
+
     def action_set_tts_thumb(self):
-        self.app.push_screen(InputDialog("Clickme!"))
+        if self.mod_detail["bgg_id"] is None:
+            self.app.push_screen(
+                InfoDialog(
+                    "Unable to update thumbnail.\nThere is no BGG game associated with this MOD."
+                )
+            )
+        else:
+            response = requests.get(self.bgg_detail["image"])
+            img = Image.open(BytesIO(response.content))
+            save_path = self.get_mod_image_path()
+            img.save(save_path)
+            self.refresh_mod_details()
+            self.app.push_screen(InfoDialog("Updated TTS Thumbnail"))

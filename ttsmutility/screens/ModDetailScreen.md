@@ -5,6 +5,7 @@
 - Filename: [{filename}]({uri_short})
 - Steam Link: [{steam_link}]({steam_link})
 - BoardGameGeek Link: [{bgg_link}]({bgg_link})
+{mod_image}
 
 | Mod Details | |
 |------------------------------:|:--------------------------|

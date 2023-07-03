@@ -143,8 +143,27 @@ MarkdownH1
     border: none;
 }
 
+#id_static {
+    width: 75%;
+    border: round lightblue;
+    padding: 1;
+    text-align: center;
+}
+
+#id_center {
+    width: 75%;
+    border: round lightblue;
+    padding: 1;
+}
+
 #id_input {
-    width: 75%
+    width: 75%;
+}
+
+#id_label {
+    width: 75%;
+    padding-bottom: 1;
+    text-align: center;
 }
 
 #status {
