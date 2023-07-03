@@ -367,7 +367,7 @@ class ModList:
             mod_tags_added = cursor.rowcount
             db.commit()
 
-    def get_mods(self, parse_only=False) -> dict:
+    def get_mods(self, parse_only=False, force_refresh=False) -> dict:
         mod_list = []
         mods = {}
         scan_time = time.time()
@@ -403,7 +403,10 @@ class ModList:
                     if self.max_mods != -1 and i >= self.max_mods:
                         break
 
-                    if os.path.getmtime(self._get_mod_path(f)) > prev_scan_time:
+                    if (
+                        os.path.getmtime(self._get_mod_path(f)) > prev_scan_time
+                        or force_refresh
+                    ):
                         mod_list.append((f,))
 
             if len(mod_list) > 0:

@@ -112,7 +112,7 @@ class TTSMutility(App):
 
         self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
         mod_list = ModList.ModList(max_mods=self.max_mods)
-        mod_list.get_mods(parse_only=True)
+        mod_list.get_mods(parse_only=True, force_refresh=self.force_refresh)
         self.write_log(f"Loaded Mods.")
 
         mod_asset_list = AssetList.AssetList()
