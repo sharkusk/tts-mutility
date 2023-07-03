@@ -55,11 +55,17 @@ class AssetDetailScreen(ModalScreen):
                 lines_after = 12
                 data = f.read()
                 url_loc = data.find(self.asset_detail["url"])
+                if url_loc == -1:
+                    url_loc = data.find("tcejbo gninwapS")
                 start_lua = url_loc
                 for i in range(lines_before):
                     new_start = data.rfind(r"\n", 0, start_lua)
                     # Don't go past the LuaScript start section
-                    if data.rfind('"LuaScript":', new_start, start_lua) >= 0:
+                    if (
+                        start_lua := data.rfind('"LuaScript":', new_start, start_lua)
+                    ) >= 0:
+                        start_lua += len('"LuaScript":')
+                        start_lua = data.find('"', start_lua) + 1
                         break
                     start_lua = new_start
                 end_lua = url_loc + len(self.asset_detail["url"])
@@ -82,6 +88,7 @@ class AssetDetailScreen(ModalScreen):
                     .replace(r"\n", "\n")
                     .replace(r"\"", '"')
                     .replace(r"\t", "\t")
+                    .strip()
                 )
 
         return asset_detail_md.format(**self.asset_detail)
