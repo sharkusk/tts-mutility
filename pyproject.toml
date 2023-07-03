@@ -20,6 +20,7 @@ license = {text = "GPLv3"}
 dependencies = [
     "textual",
     "xdg-base-dirs",
+    "Pillow",
 ]
 
 [project.urls]

@@ -1,6 +1,6 @@
 # BGG Game Details
 
-- ![Image]({image})
+- ![Image]({image}) -- [Set TSS Thumb]({dl_image_url})
 - ![Thumbnail]({thumbnail})
 
 {description}

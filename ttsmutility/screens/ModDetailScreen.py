@@ -35,6 +35,7 @@ class ModDetailScreen(Screen):
     def __init__(self, filename: str) -> None:
         self.filename = filename
         self.ad_uri_prefix = "//asset_detail/"
+        self.dl_image_uri_prefix = "//dl_image/"
         config = load_config()
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
@@ -220,6 +221,9 @@ class ModDetailScreen(Screen):
                 bgg_detail["ranking"] = ""
                 for v in bgg_detail[stat]:
                     bgg_detail["ranking"] += f"- {v['friendlyname']}: {v['value']}  \n"
+        
+
+        bgg_detail["dl_image_url"] = quote(f"{self.dl_image_uri_prefix}/dl_image")
 
         return bgg_detail_md.format(**bgg_detail)
 
@@ -230,6 +234,8 @@ class ModDetailScreen(Screen):
         elif self.ad_uri_prefix in event.href:
             filename = unquote(urlparse(event.href[len(self.ad_uri_prefix) :]).path)
             self.post_message(self.AssetsSelected(filename))
+        elif self.dl_image_uri_prefix in event.href:
+            self.action_set_tts_thumb()
         else:
             open_url(event.href)
 
@@ -264,3 +270,6 @@ class ModDetailScreen(Screen):
                 self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
+    
+    def action_set_tts_thumb(self):
+        self.app.push_screen(InputDialog("Clickme!"))
