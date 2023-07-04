@@ -271,7 +271,7 @@ class TTSMutility(App):
         self, event: ModListScreen.DownloadSelected
     ):
         self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
-        self.ad.add_assets(event.mod_filename)
+        self.ad.add_mod(event.mod_filename)
         self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):

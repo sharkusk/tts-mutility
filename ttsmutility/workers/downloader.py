@@ -121,34 +121,25 @@ class Downloader(TTSWorker):
         self.user_agent = user_agent
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
-        self.turls = []
         self.chunk_size = chunk_size
+
+        self.mod_name = ""
+        self.turls = []  # turls -> trails and urls
 
     # Base class is installed in each screen, so we don't want
     # to inherit the same widgets when this subclass is mounted
     def compose(self) -> ComposeResult:
         return []
 
-    def add_assets(
-        self,
-        assets: list or str,
-    ) -> list:
+    def add_mod(self, mod_filename: str) -> None:
+        mod_list = ModList()
+        mod_details = mod_list.get_mod_details(mod_filename)
+        self.mod_name = mod_details["name"]
+        self.turls += self.asset_list.get_missing_assets(mod_filename)
 
-
-        # turls -> trails and urls
-        self.turls = []
-
-        self.mod_name = ""
-
-        # A mod name was passed insteam of a list of assets
-        if type(assets) is str:
-            mod_list = ModList()
-            mod_details = mod_list.get_mod_details(assets)
-            self.mod_name = mod_details["name"]
-            self.turls = self.asset_list.get_missing_assets(assets)
-        else:
-            for asset in assets:
-                self.turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
+    def add_assets(self, assets: list) -> None:
+        for asset in assets:
+            self.turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
 
     def start_download(self) -> None:
         self.cur_retry = 0
@@ -166,7 +157,7 @@ class Downloader(TTSWorker):
             )
 
             if self.mod_name != "":
-                self.UpdateLog( f"From mod {self.mod_name}.")
+                self.UpdateLog(f"From mod {self.mod_name}.")
 
             self.post_message(
                 self.UpdateProgress(
@@ -187,9 +178,7 @@ class Downloader(TTSWorker):
                 )
                 self.download_file(url, trail)
             self.post_message(self.DownloadComplete(status_id=self.status_id))
-            self.post_message(
-                self.UpdateStatus(f"Download Complete: {self.mod_name}")
-            )
+            self.post_message(self.UpdateStatus(f"Download Complete: {self.mod_name}"))
             self.turls = []
             self.mod_name = ""
 
@@ -323,9 +312,7 @@ class Downloader(TTSWorker):
 
     def _prep_url_for_download(self, url, trail):
         if type(trail) is not list:
-            self.state_callback(
-                "error", url, f"trail '{trail}' not converted to list"
-            )
+            self.state_callback("error", url, f"trail '{trail}' not converted to list")
             return None
 
         # Some mods contain malformed URLs missing a prefix. I’m not
@@ -392,10 +379,11 @@ class Downloader(TTSWorker):
     def download_file(self, url, trail):
         self.state_callback("init", None, None)
 
-        for i in range(self.timeout_retries):
-            if (dl_info := self._prep_url_for_download(url, trail)) is None:
-                continue
+        if (dl_info := self._prep_url_for_download(url, trail)) is None:
+            return
 
+        first_error = ""
+        for i in range(self.timeout_retries):
             self.state_callback("download_starting", url, i)
             try:
                 results = self._download_file(
@@ -403,17 +391,22 @@ class Downloader(TTSWorker):
                     dl_info["fetch_url"],
                     dl_info["filepath"],
                     dl_info["tts_type"],
-                    dl_info["default_ext"]
+                    dl_info["default_ext"],
                 )
             except socket.timeout as error:
                 continue
             except http.client.IncompleteRead as error:
                 continue
             if results is not None:
+                if first_error == "":
+                    first_error = results
+
                 # See if we have some trailing URL options and retry if so
                 offset = dl_info["fetch_url"].rfind("?")
                 if offset > 0:
-                    dl_info["fetch_url"] = dl_info["fetch_url"][0 : dl_info["fetch_url"].rfind("?")]
+                    dl_info["fetch_url"] = dl_info["fetch_url"][
+                        0 : dl_info["fetch_url"].rfind("?")
+                    ]
                     continue
             break
         else:
@@ -424,6 +417,10 @@ class Downloader(TTSWorker):
             self.state_callback("success", url, None)
             return None
         else:
+            # We retried with a different URL, but use the first error
+            if first_error != "":
+                results = first_error
+
             self.state_callback("error", url, results)
             return results
 
