@@ -25,6 +25,7 @@ from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
 from .workers.downloader import Downloader
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
+from .workers.backup import ModBackup
 
 
 class TTSMutility(App):
@@ -55,6 +56,7 @@ class TTSMutility(App):
         self.start_time = time.time()
         self.ad = Downloader()
         self.sha1 = Sha1Scanner()
+        self.backup = ModBackup()
 
         if cli_args.force_refresh:
             self.force_refresh = True
@@ -183,6 +185,7 @@ class TTSMutility(App):
         if name == "mod_list":
             screen.mount(self.ad)
             screen.mount(self.sha1)
+            screen.mount(self.backup)
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
@@ -259,6 +262,10 @@ class TTSMutility(App):
         self, event: ModDetailScreen.AssetsSelected
     ):
         self.load_screen(AssetListScreen(event.mod_filename), "asset_list")
+
+    def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
+        self.backup.add_mod(event.mod_filename)
+        self.run_worker(self.backup.backup, exclusive=True)
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected

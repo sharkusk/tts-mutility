@@ -412,7 +412,10 @@ class AssetList:
                 cursor = db.execute(
                     (
                         """
-                    SELECT asset_url, asset_path, asset_filename, asset_ext, asset_mtime, asset_sha1, mod_asset_trail, asset_dl_status, asset_size, asset_content_name
+                    SELECT
+                        asset_url, asset_path, asset_filename, asset_ext,
+                        asset_mtime, asset_sha1, mod_asset_trail,
+                        asset_dl_status, asset_size, asset_content_name
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id

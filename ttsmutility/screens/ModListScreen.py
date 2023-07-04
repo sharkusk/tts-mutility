@@ -44,6 +44,7 @@ class ModListScreen(Screen):
         ("d", "download_assets", "Download Assets"),
         ("l", "view_log", "View Log"),
         ("c", "open_config", "Open Config"),
+        ("b", "backup_mod", "Backup"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -89,6 +90,16 @@ class ModListScreen(Screen):
             super().__init__()
 
     class DownloadSelected(Message):
+        def __init__(
+            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
+        ) -> None:
+            self.mod_dir = mod_dir
+            self.save_dir = save_dir
+            self.mod_filename = mod_filename
+            self.mod_name = mod_name
+            super().__init__()
+
+    class BackupSelected(Message):
         def __init__(
             self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
         ) -> None:
@@ -317,6 +328,17 @@ class ModListScreen(Screen):
 
     def action_open_config(self) -> None:
         open_url(config_file().as_uri())
+
+    def action_backup_mod(self) -> None:
+        tabbed = self.query_one(TabbedContent)
+        if tabbed.active == "ml_pane_workshop":
+            id = "ml_workshop_dt"
+        else:
+            id = "ml_saves_dt"
+        table = next(self.query("#" + id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        args = self.get_mod_by_row(id, row_key)
+        self.post_message(self.BackupSelected(*args))
 
     def get_active_table(self) -> tuple:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
