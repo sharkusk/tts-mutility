@@ -21,6 +21,7 @@ dependencies = [
     "textual",
     "xdg-base-dirs",
     "Pillow",
+    "requests",
 ]
 
 [project.urls]
