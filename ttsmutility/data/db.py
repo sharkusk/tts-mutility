@@ -3,7 +3,7 @@ import sys
 from contextlib import closing
 from pathlib import Path
 
-DB_SCHEMA_VERSION = 2
+DB_SCHEMA_VERSION = 3
 
 
 def update_db_schema(db_path: Path) -> int:
@@ -37,6 +37,17 @@ def update_db_schema(db_path: Path) -> int:
                     file=sys.stderr,
                 )
                 sys.exit(1)
+
+            if result[0] <= 2:
+                cursor.execute(
+                    """
+                    ALTER TABLE
+                        tts_mods
+                    ADD
+                        mod_max_asset_mtime TIMESTAMP DEFAULT 0
+                    """,
+                )
+                updated = True
 
             if not updated:
                 # We don't know how to upgrade from here!
@@ -101,7 +112,8 @@ def create_new_db(db_path: Path) -> int:
                 mod_backup_time     TIMESTAMP                   DEFAULT 0,
                 mod_size            INT             NOT NULL    DEFAULT -1,
                 mod_total_assets    INT             NOT NULL    DEFAULT -1,
-                mod_missing_assets  INT             NOT NULL    DEFAULT -1
+                mod_missing_assets  INT             NOT NULL    DEFAULT -1,
+                mod_max_asset_mtime TIMESTAMP                   DEFAULT 0
                 )
             """
             )

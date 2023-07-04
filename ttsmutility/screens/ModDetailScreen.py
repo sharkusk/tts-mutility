@@ -1,26 +1,26 @@
-from textual.app import ComposeResult
-from textual.widgets import Footer
-from textual.widgets import Markdown
-from textual.containers import Container, VerticalScroll
-from textual.screen import Screen
-from textual.message import Message
-
 import time
-from pathlib import Path
-from webbrowser import open as open_url
-from urllib.parse import unquote, urlparse, quote
-from PIL import Image
-import requests
 from io import BytesIO
+from pathlib import Path
+from urllib.parse import quote, unquote, urlparse
+from webbrowser import open as open_url
+
+import requests
+from PIL import Image
+from textual.app import ComposeResult
+from textual.containers import Container, VerticalScroll
+from textual.message import Message
+from textual.screen import Screen
+from textual.widgets import Footer, Markdown
 
 from ..data.config import load_config
+from ..dialogs.InfoDialog import InfoDialog
+from ..dialogs.InputDialog import InputDialog
+from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse.AssetList import AssetList
+from ..parse.BggSearch import BggSearch
 from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
-from ..parse.BggSearch import BggSearch
-from ..dialogs.SelectOptionDialog import SelectOptionDialog
-from ..dialogs.InputDialog import InputDialog
-from ..dialogs.InfoDialog import InfoDialog
+from ..utility.util import format_time
 
 
 class ModDetailScreen(Screen):
@@ -97,6 +97,9 @@ class ModDetailScreen(Screen):
         mod_detail["size"] = mod_detail["size"] / (1024)
         mod_detail["mtime"] = time.ctime(mod_detail["mtime"])
         mod_detail["epoch"] = time.ctime(mod_detail["epoch"])
+        mod_detail["backup_time"] = format_time(mod_detail["backup_time"], "N/A")
+        mod_detail["fetch_time"] = format_time(mod_detail["fetch_time"], "N/A")
+        mod_detail["newest_asset"] = format_time(mod_detail["newest_asset"], "N/A")
         if "Workshop" in self.filename:
             mod_detail["uri"] = (self.mod_dir / self.filename).as_uri()
         else:

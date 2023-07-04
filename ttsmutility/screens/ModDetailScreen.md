@@ -20,6 +20,9 @@
 | Player Count                  | {min_players} - {max_players}     |
 | Play Time                     | {min_play_time} - {max_play_time} |
 | File Modified Time            | {mtime}                   |
+| Mod Download Time             | {fetch_time}              |
+| Mod Backup Time               | {backup_time}             |
+| Newest Asset Time             | {newest_asset}            |
 
 ### Tags
 {tag_list}

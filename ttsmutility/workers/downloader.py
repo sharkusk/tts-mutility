@@ -1,6 +1,7 @@
 import http.client
 import os
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -13,7 +14,6 @@ from textual.worker import get_current_worker
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
-from ..parse.ModList import ModList
 from ..parse.FileFinder import (
     UPPER_EXTS,
     get_fs_path,
@@ -27,6 +27,7 @@ from ..parse.FileFinder import (
     is_pdf,
     trailstring_to_trail,
 )
+from ..parse.ModList import ModList
 from ..utility.advertising import USER_AGENT
 from .TTSWorker import TTSWorker
 
@@ -112,6 +113,7 @@ class Downloader(TTSWorker):
     ):
         super().__init__()
         self.asset_list = AssetList()
+        self.mod_list = ModList()
         self.status = ""
         config = load_config()
         self.mod_dir = config.tts_mods_dir
@@ -123,6 +125,7 @@ class Downloader(TTSWorker):
         self.ignore_content_type = ignore_content_type
         self.chunk_size = chunk_size
 
+        self.mod_filename = ""
         self.mod_name = ""
         self.turls = []  # turls -> trails and urls
 
@@ -132,9 +135,9 @@ class Downloader(TTSWorker):
         return []
 
     def add_mod(self, mod_filename: str) -> None:
-        mod_list = ModList()
-        mod_details = mod_list.get_mod_details(mod_filename)
+        mod_details = self.mod_list.get_mod_details(mod_filename)
         self.mod_name = mod_details["name"]
+        self.mod_filename = mod_filename
         self.turls += self.asset_list.get_missing_assets(mod_filename)
 
     def add_assets(self, assets: list) -> None:
@@ -143,10 +146,12 @@ class Downloader(TTSWorker):
 
     def start_download(self) -> None:
         self.cur_retry = 0
-        self.cur_filepath = ""
+        self.cur_filename = ""
         self.cur_filesize = 0
         self.cur_content_name = ""
         self.worker = get_current_worker()
+
+        fetch_time = time.time()
 
         if len(self.turls) > 0:
             self.post_message(
@@ -179,15 +184,20 @@ class Downloader(TTSWorker):
                 self.download_file(url, trail)
             self.post_message(self.DownloadComplete(status_id=self.status_id))
             self.post_message(self.UpdateStatus(f"Download Complete: {self.mod_name}"))
-            self.turls = []
-            self.mod_name = ""
+
+            if self.mod_filename != "":
+                self.mod_list.set_fetch_time(self.mod_filename, fetch_time)
+
+        self.turls = []
+        self.mod_name = ""
+        self.mod_filename = ""
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
             error = data
             asset = {
                 "url": url,
-                "filename": self.cur_filepath,
+                "filename": self.cur_filename,
                 "mtime": 0,
                 "fsize": 0,
                 "sha1": "",
@@ -224,20 +234,20 @@ class Downloader(TTSWorker):
             self.post_message(
                 self.UpdateLog(f"Content Filename: `{self.cur_content_name}`")
             )
-        elif state == "filepath":
-            self.cur_filepath = data
+        elif state == "filename":
+            self.cur_filename = data
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
             self.post_message(self.UpdateLog(f"Asset dir: `{data}`"))
         elif state == "success":
-            filepath = os.path.join(self.mod_dir, self.cur_filepath)
+            filepath = os.path.join(self.mod_dir, self.cur_filename)
             filesize = os.path.getsize(filepath)
             if self.cur_filesize == 0 or filesize == self.cur_filesize:
                 mtime = os.path.getmtime(filepath)
                 asset = {
                     "url": url,
-                    "filename": self.cur_filepath,
+                    "filename": self.cur_filename,
                     "mtime": mtime,
                     "fsize": filesize,
                     "sha1": "",
@@ -249,14 +259,14 @@ class Downloader(TTSWorker):
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
                     self.UpdateLog(
-                        f"Download Success: `{self.cur_filepath}`", flush=True
+                        f"Download Success: `{self.cur_filename}`", flush=True
                     )
                 )
             else:
                 mtime = 0
                 asset = {
                     "url": url,
-                    "filename": self.cur_filepath,
+                    "filename": self.cur_filename,
                     "mtime": mtime,
                     "fsize": filesize,
                     "sha1": "",
@@ -268,7 +278,7 @@ class Downloader(TTSWorker):
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
                     self.UpdateLog(
-                        f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`",
+                        f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filename}`",
                         flush=True,
                     )
                 )
@@ -284,7 +294,7 @@ class Downloader(TTSWorker):
         if state in ["init", "error", "download_starting", "success"]:
             # Reset state data here
             self.cur_retry = 0
-            self.cur_filepath = ""
+            self.cur_filename = ""
             self.cur_content_name = ""
             self.cur_filesize = 0
             self.steam_sha1 = ""
@@ -364,14 +374,12 @@ class Downloader(TTSWorker):
             self.state_callback("error", url, errstr)
             return None
 
-        filepath = get_fs_path(trail, url)
-        if filepath is not None:
-            filepath = Path(self.mod_dir) / filepath
+        filename = get_fs_path(trail, url)
 
         return {
             "url": url,
             "fetch_url": fetch_url,
-            "filepath": filepath,
+            "filename": filename,
             "tts_type": tts_type,
             "default_ext": default_ext,
         }
@@ -389,7 +397,7 @@ class Downloader(TTSWorker):
                 results = self._download_file(
                     url,
                     dl_info["fetch_url"],
-                    dl_info["filepath"],
+                    dl_info["filename"],
                     dl_info["tts_type"],
                     dl_info["default_ext"],
                 )
@@ -425,7 +433,7 @@ class Downloader(TTSWorker):
             return results
 
     def _download_file(
-        self, url, fetch_url, filepath, tts_type, default_ext_from_trail
+        self, url, fetch_url, filename, tts_type, default_ext_from_trail
     ):
         headers = {"User-Agent": self.user_agent}
         request = urllib.request.Request(url=fetch_url, headers=headers)
@@ -453,7 +461,7 @@ class Downloader(TTSWorker):
         # Use them in this order...
         extensions = {
             "content-disposition": "",
-            "filepath": "",
+            "filename": "",
             "url": "",
             "mime": "",
             "trail": "",
@@ -461,8 +469,8 @@ class Downloader(TTSWorker):
 
         extensions["trail"] = default_ext_from_trail
 
-        if filepath is not None:
-            extensions["filepath"] = os.path.splitext(filepath)[1]
+        if filename is not None:
+            extensions["filename"] = os.path.splitext(filename)[1]
 
         # Some content_type arrives as: 'text/plain; charset=utf-8', we only care about
         # the first part...
@@ -517,12 +525,15 @@ class Downloader(TTSWorker):
         ext = self.fix_ext_case(ext)
         self.state_callback("ext", url, f"`{ext}` from `{key}`.")
 
-        if filepath is None:
-            filepath = get_fs_path_from_extension(url, ext)
-            if filepath is None:
-                return f"Cannot detect filepath ({ext})"
+        if filename is None:
+            filename = get_fs_path_from_extension(url, ext)
+            if filename is None:
+                return f"Cannot detect filename ({ext})"
 
-        filepath = Path(self.mod_dir) / (os.path.splitext(filepath)[0] + ext)
+        filename = Path(filename).with_suffix(ext)
+        self.state_callback("filename", url, filename)
+
+        filepath = Path(self.mod_dir) / filename
         self.state_callback("filepath", url, filepath)
 
         asset_dir = os.path.split(os.path.split(filepath)[0])[1]

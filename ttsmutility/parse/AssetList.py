@@ -338,13 +338,39 @@ class AssetList:
                 new_asset_trails = cursor.rowcount
 
                 if new_asset_count > 0:
+                    cursor = db.execute(
+                        """
+                        SELECT
+                            asset_mtime
+                        FROM
+                            tts_assets
+                        WHERE
+                            asset_mtime = (
+                                SELECT MAX(asset_mtime)
+                                FROM tts_assets
+                                WHERE id IN (
+                                    SELECT asset_id_fk
+                                    FROM tts_mod_assets
+                                    WHERE mod_id_fk = (
+                                        SELECT id
+                                        FROM tts_mods
+                                        WHERE mod_filename = ?
+                                    )
+                                )
+                            )
+                        """,
+                        (mod_filename,),
+                    )
+                    result = cursor.fetchone()
+                    max_asset_mtime = result[0]
+
                     db.execute(
                         """
                         UPDATE tts_mods
-                        SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                        SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_max_asset_mtime=?
                         WHERE mod_filename=?
                         """,
-                        (mod_filename,),
+                        (max_asset_mtime, mod_filename),
                     )
                 db.commit()
         return new_asset_count

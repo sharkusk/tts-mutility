@@ -1,6 +1,7 @@
 import glob
 import os
 import os.path
+import time
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -35,6 +36,8 @@ class ModBackup(TTSWorker):
         config = load_config()
         asset_list = AssetList()
         mod_list = ModList()
+
+        backup_time = time.time()
 
         if self.mod_filename == "":
             return
@@ -117,5 +120,6 @@ class ModBackup(TTSWorker):
         else:
             self.post_message(self.UpdateLog(f"Backup complete."))
             self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
+            mod_list.set_backup_time(self.mod_filename, backup_time)
 
         self.mod_filename = ""
