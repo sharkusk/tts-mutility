@@ -56,18 +56,18 @@ class TTSMutility(App):
         self.ad = Downloader()
         self.sha1 = Sha1Scanner()
 
-        if cli_args.overwrite_log:
-            log_flags = "w"
-        else:
-            log_flags = "a"
-
         if cli_args.force_refresh:
             self.force_refresh = True
         else:
             self.force_refresh = False
 
+        if cli_args.overwrite_log:
+            log_flags = "w"
+        else:
+            log_flags = "a"
+
         if cli_args.log:
-            self.f_log = open(config.log_path, log_flags)
+            self.f_log = open(config.log_path, log_flags, encoding="utf-8")
         else:
             self.f_log = None
 

@@ -274,7 +274,7 @@ class BggSearch:
             ".xml"
         )
         if cache_path.exists():
-            with open(cache_path, "r") as f:
+            with open(cache_path, "r", encoding="utf-8") as f:
                 data = f.read()
         else:
             with urlopen(url) as f:

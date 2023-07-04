@@ -229,17 +229,21 @@ class AssetList:
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
                     continue
 
-                for filename in files:
-                    if filename in ignore_files:
-                        continue
+                # for filename in sorted([root+"/"+filename for filename in files], key=os.path.getmtime, reverse=True):
+                new_files = filter(
+                    lambda x: x[1] > prev_scan_time,
+                    [
+                        (filename, os.path.getmtime(root + "/" + filename))
+                        for filename in files
+                    ],
+                )
+                for filename, mtime in new_files:
                     filename = Path(root) / filename
+                    if filename.stem in ignore_files:
+                        continue
                     if filename.suffix.upper() in FILES_TO_IGNORE:
                         continue
-                    stat = filename.stat()
-                    mtime = stat.st_mtime
-                    if mtime < prev_scan_time:
-                        continue
-                    size = stat.st_size
+                    size = os.path.getsize(filename)
                     assets.append(
                         (path, filename.stem, filename.suffix, mtime, size, 1)
                     )

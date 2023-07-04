@@ -13,6 +13,7 @@ from textual.worker import get_current_worker
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
+from ..parse.ModList import ModList
 from ..parse.FileFinder import (
     UPPER_EXTS,
     get_fs_path,
@@ -120,7 +121,7 @@ class Downloader(TTSWorker):
         self.user_agent = user_agent
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
-        self.files_to_dl = {}
+        self.turls = []
         self.chunk_size = chunk_size
 
     # Base class is installed in each screen, so we don't want
@@ -132,19 +133,22 @@ class Downloader(TTSWorker):
         self,
         assets: list or str,
     ) -> list:
-        self.urls = []
+
+
+        # turls -> trails and urls
+        self.turls = []
+
+        self.mod_name = ""
 
         # A mod name was passed insteam of a list of assets
         if type(assets) is str:
-            self.urls = self.asset_list.get_missing_assets(assets)
+            mod_list = ModList()
+            mod_details = mod_list.get_mod_details(assets)
+            self.mod_name = mod_details["name"]
+            self.turls = self.asset_list.get_missing_assets(assets)
         else:
             for asset in assets:
-                self.urls.append((asset["url"], trailstring_to_trail(asset["trail"])))
-
-        return self._ready_urls_for_download()
-
-    def set_files_to_dl(self, files_to_dl):
-        self.files_to_dl = files_to_dl
+                self.turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
 
     def start_download(self) -> None:
         self.cur_retry = 0
@@ -153,33 +157,41 @@ class Downloader(TTSWorker):
         self.cur_content_name = ""
         self.worker = get_current_worker()
 
-        if len(self.files_to_dl) > 0:
+        if len(self.turls) > 0:
             self.post_message(
                 self.UpdateLog(
-                    f"Starting Download of {len(self.files_to_dl)} assets.",
+                    f"Starting Download of {len(self.turls)} assets.",
                     prefix="## ",
                 )
             )
+
+            if self.mod_name != "":
+                self.UpdateLog( f"From mod {self.mod_name}.")
+
             self.post_message(
                 self.UpdateProgress(
-                    update_total=len(self.urls),
+                    update_total=len(self.turls),
                     advance_amount=0,
                     status_id=self.status_id,
                 )
             )
 
-            for i, url in enumerate(self.files_to_dl):
+            for i, (url, trail) in enumerate(self.turls):
                 if self.worker.is_cancelled:
                     self.post_message(self.UpdateLog(f"Download worker cancelled."))
                     return
                 self.post_message(
                     self.UpdateStatus(
-                        f"Downloading ({i}/{len(self.files_to_dl)}): `{url}`"
+                        f"{self.mod_name}: Downloading ({i+1}/{len(self.turls)}): `{url}`"
                     )
                 )
-                self.download_file(**self.files_to_dl[url])
-            self.files_to_dl = {}
+                self.download_file(url, trail)
             self.post_message(self.DownloadComplete(status_id=self.status_id))
+            self.post_message(
+                self.UpdateStatus(f"Download Complete: {self.mod_name}")
+            )
+            self.turls = []
+            self.mod_name = ""
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":
@@ -199,7 +211,6 @@ class Downloader(TTSWorker):
             self.post_message(
                 self.UpdateLog(f"Download Failed ({error}): `{url}`", flush=True)
             )
-            self.post_message(self.UpdateStatus(f"Download Failed ({error}): `{url}`"))
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
@@ -252,9 +263,6 @@ class Downloader(TTSWorker):
                         f"Download Success: `{self.cur_filepath}`", flush=True
                     )
                 )
-                self.post_message(
-                    self.UpdateStatus(f"Download Success: `{self.cur_filepath}`")
-                )
             else:
                 mtime = 0
                 asset = {
@@ -273,11 +281,6 @@ class Downloader(TTSWorker):
                     self.UpdateLog(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`",
                         flush=True,
-                    )
-                )
-                self.post_message(
-                    self.UpdateStatus(
-                        f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filepath}`"
                     )
                 )
         else:
@@ -318,87 +321,89 @@ class Downloader(TTSWorker):
             )
         )
 
-    def _ready_urls_for_download(self):
+    def _prep_url_for_download(self, url, trail):
+        if type(trail) is not list:
+            self.state_callback(
+                "error", url, f"trail '{trail}' not converted to list"
+            )
+            return None
+
+        # Some mods contain malformed URLs missing a prefix. I’m not
+        # sure how TTS deals with these. Let’s assume http for now.
+        if not urllib.parse.urlparse(url).scheme:
+            fetch_url = "http://" + url
+        else:
+            fetch_url = url
+
+        try:
+            if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
+                self.state_callback("error", url, f"localhost url")
+                return None
+        except:
+            # URL was so badly formatted that there is no hostname.
+            self.state_callback("error", url, f"Invalid hostname")
+            return None
+
+        # type in the response.
+        if is_model(trail):
+            default_ext = ".obj"
+            tts_type = "model"
+
+        elif is_assetbundle(trail):
+            default_ext = ".unity3d"
+            tts_type = "assetbundle"
+
+        elif is_image(trail):
+            default_ext = ".png"
+            tts_type = "image"
+
+        elif is_audiolibrary(trail):
+            default_ext = ".WAV"
+            tts_type = "audiolibrary"
+
+        elif is_pdf(trail):
+            default_ext = ".PDF"
+            tts_type = "pdf"
+
+        elif is_from_script(trail) or is_custom_ui_asset(trail):
+            default_ext = ".png"
+            tts_type = "script"
+
+        else:
+            errstr = "Do not know how to retrieve URL {url} at {trail}.".format(
+                url=url, trail=trail
+            )
+            # raise ValueError(errstr)
+            self.state_callback("error", url, errstr)
+            return None
+
+        filepath = get_fs_path(trail, url)
+        if filepath is not None:
+            filepath = Path(self.mod_dir) / filepath
+
+        return {
+            "url": url,
+            "fetch_url": fetch_url,
+            "filepath": filepath,
+            "tts_type": tts_type,
+            "default_ext": default_ext,
+        }
+
+    def download_file(self, url, trail):
         self.state_callback("init", None, None)
 
-        for url, trail in self.urls:
-            if type(trail) is not list:
-                self.state_callback(
-                    "error", url, f"trail '{trail}' not converted to list"
-                )
-                continue
-
-            # Some mods contain malformed URLs missing a prefix. I’m not
-            # sure how TTS deals with these. Let’s assume http for now.
-            if not urllib.parse.urlparse(url).scheme:
-                fetch_url = "http://" + url
-            else:
-                fetch_url = url
-
-            try:
-                if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
-                    self.state_callback("error", url, f"localhost url")
-                    continue
-            except:
-                # URL was so badly formatted that there is no hostname.
-                self.state_callback("error", url, f"Invalid hostname")
-                continue
-
-            # type in the response.
-            if is_model(trail):
-                default_ext = ".obj"
-                tts_type = "model"
-
-            elif is_assetbundle(trail):
-                default_ext = ".unity3d"
-                tts_type = "assetbundle"
-
-            elif is_image(trail):
-                default_ext = ".png"
-                tts_type = "image"
-
-            elif is_audiolibrary(trail):
-                default_ext = ".WAV"
-                tts_type = "audiolibrary"
-
-            elif is_pdf(trail):
-                default_ext = ".PDF"
-                tts_type = "pdf"
-
-            elif is_from_script(trail) or is_custom_ui_asset(trail):
-                default_ext = ".png"
-                tts_type = "script"
-
-            else:
-                errstr = "Do not know how to retrieve URL {url} at {trail}.".format(
-                    url=url, trail=trail
-                )
-                # raise ValueError(errstr)
-                self.state_callback("error", url, errstr)
-                continue
-
-            filepath = get_fs_path(trail, url)
-            if filepath is not None:
-                filepath = Path(self.mod_dir) / filepath
-
-            self.files_to_dl[url] = {
-                "url": url,
-                "fetch_url": fetch_url,
-                "filepath": filepath,
-                "tts_type": tts_type,
-                "default_ext": default_ext,
-            }
-
-    def download_file(self, url, fetch_url, filepath, tts_type, default_ext):
         for i in range(self.timeout_retries):
+            if (dl_info := self._prep_url_for_download(url, trail)) is None:
+                continue
+
             self.state_callback("download_starting", url, i)
             try:
                 results = self._download_file(
                     url,
-                    fetch_url,
-                    filepath,
-                    tts_type,
-                    default_ext,
+                    dl_info["fetch_url"],
+                    dl_info["filepath"],
+                    dl_info["tts_type"],
+                    dl_info["default_ext"]
                 )
             except socket.timeout as error:
                 continue
@@ -406,9 +411,9 @@ class Downloader(TTSWorker):
                 continue
             if results is not None:
                 # See if we have some trailing URL options and retry if so
-                offset = fetch_url.rfind("?")
+                offset = dl_info["fetch_url"].rfind("?")
                 if offset > 0:
-                    fetch_url = fetch_url[0 : fetch_url.rfind("?")]
+                    dl_info["fetch_url"] = dl_info["fetch_url"][0 : dl_info["fetch_url"].rfind("?")]
                     continue
             break
         else:
