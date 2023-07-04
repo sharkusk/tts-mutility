@@ -125,8 +125,7 @@ class Downloader(TTSWorker):
         self.ignore_content_type = ignore_content_type
         self.chunk_size = chunk_size
 
-        self.mod_filename = ""
-        self.mod_name = ""
+        self.mod_filenames = []
         self.turls = []  # turls -> trails and urls
 
     # Base class is installed in each screen, so we don't want
@@ -134,35 +133,32 @@ class Downloader(TTSWorker):
     def compose(self) -> ComposeResult:
         return []
 
-    def add_mod(self, mod_filename: str) -> None:
-        mod_details = self.mod_list.get_mod_details(mod_filename)
-        self.mod_name = mod_details["name"]
-        self.mod_filename = mod_filename
-        self.turls += self.asset_list.get_missing_assets(mod_filename)
+    def add_mods(self, mod_filenames: list) -> None:
+        self.mod_filenames += mod_filenames
 
     def add_assets(self, assets: list) -> None:
         for asset in assets:
             self.turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
 
     def start_download(self) -> None:
-        self.cur_retry = 0
-        self.cur_filename = ""
-        self.cur_filesize = 0
-        self.cur_content_name = ""
         self.worker = get_current_worker()
 
-        fetch_time = time.time()
+        while len(self.turls) > 0 or len(self.mod_filenames) > 0:
+            fetch_time = time.time()
 
-        if len(self.turls) > 0:
+            if len(self.turls) == 0:
+                mod_filename = self.mod_filenames.pop()
+                self.turls += self.asset_list.get_missing_assets(mod_filename)
+                mod_details = self.mod_list.get_mod_details(mod_filename)
+                mod_name = mod_details["name"]
+                self.UpdateLog(f"From mod {mod_name}:")
+
             self.post_message(
                 self.UpdateLog(
                     f"Starting Download of {len(self.turls)} assets.",
                     prefix="## ",
                 )
             )
-
-            if self.mod_name != "":
-                self.UpdateLog(f"From mod {self.mod_name}.")
 
             self.post_message(
                 self.UpdateProgress(
@@ -178,19 +174,16 @@ class Downloader(TTSWorker):
                     return
                 self.post_message(
                     self.UpdateStatus(
-                        f"{self.mod_name}: Downloading ({i+1}/{len(self.turls)}): `{url}`"
+                        f"{mod_name}: Downloading ({i+1}/{len(self.turls)}): `{url}`"
                     )
                 )
                 self.download_file(url, trail)
             self.post_message(self.DownloadComplete(status_id=self.status_id))
-            self.post_message(self.UpdateStatus(f"Download Complete: {self.mod_name}"))
+            self.post_message(self.UpdateStatus(f"Download Complete: {mod_name}"))
+            self.turls = []
 
-            if self.mod_filename != "":
-                self.mod_list.set_fetch_time(self.mod_filename, fetch_time)
-
-        self.turls = []
-        self.mod_name = ""
-        self.mod_filename = ""
+            if mod_filename != "":
+                self.mod_list.set_fetch_time(mod_filename, fetch_time)
 
     def state_callback(self, state: str, url: str, data) -> None:
         if state == "error":

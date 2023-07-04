@@ -264,14 +264,14 @@ class TTSMutility(App):
         self.load_screen(AssetListScreen(event.mod_filename), "asset_list")
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
-        self.backup.add_mod(event.mod_filename)
+        self.backup.add_mods([event.mod_filename])
         self.run_worker(self.backup.backup, exclusive=True)
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
         self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
-        self.ad.add_mod(event.mod_filename)
+        self.ad.add_mods([event.mod_filename])
         self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
