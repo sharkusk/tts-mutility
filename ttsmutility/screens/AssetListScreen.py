@@ -7,7 +7,6 @@ from textual.widgets import Footer, Header, DataTable, Markdown
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
 from ..utility.util import format_time
-from ..fetch.AssetDownload import download_files
 from ..data.config import load_config
 
 from pathlib import Path

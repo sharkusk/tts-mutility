@@ -251,9 +251,9 @@ class ModListScreen(Screen):
         else:
             id = "#ml_saves_dt"
         table = next(self.query(id).results(DataTable))
-        table.focus()
         table.sort("name", reverse=self.sort_order["name"])
         self.last_sort_key = "name"
+        table.focus()
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
         mod_filename = self.mods[row_key.value]["filename"]
@@ -326,10 +326,15 @@ class ModListScreen(Screen):
         return next(self.query(table_id).results(DataTable)), table_id[1:]
 
     def on_key(self, event: Key):
+        fc = self.query_one("#ml_filter_center")
+        # Check if our filter window is open...
+        if "unhide" in fc.classes:
+            filter_open = True
+        else:
+            filter_open = False
+
         if event.key == "escape":
-            fc = self.query_one("#ml_filter_center")
-            # Check if our filter window is open...
-            if "unhide" in fc.classes:
+            if filter_open:
                 f = self.query_one("#ml_filter")
                 if "focus-within" in fc.pseudo_classes:
                     # If focus in on the filter, exit if filter is empty, otherwise clear it
@@ -344,15 +349,32 @@ class ModListScreen(Screen):
                     f.value = ""
                     fc.toggle_class("unhide")
 
-        if event.key == "enter":
+        elif event.key == "up":
+            if filter_open:
+                table, _ = self.get_active_table()
+                row, col = table.cursor_coordinate
+                if row > 0:
+                    table.cursor_coordinate = (row - 1, col)
+                    event.stop()
+
+        elif event.key == "down":
+            if filter_open:
+                table, _ = self.get_active_table()
+                row, col = table.cursor_coordinate
+                if row < table.row_count - 1:
+                    table.cursor_coordinate = (row + 1, col)
+                    event.stop()
+
+        elif event.key == "enter":
+            # Select requires two activations (to simulate double click with mouse)
+            # However, we want single enter to select a row.  Also, we want enter to
+            # auto-select row if filter is enabled.
             table, _ = self.get_active_table()
             f = self.query_one("#ml_filter_center")
             if "focus-within" in f.pseudo_classes:
-                self.prev_selected = ""
-                table.focus()
                 if self.filter == "":
+                    table.focus()
                     f.toggle_class("unhide")
-                return
             row_key, _ = table.coordinate_to_cell_key((table.cursor_row, 0))
             # The row selected event will run after this, normally the first
             # row selected event will be ignored (so that single mouse clicks
@@ -362,6 +384,30 @@ class ModListScreen(Screen):
             # when the row selected even runs it will think this is the second
             # selection event.
             self.prev_selected = row_key
+            row_sel_event = DataTable.RowSelected(table, table.cursor_row, row_key)
+
+            # Manually trigger this event, then stop it from bubbling so we can
+            # keep focus on the filter box (if it is currently in focus).
+            self.on_data_table_row_selected(row_sel_event)
+            event.stop()
+
+        elif event.key == "tab":
+            if not filter_open:
+                tabbed_content = self.query_one(TabbedContent)
+                if tabbed_content.active == "ml_pane_workshop":
+                    tabbed_content.active = "ml_pane_saves"
+                    id = "ml_pane_saves"
+                else:
+                    tabbed_content.active = "ml_pane_workshop"
+                    id = "ml_pane_workshop"
+
+                # table = next(self.query(id).results(DataTable))
+                # table.focus()
+                tabbed_content = self.query_one(TabbedContent)
+                pane = next(self.query("#" + id).results(TabPane))
+                new_event = TabbedContent.TabActivated(tabbed_content, pane)
+                self.post_message(new_event)
+                event.stop()
 
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
