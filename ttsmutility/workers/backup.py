@@ -65,7 +65,7 @@ class ModBackup(TTSWorker):
 
         zip_path = Path(config.mod_backup_dir) / zip_filename
         # Check if we have any old zipfiles for this mod with filename used with missing files
-        glob_path = glob.escape(os.path.splitext(zip_path)[0])
+        glob_path = glob.escape(Path(config.mod_backup_dir) / zip_basename)
         old_files = glob.glob(f"{glob_path} (-*")
 
         if len(old_files) > 0:
