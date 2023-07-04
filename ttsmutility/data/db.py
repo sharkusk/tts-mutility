@@ -1,8 +1,9 @@
 import sqlite3
+import sys
 from contextlib import closing
 from pathlib import Path
 
-DB_SCHEMA_VERSION = 1
+DB_SCHEMA_VERSION = 2
 
 
 def update_db_schema(db_path: Path) -> int:
@@ -18,6 +19,7 @@ def update_db_schema(db_path: Path) -> int:
         result = cursor.fetchone()
         if result[0] != DB_SCHEMA_VERSION:
             updated = False
+
             if result[0] == 0:
                 cursor.execute(
                     """
@@ -28,10 +30,13 @@ def update_db_schema(db_path: Path) -> int:
                     """,
                 )
                 updated = True
+
             if result[0] <= 1:
-                # TBD when DB is updated to schema 2.
-                # This is here for templating purposes.
-                pass
+                print(
+                    "Unable to upgrade from schema 1.  Please delete existing DB.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
             if not updated:
                 # We don't know how to upgrade from here!
@@ -47,6 +52,7 @@ def update_db_schema(db_path: Path) -> int:
                 (DB_SCHEMA_VERSION,),
             )
             db.commit()
+
     return DB_SCHEMA_VERSION
 
 
@@ -104,8 +110,8 @@ def create_new_db(db_path: Path) -> int:
                 """
             CREATE TABLE tts_mod_assets (
                 id              INTEGER PRIMARY KEY,
-                asset_id_fk     INT             NOT NULL REFERENCES tts_assets (id),
-                mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id),
+                asset_id_fk     INT             NOT NULL REFERENCES tts_assets (id) ON DELETE CASCADE,
+                mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id) ON DELETE CASCADE,
                 mod_asset_trail VARCHAR(128)    NOT NULL,
                 UNIQUE(asset_id_fk, mod_id_fk)
                 )
@@ -125,8 +131,8 @@ def create_new_db(db_path: Path) -> int:
                 """
             CREATE TABLE tts_mod_tags (
                 id              INTEGER PRIMARY KEY,
-                tag_id_fk       INT             NOT NULL REFERENCES tts_tags (id),
-                mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id),
+                tag_id_fk       INT             NOT NULL REFERENCES tts_tags (id) ON DELETE CASCADE,
+                mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id) ON DELETE CASCADE,
                 UNIQUE(tag_id_fk, mod_id_fk)
                 )
             """
