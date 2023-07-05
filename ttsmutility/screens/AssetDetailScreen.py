@@ -46,6 +46,8 @@ class AssetDetailScreen(ModalScreen):
             "file:///", "//localhost/"
         )
 
+        self.asset_detail["url"] = self.asset_detail["url"].replace(" ", "%20")
+
         self.asset_detail["LuaScript"] = "N/A"
         if "LuaScript" in self.asset_detail["trail"]:
             # Read in mod file, find string in first LUA script section,
