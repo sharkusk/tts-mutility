@@ -77,9 +77,10 @@ class Sha1Scanner(TTSWorker):
 
                 # Remove the '.\' at the front of the path
                 filepath = str(pathlib.PurePath(os.path.join(root, filename)))
+                asset_path = pathlib.Path(dir_name) / filename
 
                 mtime = os.path.getmtime(filepath)
-                asset = asset_list.get_sha1_info(filepath)
+                asset = asset_list.get_sha1_info(asset_path)
                 if asset is None:
                     # Skip this filepath since it doesn't exist in our DB
                     skip = True
@@ -121,7 +122,7 @@ class Sha1Scanner(TTSWorker):
                 hexdigest = digest.hexdigest()
                 sha1 = hexdigest.upper()
 
-                asset_list.sha1_scan_done(filepath, sha1, steam_sha1, mtime)
+                asset_list.sha1_scan_done(asset_path, sha1, steam_sha1, mtime)
 
         self.post_message(self.UpdateLog(f"SHA1 scan complete."))
         self.post_message(self.UpdateStatus(f"SHA1 scan complete."))
