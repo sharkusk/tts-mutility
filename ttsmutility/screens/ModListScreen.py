@@ -323,7 +323,7 @@ class ModListScreen(Screen):
 
     def action_view_log(self) -> None:
         config = load_config()
-        with open(config.log_path, "r") as f:
+        with open(config.log_path, "r", encoding="utf-8") as f:
             self.app.push_screen(DebugScreen(Markdown(f.read())))
 
     def action_open_config(self) -> None:

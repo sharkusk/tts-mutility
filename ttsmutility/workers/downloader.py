@@ -142,6 +142,8 @@ class Downloader(TTSWorker):
 
     def start_download(self) -> None:
         self.worker = get_current_worker()
+        mod_name = ""
+        mod_filename = ""
 
         while len(self.turls) > 0 or len(self.mod_filenames) > 0:
             fetch_time = time.time()
@@ -178,6 +180,7 @@ class Downloader(TTSWorker):
                     )
                 )
                 self.download_file(url, trail)
+
             self.post_message(self.DownloadComplete(status_id=self.status_id))
             self.post_message(self.UpdateStatus(f"Download Complete: {mod_name}"))
             self.turls = []
@@ -324,6 +327,8 @@ class Downloader(TTSWorker):
             fetch_url = "http://" + url
         else:
             fetch_url = url
+        
+        fetch_url = fetch_url.replace(" ", "%20")
 
         try:
             if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
@@ -408,6 +413,10 @@ class Downloader(TTSWorker):
                     dl_info["fetch_url"] = dl_info["fetch_url"][
                         0 : dl_info["fetch_url"].rfind("?")
                     ]
+                    continue
+                
+                if "mismatch" in results:
+                    # Try again...
                     continue
             break
         else:
@@ -556,5 +565,10 @@ class Downloader(TTSWorker):
             with suppress(FileNotFoundError):
                 os.remove(filepath)
             raise
+            
+        if length != 0 and os.path.getsize(filepath) != int(length):
+            msg = f"Filesize mismatch. Received {os.path.getsize(filepath)}. Expected {length}."
+            os.remove(filepath)
+            return msg
 
         return None
