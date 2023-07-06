@@ -45,7 +45,7 @@ class ModListScreen(Screen):
         ("d", "download_assets", "Download Assets"),
         ("l", "view_log", "View Log"),
         ("c", "open_config", "Open Config"),
-        ("b", "backup_mod", "Backup"),
+        ("ctrl+b", "backup_mod", "Backup"),
         ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches")
     ]
 
