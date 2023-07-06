@@ -290,8 +290,8 @@ class ModDetailScreen(Screen):
                 offset_end = options[index].rfind("]")
                 self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
                 md = self.query_one("#md_markdown")
-                md.update(self.get_markdown())
                 self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
+                md.update(self.get_markdown())
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
         else:
