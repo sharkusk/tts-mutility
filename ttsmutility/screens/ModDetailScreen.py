@@ -30,7 +30,6 @@ class ModDetailScreen(Screen):
         ("a", "asset_list", "Asset List"),
         ("b", "bgg_lookup", "BGG Lookup"),
         ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
-        ("t", "set_tts_thumb", "Set TTS Thumbnail"),
     ]
 
     class AssetsSelected(Message):

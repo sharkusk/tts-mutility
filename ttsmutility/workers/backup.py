@@ -3,6 +3,7 @@ import os
 import os.path
 import time
 from pathlib import Path
+from queue import Queue, Empty
 from zipfile import ZipFile
 
 from textual.app import ComposeResult
@@ -26,7 +27,7 @@ def make_safe_filename(filename):
 class ModBackup(TTSWorker):
     def __init__(self):
         super().__init__()
-        self.mod_filenames = []
+        self.mod_filenames = Queue()
 
     # Base class is installed in each screen, so we don't want
     # to inherit the same widgets when this subclass is mounted
@@ -34,17 +35,25 @@ class ModBackup(TTSWorker):
         return []
 
     def add_mods(self, mod_filenames):
-        self.mod_filenames += mod_filenames
+        for mod_filename in mod_filenames:
+            self.mod_filenames.put(mod_filename)
 
-    def backup(self) -> None:
+    def backup_daemon(self) -> None:
         config = load_config()
         asset_list = AssetList()
         mod_list = ModList()
         worker = get_current_worker()
 
-        while len(self.mod_filenames) > 0:
+        while True:
+            if worker.is_cancelled:
+                return
+
+            try:
+                mod_filename = self.mod_filenames.get(timeout=1)
+            except Empty:
+                continue
+
             backup_time = time.time()
-            mod_filename = self.mod_filenames.pop()
             mod_details = mod_list.get_mod_details(mod_filename)
 
             self.post_message(
@@ -118,12 +127,14 @@ class ModBackup(TTSWorker):
                         mod_png_path,
                         os.path.splitext(zip_path)[0] + ".png",
                     )
-
+            
             if cancelled:
                 self.post_message(self.UpdateLog(f"Backup cancelled."))
                 os.remove(zip_path)
-                return
+                self.mod_filenames.task_done()
             else:
                 self.post_message(self.UpdateLog(f"Backup complete."))
                 self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
                 mod_list.set_backup_time(mod_filename, backup_time)
+
+            self.mod_filenames.task_done()

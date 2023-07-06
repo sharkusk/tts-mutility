@@ -58,6 +58,7 @@ class TTSMutility(App):
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
 
+
         if cli_args.force_refresh:
             self.force_refresh = True
         else:
@@ -197,6 +198,7 @@ class TTSMutility(App):
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
+        self.run_worker(self.backup.backup_daemon, exclusive=True)
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
@@ -288,7 +290,6 @@ class TTSMutility(App):
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
         self.backup.add_mods([event.mod_filename])
-        self.run_worker(self.backup.backup, exclusive=True)
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
