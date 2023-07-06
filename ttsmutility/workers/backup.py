@@ -91,7 +91,7 @@ class ModBackup(TTSWorker):
                         # self.post_message(self.UpdateLog(f"Adding {asset['filename']}."))
                         modzip.write(
                             Path(config.tts_mods_dir) / asset["filename"],
-                            asset["filename"],
+                            Path("Mods") / asset["filename"],
                         )
                         amount_stored += asset["fsize"]
                         # Reduce number of messages to improve performance
@@ -106,15 +106,17 @@ class ModBackup(TTSWorker):
                 # Store the json and png files
                 if "Workshop" in mod_details["filename"]:
                     mod_path = Path(config.tts_mods_dir) / mod_details["filename"]
+                    zip_path = Path("Mods") / mod_details["filename"]
                 else:
                     mod_path = Path(config.tts_saves_dir) / mod_details["filename"]
-                modzip.write(mod_path, mod_details["filename"])
+                    zip_path = mod_details["filename"]
+                modzip.write(mod_path, zip_path)
 
                 mod_png_path = os.path.splitext(mod_path)[0] + ".png"
                 if Path(mod_png_path).exists():
                     modzip.write(
                         mod_png_path,
-                        os.path.splitext(mod_details["filename"])[0] + ".png",
+                        os.path.splitext(zip_path)[0] + ".png",
                     )
 
             if cancelled:

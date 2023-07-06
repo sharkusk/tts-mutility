@@ -40,7 +40,7 @@ class MyText(Text):
 class ModListScreen(Screen):
     BINDINGS = [
         ("q", "exit", "Quit"),
-        ("f", "filter", "Filter"),
+        ("/", "filter", "Filter"),
         ("s", "scan_sha1", "Scan SHA1s"),
         ("d", "download_assets", "Download Assets"),
         ("l", "view_log", "View Log"),
@@ -372,6 +372,7 @@ class ModListScreen(Screen):
                     # Focus is elsewhere, clear the filter value and close the filter window
                     f.value = ""
                     fc.toggle_class("unhide")
+                event.stop()
 
         elif event.key == "up":
             if filter_open:
