@@ -33,8 +33,9 @@ class ModDetailScreen(Screen):
     ]
 
     class AssetsSelected(Message):
-        def __init__(self, mod_filename: str) -> None:
+        def __init__(self, mod_filename: str, mod_name: str) -> None:
             self.mod_filename = mod_filename
+            self.mod_name = mod_name
             super().__init__()
 
     def __init__(self, filename: str) -> None:
@@ -256,7 +257,7 @@ class ModDetailScreen(Screen):
             open_url(link)
         elif self.ad_uri_prefix in event.href:
             filename = unquote(urlparse(event.href[len(self.ad_uri_prefix) :]).path)
-            self.post_message(self.AssetsSelected(filename))
+            self.post_message(self.AssetsSelected(filename, self.mod_detail["name"]))
         elif self.dl_image_uri_prefix in event.href:
             self.action_set_tts_thumb()
         else:
@@ -266,7 +267,7 @@ class ModDetailScreen(Screen):
         self.query_one("#md_markdown").update(self.get_markdown())
 
     def action_asset_list(self):
-        self.post_message(self.AssetsSelected(self.filename))
+        self.post_message(self.AssetsSelected(self.filename, self.mod_detail["name"]))
 
     def action_bgg_lookup_input(self, msg: str = "Please enter search string:"):
         def set_name(name: str) -> None:

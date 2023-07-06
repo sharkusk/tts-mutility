@@ -30,8 +30,9 @@ class AssetListScreen(Screen):
             self.assets = assets
             super().__init__()
 
-    def __init__(self, mod_filename: str) -> None:
+    def __init__(self, mod_filename: str, mod_name: str) -> None:
         self.mod_filename = mod_filename
+        self.mod_name = mod_name
         self.current_row = 0
         self.url_width = 40
         super().__init__()
@@ -58,9 +59,6 @@ class AssetListScreen(Screen):
         self.save_dir = config.tts_saves_dir
 
         asset_list = AssetList()
-        mod_list = ModList()
-
-        self.mod_details = mod_list.get_mod_details(self.mod_filename)
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -69,7 +67,7 @@ class AssetListScreen(Screen):
         table.sort("url", reverse=self.sort_order["url"])
 
         name = self.query_one("#al_modname")
-        name.update(f"# {self.mod_details['name']}")
+        name.update(f"# {self.mod_name}")
 
         table.clear(columns=True)
         table.focus()
@@ -219,7 +217,7 @@ class AssetListScreen(Screen):
         asset_detail = self.assets[event.row_key.value].copy()
         asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
         asset_detail["filepath"] = Path(filepath) if filepath != "" else ""
-        asset_detail["mod_name"] = self.mod_details["name"]
+        asset_detail["mod_name"] = self.mod_name
 
         if "Workshop" in self.mod_filename:
             asset_detail["mod_path"] = Path(self.mod_dir) / self.mod_filename

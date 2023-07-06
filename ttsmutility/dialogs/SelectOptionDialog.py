@@ -15,8 +15,8 @@ class SelectOptionDialog(ModalScreen):
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        with VerticalScroll(id="sod_option_scroll"):
-            yield OptionList(*self.options, id="sod_option_list")
+        #with VerticalScroll(id="sod_option_scroll"):
+        yield OptionList(*self.options, id="sod_option_list")
 
     def on_mount(self) -> None:
         self.query_one("#sod_option_list").focus()

@@ -93,20 +93,45 @@ class AssetList:
             db.commit()
 
     def get_sha1_mismatches(self):
+        assets = []
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
-                """
-                SELECT asset_url
+                (
+                    """
+                SELECT
+                    asset_url, asset_path, asset_filename, asset_ext,
+                    asset_mtime, asset_sha1, mod_asset_trail,
+                    asset_dl_status, asset_size, asset_content_name
                 FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
                 WHERE tts_assets.asset_steam_sha1 != ""
                     AND tts_assets.asset_sha1 != tts_assets.asset_steam_sha1
-                """,
+                """
+                ),
             )
-            result = cursor.fetchall()
-        if len(result) > 0:
-            return list(zip(*result))[0]
-        else:
-            return []
+            results = cursor.fetchall()
+            for result in results:
+                path = result[1]
+                filename = result[2]
+                ext = result[3]
+
+                asset_filename = os.path.join(path, filename) + ext
+                assets.append(
+                    {
+                        "url": result[0],
+                        "filename": asset_filename,
+                        "mtime": result[4],
+                        "sha1": result[5],
+                        "trail": result[6],
+                        "dl_status": result[7],
+                        "fsize": result[8],
+                        "content_name": result[9],
+                    }
+                )
+        return assets
 
     def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
@@ -403,7 +428,9 @@ class AssetList:
         self, mod_filename: str, parse_only=False, force_refresh=False
     ) -> list:
         assets = []
-        if mod_filename.find("Workshop") == 0:
+        if mod_filename == "sha1":
+            return self.get_sha1_mismatches()
+        elif mod_filename.find("Workshop") == 0:
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
             mod_path = os.path.join(self.save_dir, mod_filename)

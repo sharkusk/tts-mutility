@@ -72,6 +72,11 @@ class TTSMutility(App):
             self.f_log = open(config.log_path, log_flags, encoding="utf-8")
         else:
             self.f_log = None
+        
+        if cli_args.skip_asset_scan:
+            self.skip_asset_scan = True
+        else:
+            self.skip_asset_scan = False
 
         self.write_log(f"\n# TTSMutility v{__version__}", prefix="")
         self.write_log(
@@ -119,9 +124,12 @@ class TTSMutility(App):
 
         mod_asset_list = AssetList.AssetList()
 
-        self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
-        num_assets = mod_asset_list.scan_cached_assets()
-        self.write_log(f"Found {num_assets} new assets.")
+        if self.skip_asset_scan:
+            self.post_message(self.InitProcessing(f"Skipping Asset Scan"))
+        else:
+            self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
+            num_assets = mod_asset_list.scan_cached_assets()
+            self.write_log(f"Found {num_assets} new assets.")
 
         if self.force_refresh:
             mods = mod_list.get_all_mod_filenames()
@@ -199,6 +207,23 @@ class TTSMutility(App):
         static.update(event.status)
 
     def on_key(self, event: Key):
+        if event.key == "ctrl+t":
+            from textual.screen import ModalScreen
+            from textual.widgets import Footer, Static
+            class CssTree(ModalScreen):
+                BINDINGS = [
+                    ("escape", "app.pop_screen", "Cancel"),
+                ]
+
+                def __init__(self, info: str = "") -> None:
+                    super().__init__()
+                    self.info = info
+
+                def compose(self) -> ComposeResult:
+                    yield Footer()
+                    yield Static(self.info, id="id_static")
+            self.push_screen(CssTree(self.screen_stack[-1].css_tree))
+
         if event.key == "escape":
             try:
                 for s in reversed(self.screen_stack):
@@ -206,8 +231,6 @@ class TTSMutility(App):
                     status_center.remove_class("unhide")
             except NoMatches:
                 pass
-        if event.key == "ctrl+t":
-            self.push_screen(DebugScreen(self.screen_stack[-1].css_tree))
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         self.f_log.flush()
@@ -261,7 +284,7 @@ class TTSMutility(App):
     def on_mod_detail_screen_assets_selected(
         self, event: ModDetailScreen.AssetsSelected
     ):
-        self.load_screen(AssetListScreen(event.mod_filename), "asset_list")
+        self.load_screen(AssetListScreen(event.mod_filename, event.mod_name), "asset_list")
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
         self.backup.add_mods([event.mod_filename])
@@ -384,6 +407,13 @@ def get_args() -> Namespace:
         "--force-refresh",
         help="Re-process all mod files (useful if bug fix requires a rescan)",
         dest="force_refresh",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--skip-asset-scan",
+        help="Do not scan filesystem for new assets during init",
+        dest="skip_asset_scan",
         action="store_true",
     )
 

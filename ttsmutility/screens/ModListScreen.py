@@ -17,6 +17,7 @@ from ..parse.AssetList import AssetList
 from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
 from .DebugScreen import DebugScreen
+from .ModDetailScreen import ModDetailScreen
 
 
 # Remove this once Rich accepts pull request #3016
@@ -45,6 +46,7 @@ class ModListScreen(Screen):
         ("l", "view_log", "View Log"),
         ("c", "open_config", "Open Config"),
         ("b", "backup_mod", "Backup"),
+        ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches")
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -434,3 +436,6 @@ class ModListScreen(Screen):
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
         self.update_filtered_rows()
+
+    def action_sha1_mismatches(self):
+        self.post_message(ModDetailScreen.AssetsSelected("sha1", "SHA1 Mismatches"))
