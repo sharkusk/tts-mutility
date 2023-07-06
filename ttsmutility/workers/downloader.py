@@ -438,6 +438,12 @@ class Downloader(TTSWorker):
         self, url, fetch_url, filename, tts_type, default_ext_from_trail
     ):
         headers = {"User-Agent": self.user_agent}
+
+        if (existing_file := Path(filename).with_suffix(".tmp")).exists():
+            headers["Range"] = f"bytes={existing_file.stat().st_size}-"
+        else:
+            existing_file = None
+
         request = urllib.request.Request(url=fetch_url, headers=headers)
 
         try:
@@ -474,6 +480,7 @@ class Downloader(TTSWorker):
         if filename is not None:
             extensions["filename"] = os.path.splitext(filename)[1]
 
+        range_support = response.getheader("Accept-Ranges")
         # Some content_type arrives as: 'text/plain; charset=utf-8', we only care about
         # the first part...
         content_type = response.getheader("Content-Type", "").split(";")[0].strip()
@@ -543,9 +550,11 @@ class Downloader(TTSWorker):
 
         length = response.getheader("Content-Length", 0)
         self.state_callback("file_size", url, int(length))
+    
+        temp_path = filepath.with_suffix(".tmp")
 
         try:
-            with open(filepath, "wb") as outfile:
+            with open(temp_path, "ab") as outfile:
                 data = response.read(self.chunk_size)
                 while data:
                     self.state_callback("data_read", url, self.chunk_size)
@@ -558,17 +567,25 @@ class Downloader(TTSWorker):
         # Don’t leave files with partial content lying around.
         except Exception:
             with suppress(FileNotFoundError):
-                os.remove(filepath)
+                os.remove(temp_path)
             raise
 
         except SystemExit:
             with suppress(FileNotFoundError):
-                os.remove(filepath)
+                os.remove(temp_path)
             raise
             
-        if length != 0 and os.path.getsize(filepath) != int(length):
-            msg = f"Filesize mismatch. Received {os.path.getsize(filepath)}. Expected {length}."
-            os.remove(filepath)
+        if length != 0 and os.path.getsize(temp_path) != int(length):
+            msg = f"Filesize mismatch. Received {os.path.getsize(temp_path)}. Expected {length}."
+            # Check if the server supports resuming downloads, if not remove the temp file
+            if range_support is None or range_support != "bytes":
+                os.remove(temp_path)
             return msg
+        
+        # We are all good!
+        if filepath.exists():
+            os.remove(filepath)
+
+        os.rename(temp_path, filepath)
 
         return None
