@@ -37,6 +37,7 @@ class BggSearch:
         " everything ",
         " expansion ",
         " all ",
+        " - ",
     ]
 
     BGG_TEXT_FIELDS = [
@@ -137,11 +138,11 @@ class BggSearch:
             ".xml"
         )
         if cache_path.exists():
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, "r", encoding="utf-8", errors="replace") as f:
                 data = f.read()
         else:
             with urlopen(url) as f:
-                data = f.read().decode("utf-8")
+                data = f.read().decode("utf-8", errors="replace")
                 with open(cache_path, "w", encoding="utf-8") as f:
                     f.write(data)
         root = ET.fromstring(data)
