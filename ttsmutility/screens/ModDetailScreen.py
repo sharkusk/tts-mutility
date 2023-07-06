@@ -46,7 +46,6 @@ class ModDetailScreen(Screen):
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
         self.mod_list = ModList()
-        self.mod_detail = self.mod_list.get_mod_details(self.filename)
         self.bs = BggSearch()
         super().__init__()
 
@@ -71,12 +70,13 @@ class ModDetailScreen(Screen):
         return image_path
 
     def get_markdown(self) -> str:
+        self.mod_detail = self.mod_list.get_mod_details(self.filename).copy()
+        mod_detail = self.mod_detail.copy()
+
         mod_detail_md = ""
         md_filepath = Path(__file__).with_name("ModDetailScreen.md")
         with md_filepath.open("r") as f:
             mod_detail_md = f.read()
-
-        mod_detail = self.mod_detail.copy()
 
         if (image_path := self.get_mod_image_path()).exists():
             mod_detail[

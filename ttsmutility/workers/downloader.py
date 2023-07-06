@@ -439,7 +439,7 @@ class Downloader(TTSWorker):
     ):
         headers = {"User-Agent": self.user_agent}
 
-        if (existing_file := Path(filename).with_suffix(".tmp")).exists():
+        if filename is not None and (existing_file := Path(filename).with_suffix(".tmp")).exists():
             headers["Range"] = f"bytes={existing_file.stat().st_size}-"
         else:
             existing_file = None
@@ -552,6 +552,10 @@ class Downloader(TTSWorker):
         self.state_callback("file_size", url, int(length))
     
         temp_path = filepath.with_suffix(".tmp")
+
+        # We are unable to resume, but still have existing file
+        if existing_file is None and temp_path.exists():
+            os.remove(temp_path)
 
         try:
             with open(temp_path, "ab") as outfile:
