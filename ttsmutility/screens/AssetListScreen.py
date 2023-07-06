@@ -165,6 +165,7 @@ class AssetListScreen(Screen):
             self.assets[row_key]["fsize"] = asset["fsize"]
             self.assets[row_key]["content_name"] = asset["content_name"]
             self.assets[row_key]["filename"] = asset["filename"]
+            self.assets[row_key]["dl_status"] = asset["dl_status"]
         except KeyError:
             # This happens if the download process finishes and updates
             # assets for a mod that is not currently loaded

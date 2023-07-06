@@ -247,7 +247,10 @@ class ModDetailScreen(Screen):
             if stat in bgg_detail:
                 bgg_detail["ranking"] = ""
                 for v in bgg_detail[stat]:
-                    bgg_detail["ranking"] += f"- {v['friendlyname']}: {v['value']}  \n"
+                    bgg_detail["ranking"] += f"| {v['friendlyname']} | {v['value']} |\n"
+                # Remove trailing '\n' to make .md more readable, otherwise need to
+                # not have a linefeed after inserting the {ranking} tag in table.
+                bgg_detail["ranking"] = bgg_detail["ranking"][0:-1]  
 
         bgg_detail["dl_image_url"] = quote(f"{self.dl_image_uri_prefix}/dl_image")
 

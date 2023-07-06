@@ -5,14 +5,12 @@
 
 {description}
 
-### Ranking
-{ranking}
-
 ### Designers
 {boardgamedesigner_list}
 
 | BGG Game Details | |
 |------------------------------:|:--------------------------|
+{ranking}
 | Average User Rating | {average} |
 | Bayes Average | {bayesaverage} |
 | Average Weight | {averageweight} |
