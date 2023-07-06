@@ -100,7 +100,7 @@ class AssetList:
                     """
                 SELECT
                     asset_url, asset_path, asset_filename, asset_ext,
-                    asset_mtime, asset_sha1, mod_asset_trail,
+                    asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
                     asset_dl_status, asset_size, asset_content_name
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
@@ -125,10 +125,11 @@ class AssetList:
                         "filename": asset_filename,
                         "mtime": result[4],
                         "sha1": result[5],
-                        "trail": result[6],
-                        "dl_status": result[7],
-                        "fsize": result[8],
-                        "content_name": result[9],
+                        "steam_sha1": result[6],
+                        "trail": result[7],
+                        "dl_status": result[8],
+                        "fsize": result[9],
+                        "content_name": result[10],
                     }
                 )
         return assets
@@ -467,7 +468,7 @@ class AssetList:
                         """
                     SELECT
                         asset_url, asset_path, asset_filename, asset_ext,
-                        asset_mtime, asset_sha1, mod_asset_trail,
+                        asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
                         asset_dl_status, asset_size, asset_content_name
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
@@ -492,10 +493,11 @@ class AssetList:
                             "filename": asset_filename,
                             "mtime": result[4],
                             "sha1": result[5],
-                            "trail": result[6],
-                            "dl_status": result[7],
-                            "fsize": result[8],
-                            "content_name": result[9],
+                            "steam_sha1": result[6],
+                            "trail": result[7],
+                            "dl_status": result[8],
+                            "fsize": result[9],
+                            "content_name": result[10],
                         }
                     )
 

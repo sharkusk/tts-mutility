@@ -14,7 +14,8 @@
 | File Size                     | {fsize:,.2f}              |
 | JSON Trail                    | {trail}                   |
 | Content Filename              | {content_name}            |
-| SHA1 Hexdigest                | {sha1}                    |
+| SHA1 File Hexdigest           | {sha1}                    |
+| SHA1 from Steam Filename      | {steam_sha1}              |
 | Download Error Status         | {dl_status}               |
 
 
