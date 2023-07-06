@@ -1,3 +1,4 @@
+import re
 import time
 from io import BytesIO
 from pathlib import Path
@@ -94,6 +95,9 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["infection_warning"] = ""
 
+        mod_detail["steam_desc"] = self.bs.get_steam_description(
+            Path(self.filename).stem
+        )
         mod_detail["asset_detail_url"] = quote(f"{self.ad_uri_prefix}{self.filename}")
         mod_detail["size"] = mod_detail["size"] / (1024)
         mod_detail["mtime"] = time.ctime(mod_detail["mtime"])

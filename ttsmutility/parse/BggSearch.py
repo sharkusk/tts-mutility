@@ -1,11 +1,13 @@
+from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 from html import unescape
+from markdownify import markdownify
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
+
 from ..data.config import load_config
 from ..parse.FileFinder import recodeURL
-
-from pathlib import Path
 
 
 class BggSearch:
@@ -287,3 +289,27 @@ class BggSearch:
 
     def get_game_url(self, bgg_id):
         return self.BGG_GAME_URL % bgg_id
+
+    def get_steam_description(self, steam_id):
+        # <div class="workshopItemDescription" id="highlightContent">This mod updates the Battlestar Galactica scripted mod created by |51st|.Capt.MarkvA and adds an unofficial expansion called BSG 2.0 that seeks to fix rules and add content.<br><br>This project is a work in progress!</div>
+        description = ""
+        if steam_id.isdigit():
+            url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={steam_id}"
+
+            cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
+                ".xml"
+            )
+            if cache_path.exists():
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = f.read()
+            else:
+                with urlopen(url) as f:
+                    data = f.read().decode("utf-8")
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(data)
+            soup = BeautifulSoup(data, "html.parser")
+
+            description = "## Steam Description\n" + str(
+                soup.find("div", class_="workshopItemDescription")
+            )
+        return markdownify(description)

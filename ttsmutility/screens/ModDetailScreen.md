@@ -7,6 +7,8 @@
 - BoardGameGeek Link: [{bgg_link}]({bgg_link})
 {mod_image}
 
+{steam_desc}
+
 | Mod Details | |
 |------------------------------:|:--------------------------|
 | Mod Creation Time             | {epoch}                   |

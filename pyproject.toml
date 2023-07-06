@@ -22,6 +22,8 @@ dependencies = [
     "xdg-base-dirs",
     "Pillow",
     "requests",
+    "markdownify",
+    "beautifulsoup4",
 ]
 
 [project.urls]
