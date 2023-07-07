@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
+from queue import Queue, Empty
 
 from textual.app import ComposeResult
 from textual.message import Message
@@ -124,9 +125,7 @@ class Downloader(TTSWorker):
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
         self.chunk_size = chunk_size
-
-        self.mod_filenames = []
-        self.turls = []  # turls -> trails and urls
+        self.tasks = Queue()
 
     # Base class is installed in each screen, so we don't want
     # to inherit the same widgets when this subclass is mounted
@@ -134,56 +133,65 @@ class Downloader(TTSWorker):
         return []
 
     def add_mods(self, mod_filenames: list) -> None:
-        self.mod_filenames += mod_filenames
+        for mod_filename in mod_filenames:
+            self.tasks.put(("mod", mod_filename))
 
     def add_assets(self, assets: list) -> None:
-        for asset in assets:
-            self.turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
+        self.tasks.put(("assets", assets))
 
-    def start_download(self) -> None:
+    def download_daemon(self) -> None:
         self.worker = get_current_worker()
         mod_name = ""
         mod_filename = ""
 
-        while len(self.turls) > 0 or len(self.mod_filenames) > 0:
+        while True:
+            if self.worker.is_cancelled:
+                return
+
+            try:
+                task = self.tasks.get(timeout=1)
+            except Empty:
+                continue
+
             fetch_time = time.time()
 
-            if len(self.turls) == 0:
-                mod_filename = self.mod_filenames.pop()
-                self.turls += self.asset_list.get_missing_assets(mod_filename)
+            if task[0] == "mod":
+                mod_filename = task[1]
+                turls = self.asset_list.get_missing_assets(mod_filename)
                 mod_details = self.mod_list.get_mod_details(mod_filename)
                 mod_name = mod_details["name"]
                 self.UpdateLog(f"From mod {mod_name}:")
+            else:
+                turls = task[1]
 
             self.post_message(
                 self.UpdateLog(
-                    f"Starting Download of {len(self.turls)} assets.",
+                    f"Starting Download of {len(turls)} assets.",
                     prefix="## ",
                 )
             )
 
             self.post_message(
                 self.UpdateProgress(
-                    update_total=len(self.turls),
+                    update_total=len(turls),
                     advance_amount=0,
                     status_id=self.status_id,
                 )
             )
 
-            for i, (url, trail) in enumerate(self.turls):
+            for i, (url, trail) in enumerate(turls):
                 if self.worker.is_cancelled:
                     self.post_message(self.UpdateLog(f"Download worker cancelled."))
                     return
                 self.post_message(
                     self.UpdateStatus(
-                        f"{mod_name}: Downloading ({i+1}/{len(self.turls)}): `{url}`"
+                        f"{mod_name}: Downloading ({i+1}/{len(turls)}): `{url}`"
                     )
                 )
                 self.download_file(url, trail)
 
             self.post_message(self.DownloadComplete(status_id=self.status_id))
             self.post_message(self.UpdateStatus(f"Download Complete: {mod_name}"))
-            self.turls = []
 
             if mod_filename != "":
                 self.mod_list.set_fetch_time(mod_filename, fetch_time)

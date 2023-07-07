@@ -199,6 +199,7 @@ class TTSMutility(App):
 
     def on_ttsmutility_init_complete(self):
         self.run_worker(self.backup.backup_daemon, exclusive=True)
+        self.run_worker(self.ad.download_daemon, exclusive=True)
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
@@ -251,7 +252,6 @@ class TTSMutility(App):
         self, event: AssetListScreen.DownloadSelected
     ):
         self.ad.add_assets(event.assets)
-        self.run_worker(self.ad.start_download, exclusive=True)
 
     # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
     # ██╔══██╗██╔═══██╗██║    ██║████╗  ██║██║     ██╔═══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
@@ -296,7 +296,6 @@ class TTSMutility(App):
     ):
         self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
         self.ad.add_mods([event.mod_filename])
-        self.run_worker(self.ad.start_download, exclusive=True)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)
