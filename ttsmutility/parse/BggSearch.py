@@ -112,6 +112,10 @@ class BggSearch:
                 for g in e:
                     if g.tag == "name" and g.attrib["type"] == "primary":
                         name = g.attrib["value"]
+                    elif g.tag == "name" and name == "":
+                        # Only use alternative name if we haven't already found
+                        # a name.
+                        name = g.attrib["value"]
                     elif g.tag == "yearpublished":
                         year = g.attrib["value"]
                 if name != "" and id != "" and year != "":
