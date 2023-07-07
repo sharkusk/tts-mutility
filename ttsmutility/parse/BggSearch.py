@@ -313,7 +313,8 @@ class BggSearch:
                         f.write(data)
             soup = BeautifulSoup(data, "html.parser")
 
-            description = "## Steam Description\n" + str(
-                soup.find("div", class_="workshopItemDescription")
-            )
-        return markdownify(description)
+            description = soup.find("div", class_="workshopItemDescription")
+        if description.text == "":
+            return ""
+        else:
+            return markdownify("## Steam Description\n" + str(description))
