@@ -46,6 +46,8 @@ class Config:
     mod_backup_dir: Path = str(mod_backup_directory())
     """Location of the TTSMutility Log file"""
 
+    steam_api_key: str = ""
+    """Steam API key (must be supplied by user)"""
 
 def config_file() -> Path:
     """Get the path to the configuration file.
