@@ -9,7 +9,7 @@ This is an all-in-one application for managing Tabletop Simulator mods and save 
 - Browse Asset info, including information regarding how the asset is used
 - Download all missing assets from a mod, or individual assets
 - Backup Mods and Saves to zip files
-- Detects mods that are infected with the TTS virus
+- Detects mods that are infected with the TTS script-virus (infected mods have a red name)
 - Uses Steam Workshop names to compare SHA1 signature to local file in order to detect corrupted files
 - Cross platform, tested on Windows 10/11 and Linux (may work on MacOS but currently untested)
 
