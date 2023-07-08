@@ -58,7 +58,6 @@ class TTSMutility(App):
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
 
-
         if cli_args.force_refresh:
             self.force_refresh = True
         else:
@@ -73,12 +72,12 @@ class TTSMutility(App):
             self.f_log = open(config.log_path, log_flags, encoding="utf-8")
         else:
             self.f_log = None
-        
+
         if cli_args.skip_asset_scan:
             self.skip_asset_scan = True
         else:
             self.skip_asset_scan = False
-        
+
         self.force_md_update = cli_args.force_md_update
 
         self.write_log(f"\n# TTSMutility v{__version__}", prefix="")
@@ -215,6 +214,7 @@ class TTSMutility(App):
         if event.key == "ctrl+t":
             from textual.screen import ModalScreen
             from textual.widgets import Footer, Static
+
             class CssTree(ModalScreen):
                 BINDINGS = [
                     ("escape", "app.pop_screen", "Cancel"),
@@ -227,6 +227,7 @@ class TTSMutility(App):
                 def compose(self) -> ComposeResult:
                     yield Footer()
                     yield Static(self.info, id="id_static")
+
             self.push_screen(CssTree(self.screen_stack[-1].css_tree))
 
         if event.key == "escape":
@@ -283,12 +284,16 @@ class TTSMutility(App):
     # ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
-        self.load_screen(ModDetailScreen(event.filename, self.force_md_update), "mod_details")
+        self.load_screen(
+            ModDetailScreen(event.filename, self.force_md_update), "mod_details"
+        )
 
     def on_mod_detail_screen_assets_selected(
         self, event: ModDetailScreen.AssetsSelected
     ):
-        self.load_screen(AssetListScreen(event.mod_filename, event.mod_name), "asset_list")
+        self.load_screen(
+            AssetListScreen(event.mod_filename, event.mod_name), "asset_list"
+        )
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
         self.backup.add_mods([event.mod_filename])

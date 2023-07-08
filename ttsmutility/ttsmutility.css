@@ -29,6 +29,11 @@ Downloader {
     visibility: hidden;
 }
 
+ModBackup {
+    height: 0;
+    visibility: hidden;
+}
+
 Sha1Scanner {
     height: 0;
     visibility: hidden;
