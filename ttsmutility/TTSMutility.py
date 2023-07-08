@@ -165,6 +165,23 @@ class TTSMutility(App):
         self.write_log(f"Initialization complete.")
         self.f_log.flush()
 
+    def force_refresh_mod(self, mod_filename:str) -> None:
+        mod_list = ModList.ModList()
+        mod_asset_list = AssetList.AssetList()
+
+        mod_asset_list.get_mod_assets(mod_filename, parse_only=True, force_refresh=True)
+        counts = mod_list.update_mod_counts(mod_filename)
+
+        if self.is_screen_installed("mod_list"):
+            screen = self.get_screen("mod_list")
+            screen.update_counts(
+                mod_filename, counts["total"], counts["missing"], counts["size"]
+            )
+
+        if self.is_screen_installed("mod_details"):
+            screen = self.get_screen("mod_details")
+            screen.refresh_mod_details()
+
     def refresh_mods(self) -> None:
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
@@ -282,6 +299,9 @@ class TTSMutility(App):
     # ██║╚██╔╝██║██║   ██║██║  ██║██║     ██║╚════██║   ██║   ╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║
     # ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗██║███████║   ██║   ███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║
     # ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
+
+    def on_mod_list_screen_mod_refresh(self, event: ModListScreen.ModRefresh):
+        self.force_refresh_mod(event.filename)
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
         self.load_screen(

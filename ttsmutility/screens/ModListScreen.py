@@ -46,7 +46,8 @@ class ModListScreen(Screen):
         ("l", "view_log", "View Log"),
         ("c", "open_config", "Open Config"),
         ("ctrl+b", "backup_mod", "Backup"),
-        ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches")
+        ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches"),
+        ("ctrl+r", "mod_refresh", "Refresh Mod"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -74,6 +75,11 @@ class ModListScreen(Screen):
                 yield DataTable(id="ml_workshop_dt")
             with TabPane("Saves", id="ml_pane_saves"):
                 yield DataTable(id="ml_saves_dt")
+
+    class ModRefresh(Message):
+        def __init__(self, mod_filename: str) -> None:
+            self.filename = mod_filename
+            super().__init__()
 
     class ModSelected(Message):
         def __init__(self, mod_filename: str) -> None:
@@ -191,7 +197,7 @@ class ModListScreen(Screen):
         table, _ = self.get_mod_table(filename)
 
         name = self.clean_name(mod["name"])
-        if name in self.infected_mods:
+        if mod["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
 
         table.add_row(
@@ -240,8 +246,15 @@ class ModListScreen(Screen):
         self.prev_filter = self.filter
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
+        asset_list = AssetList()
+        self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+
         row_key = mod_filename
         table, mods = self.get_mod_table(mod_filename)
+
+        name = self.clean_name(mods[row_key]["name"])
+        if mods[row_key]["name"] in self.infected_mods:
+            name = MyText(name, style="#FF0000")
 
         # We need to update both our internal asset information
         # and what is shown on the table...
@@ -249,6 +262,7 @@ class ModListScreen(Screen):
         mods[row_key]["missing_assets"] = missing_assets
         mods[row_key]["size"] = size
 
+        table.update_cell(row_key, "name", name)
         table.update_cell(row_key, "total_assets", total_assets)
         table.update_cell(row_key, "missing_assets", missing_assets)
         table.update_cell(row_key, "size", size / (1024 * 1024))
@@ -440,3 +454,13 @@ class ModListScreen(Screen):
 
     def action_sha1_mismatches(self):
         self.post_message(ModDetailScreen.AssetsSelected("sha1", "SHA1 Mismatches"))
+
+    def action_mod_refresh(self):
+        tabbed = self.query_one(TabbedContent)
+        if tabbed.active == "ml_pane_workshop":
+            id = "ml_workshop_dt"
+        else:
+            id = "ml_saves_dt"
+        table = next(self.query("#" + id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        self.post_message(self.ModRefresh(row_key.value))

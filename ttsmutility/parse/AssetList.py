@@ -363,7 +363,39 @@ class AssetList:
                 )
                 new_asset_trails = cursor.rowcount
 
-                if new_asset_count > 0:
+                # Detect assets that are no longer included in the mod
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                        INNER JOIN tts_mod_assets
+                            ON tts_mod_assets.asset_id_fk=tts_assets.id
+                        INNER JOIN tts_mods
+                            ON tts_mod_assets.mod_id_fk=tts_mods.id
+                    WHERE mod_filename=?
+                    """,(mod_filename,)
+                ) 
+                results = cursor.fetchall()
+
+                removed_assets = list(set(list(zip(*results))[0]).symmetric_difference(set(urls)))
+                removed_asset_count = len(removed_assets)
+                cursor = db.executemany(
+                    """
+                    DELETE FROM tts_mod_assets
+                    WHERE
+                        asset_id_fk = (SELECT tts_assets.id FROM tts_assets WHERE asset_url=?)
+                    AND
+                        mod_id_fk = (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?)
+                    """,
+                    tuple(
+                        zip(removed_assets, [mod_filename] * len(removed_assets))
+                    ),
+                )
+                if removed_asset_count != cursor.rowcount:
+                    # We didn't remove assets properly!
+                    pass
+
+                if new_asset_count > 0 or removed_asset_count > 0:
                     cursor = db.execute(
                         """
                         SELECT
