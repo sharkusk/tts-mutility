@@ -1,6 +1,6 @@
 # ttsmutility - Early Development Preview
 
-![Screenshot_20230708_100645](https://github.com/sharkusk/tts-mutility/assets/4368882/be76dbea-495e-4469-ab28-999136a185e7)
+![Screenshot_20230708_100645](https://github.com/sharkusk/tts-mutility/assets/4368882/aaf36fe5-2128-4a76-b5dd-a5a2ee18befe)
 
 This is an all-in-one application for managing Tabletop Simulator mods and save files.  The following features are currently supported:
 
@@ -54,10 +54,10 @@ options:
 ## Additional Screenshots
 
 ### Mod Details
-![Screenshot_20230708_100830](https://github.com/sharkusk/tts-mutility/assets/4368882/7d54bd44-a5b6-4a0c-9f53-e28970175ba3)
+![Screenshot_20230708_100830](https://github.com/sharkusk/tts-mutility/assets/4368882/dfe2ddae-23e9-4e87-a24a-e80bff5c316d)
 
 ### Mod Asset List
-![Screenshot_20230708_100919](https://github.com/sharkusk/tts-mutility/assets/4368882/3497be4c-2c84-4fff-b7a4-439cdd146514)
+![Screenshot_20230708_100919](https://github.com/sharkusk/tts-mutility/assets/4368882/c3ec2548-df2a-4573-a805-a5b971bd69e9)
 
 ### Asset Detail
-![Screenshot_20230708_101449](https://github.com/sharkusk/tts-mutility/assets/4368882/ecea2e0a-93f2-454a-b482-7404ec04eeff)
+![Screenshot_20230708_102647](https://github.com/sharkusk/tts-mutility/assets/4368882/5ba672bf-7d42-4e43-bd30-7f89d7f98d94)
