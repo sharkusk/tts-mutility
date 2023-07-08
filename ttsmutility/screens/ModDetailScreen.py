@@ -232,7 +232,7 @@ class ModDetailScreen(Screen):
         with md_filepath.open("r") as f:
             bgg_detail_md = f.read()
 
-        bgg_detail = self.bs.get_game_info(bgg_id)
+        bgg_detail = self.bs.get_game_info(bgg_id, self.force_update)
         for field in self.bs.BGG_LISTS:
             if field in bgg_detail:
                 bgg_detail[f"{field}_list"] = self.format_list(bgg_detail[field])

@@ -1,6 +1,7 @@
 import json
 import re
 import requests
+import time
 import xml.etree.ElementTree as ET
 from html import unescape
 from markdownify import markdownify
@@ -271,7 +272,19 @@ class BggSearch:
         else:
             return None
 
-    def get_game_info(self, bgg_id):
+    def update_metadata(self, path: Path) -> bool:
+        mtime = path.stat().st_mtime
+        cur_time = time.time()
+
+        if (
+            cur_time + int(self.config.metadata_invalidate_days) * (24 * 60 * 60)
+            > mtime
+        ):
+            return False
+        else:
+            return True
+
+    def get_game_info(self, bgg_id, force_update):
         params = urlencode(
             {
                 "id": bgg_id,
@@ -282,7 +295,11 @@ class BggSearch:
         cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
             ".xml"
         )
-        if cache_path.exists():
+        if (
+            cache_path.exists()
+            and not self.update_metadata(cache_path)
+            and not force_update
+        ):
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = f.read()
         else:
@@ -295,7 +312,7 @@ class BggSearch:
 
     def get_game_url(self, bgg_id):
         return self.BGG_GAME_URL % bgg_id
-    
+
     def steam_to_html(self, steam_text: str) -> str:
         TAG_MAPS = (
             ("[b]", "<b>"),
@@ -349,14 +366,21 @@ class BggSearch:
         md = ""
         if steam_id.isdigit():
             url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
-            cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url+steam_id)).with_suffix(
-                ".json"
-            )
-            if not force_update and cache_path.exists() and cache_path.stat().st_size > 0:
+            cache_path = (
+                Path(self.config.bgg_cache_dir) / recodeURL(url + steam_id)
+            ).with_suffix(".json")
+            if (
+                not force_update
+                and cache_path.exists()
+                and cache_path.stat().st_size > 0
+                and not self.update_metadata(cache_path)
+            ):
                 with open(cache_path, "r", encoding="utf-8") as f:
                     data = f.read()
             else:
-                resp = requests.post(url, data={"itemcount": "1", "publishedfileids[0]": steam_id})
+                resp = requests.post(
+                    url, data={"itemcount": "1", "publishedfileids[0]": steam_id}
+                )
                 if resp.status_code == 200:
                     data = resp.text
                     with open(cache_path, "w", encoding="utf-8") as f:
@@ -365,7 +389,9 @@ class BggSearch:
                     return ""
             data_j = json.loads(data)
             try:
-                description = data_j["response"]["publishedfiledetails"][0]["description"]
+                description = data_j["response"]["publishedfiledetails"][0][
+                    "description"
+                ]
             except KeyError:
                 # No description available on steam page
                 return md
@@ -373,4 +399,3 @@ class BggSearch:
             md = "## Steam Description\n" + markdownify(self.steam_to_html(description))
 
         return md
-
