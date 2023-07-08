@@ -1,7 +1,6 @@
 import json
 import re
 import requests
-from bs4 import BeautifulSoup
 import xml.etree.ElementTree as ET
 from html import unescape
 from markdownify import markdownify
@@ -297,136 +296,76 @@ class BggSearch:
     def get_game_url(self, bgg_id):
         return self.BGG_GAME_URL % bgg_id
     
-    def steam_to_markdown(self, steam_text: str) -> str:
-        TAG_MAPPING = (
-            ("[b]", "**"),
-            ("[/b]", "**"),
-            ("[code]", "```"),
-            ("[/code]", "```"),
-            ("[h1]", "## "),
-            ("[/h1]", ""),
-            ("[h2]", "### "),
-            ("[/h2]", ""),
-            ("[h3]", "#### "),
-            ("[/h3]", ""),
-            ("[i]", "*"),
-            ("[/i]", "*"),
-            ("[strike]", "~~"),
-            ("[/strike]", "~~"),
-            ("[u]", "**"),
-            ("[/u]", "**"),
+    def steam_to_html(self, steam_text: str) -> str:
+        TAG_MAPS = (
+            ("[b]", "<b>"),
+            ("[/b]", "</b>"),
+            ("[code]", "<code>"),
+            ("[/code]", "</code>"),
+            ("[h1]", "<h2>"),
+            ("[/h1]", "</h2>"),
+            ("[h2]", "<h3>"),
+            ("[/h2]", "</h3>"),
+            ("[h3]", "<h4>"),
+            ("[/h3]", "</h4>"),
+            ("[i]", "<i>"),
+            ("[/i]", "</i>"),
+            ("[strike]", "<strike>"),
+            ("[/strike]", "</strike>"),
+            ("[u]", "<u>"),
+            ("[/u]", "</u>"),
+            ("[table]", "<table>"),
+            ("[/table]", "</table>"),
+            ("[tr]", "<tr>"),
+            ("[/tr]", "</tr>"),
+            ("[td]", "<td>"),
+            ("[/td]", "</td>"),
+            ("[list]", "<ul>"),
+            ("[/list]", "</ul>"),
+            ("[olist]", "<ol>"),
+            ("[/olist]", "</ol>"),
+            ("[img]", '<img src="'),
+            ("[/img]", '"/>'),
+            ("* ", "- "),
         )
-        LISTS = (
-            ("list", "- "),
-            ("olist", "1. "),
-        )
-
         steam_text = steam_text.replace("\r", "")
+        steam_text = steam_text.replace("\t", "    ")
 
-        # Lists can be formatted with and without whitespace and line feeds. Therefore,
-        # extract each list element and recreate with markdown, then replace the entire
-        # section of text.
-        for list in LISTS:
-            while True:
-                l = []
-                if (ustart := steam_text.find(f"[{list[0]}]")) != -1:
-                    uend = steam_text.find(f"[/{list[0]}]")
-                    lcur = steam_text.find("[*]", ustart, uend) + len("[*]")
-                    while lcur != -1 and lcur <= uend:
-                        lnext = steam_text.find("[*]", lcur, uend)
-                        if lnext == -1:
-                            lnext = uend
-                        l.append(steam_text[lcur:lnext].strip())
-                        lcur = lnext + len("[*]")
-                    steam_text = steam_text.replace(steam_text[ustart:uend+len(f"[/{list[0]}]")], f"\n{list[1]}" + f"\n{list[1]}".join(l) + "\n")
-                else:
-                    break
-        
-        # Like lists, tables can be formatted with and without whitespace and line feeds.
-        # Therefore, extract each row of the table and recreate with markdown, then
-        # replace the entire section of text.
-        while True:
-            r = []
-            if (tstart := steam_text.find(f"[table]")) != -1:
-                cols = 0
-                tend = steam_text.find(f"[/table]") + len("[/table]")
-                rcur = steam_text.find(f"[tr]", tstart, tend)
-                while rcur != -1 and rcur < tend:
-                    rnext = steam_text.find("[tr]", rcur+len("[tr]"), tend)
-                    if rnext == -1:
-                        rnext = tend
-                    # We now have our current row, find each data field
-                    dcur = steam_text.find("[td]", rcur, rnext)
-                    d = []
-                    while dcur != -1 and dcur < rnext:
-                        dcur_end = steam_text.find("[/td]", dcur, rnext)
-                        dcur = dcur + len("[td]")
-                        d.append(steam_text[dcur:dcur_end])
-                        dcur = steam_text.find("[td]", dcur, rnext)
-                    r.append("|"+"|".join(d)+"|")
-                    cols = len(d)
-                    rcur = rnext
-                table = "| " * cols + "|"
-                table += "\n|" + ("---|" * (cols))
-                table += "\n"
-                table = table + "\n".join(r)
-                steam_text = steam_text.replace(steam_text[tstart:tend], table)
-            else:
-                break
-        
-        url_matches = re.findall(r"\[url=(.*?)\]", steam_text)
-        for umatch in url_matches:
-            steam_text = steam_text.replace(f"[url={umatch}]", f"[", 1)
-            steam_text = steam_text.replace(f"[/url]", f"]({umatch})", 1)
+        # Handle list elements
+        regex = r"(?:\[\*\])(.*?)(?=(?:\[\/list\])|(?:\n)|(?:\[\*\]))"
+        subst = "<li>\\1</li>"
+        steam_text = re.sub(regex, subst, steam_text, 0, re.MULTILINE)
 
-        for tag in TAG_MAPPING:
+        # Handle URL links
+        regex = r"\[url=(.*?)\](.*?)\[/url\]"
+        subst = r'<a href="\1">\2</a>'
+        steam_text = re.sub(regex, subst, steam_text, 0, re.MULTILINE)
+
+        for tag in TAG_MAPS:
             steam_text = steam_text.replace(*tag)
         return steam_text
 
     def get_steam_description(self, steam_id):
-        if False:
-            md = ""
-            if steam_id.isdigit():
-                url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
-                cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url+steam_id)).with_suffix(
-                    ".json"
-                )
-                if cache_path.exists() and cache_path.stat().st_size > 0:
-                    with open(cache_path, "r", encoding="utf-8") as f:
-                        data = f.read()
+        md = ""
+        if steam_id.isdigit():
+            url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+            cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url+steam_id)).with_suffix(
+                ".json"
+            )
+            if cache_path.exists() and cache_path.stat().st_size > 0:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = f.read()
+            else:
+                resp = requests.post(url, data={"itemcount": "1", "publishedfileids[0]": steam_id})
+                if resp.status_code == 200:
+                    data = resp.text
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(data)
                 else:
-                    resp = requests.post(url, data={"itemcount": "1", "publishedfileids[0]": steam_id})
-                    if resp.status_code == 200:
-                        data = resp.text
-                        with open(cache_path, "w", encoding="utf-8") as f:
-                            f.write(data)
-                    else:
-                        return ""
-                data_j = json.loads(data)
-                description = data_j["response"]["publishedfiledetails"][0]["description"]
-                md = "## Steam Description\n" + self.steam_to_markdown(description)
-            return md
-        else:
-            # <div class="workshopItemDescription" id="highlightContent">This mod updates the Battlestar Galactica scripted mod created by |51st|.Capt.MarkvA and adds an unofficial expansion called BSG 2.0 that seeks to fix rules and add content.<br><br>This project is a work in progress!</div>
-            description = ""
-            if steam_id.isdigit():
-                url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={steam_id}"
+                    return ""
+            data_j = json.loads(data)
+            description = data_j["response"]["publishedfiledetails"][0]["description"]
+            md = "## Steam Description\n" + markdownify(self.steam_to_html(description))
 
-                cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
-                    ".xml"
-                )
-                if cache_path.exists():
-                    with open(cache_path, "r", encoding="utf-8") as f:
-                        data = f.read()
-                else:
-                    with urlopen(url) as f:
-                        data = f.read().decode("utf-8")
-                        with open(cache_path, "w", encoding="utf-8") as f:
-                            f.write(data)
-                soup = BeautifulSoup(data, "html.parser")
+        return md
 
-            description = soup.find("div", class_="workshopItemDescription")
-        if description.text == "":
-            return ""
-        else:
-            return markdownify("## Steam Description\n" + str(description))

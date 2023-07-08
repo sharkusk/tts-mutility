@@ -23,7 +23,6 @@ dependencies = [
     "Pillow",
     "requests",
     "markdownify",
-    "beautifulsoup4",
 ]
 
 [project.urls]

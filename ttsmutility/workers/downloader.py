@@ -162,7 +162,9 @@ class Downloader(TTSWorker):
                 mod_name = mod_details["name"]
                 self.UpdateLog(f"From mod {mod_name}:")
             else:
-                turls = task[1]
+                turls = []
+                for asset in task[1]:
+                    turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
 
             self.post_message(
                 self.UpdateLog(
