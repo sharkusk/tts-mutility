@@ -78,6 +78,8 @@ class TTSMutility(App):
             self.skip_asset_scan = True
         else:
             self.skip_asset_scan = False
+        
+        self.force_md_update = cli_args.force_md_update
 
         self.write_log(f"\n# TTSMutility v{__version__}", prefix="")
         self.write_log(
@@ -281,7 +283,7 @@ class TTSMutility(App):
     # ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
-        self.load_screen(ModDetailScreen(event.filename), "mod_details")
+        self.load_screen(ModDetailScreen(event.filename, self.force_md_update), "mod_details")
 
     def on_mod_detail_screen_assets_selected(
         self, event: ModDetailScreen.AssetsSelected
@@ -414,6 +416,13 @@ def get_args() -> Namespace:
         "--skip-asset-scan",
         help="Do not scan filesystem for new assets during init",
         dest="skip_asset_scan",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--force-steam-md-update",
+        help="Reload steam meta data, do not use cached version",
+        dest="force_md_update",
         action="store_true",
     )
 

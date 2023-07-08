@@ -38,7 +38,7 @@ class ModDetailScreen(Screen):
             self.mod_name = mod_name
             super().__init__()
 
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, force_md_update: bool = False) -> None:
         self.filename = filename
         self.ad_uri_prefix = "//asset_detail/"
         self.dl_image_uri_prefix = "//dl_image/"
@@ -47,6 +47,7 @@ class ModDetailScreen(Screen):
         self.save_dir = Path(config.tts_saves_dir)
         self.mod_list = ModList()
         self.bs = BggSearch()
+        self.force_update = force_md_update
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -95,7 +96,7 @@ class ModDetailScreen(Screen):
             mod_detail["infection_warning"] = ""
 
         mod_detail["steam_desc"] = self.bs.get_steam_description(
-            Path(self.filename).stem
+            Path(self.filename).stem, self.force_update
         )
         mod_detail["asset_detail_url"] = quote(f"{self.ad_uri_prefix}{self.filename}")
         mod_detail["size"] = mod_detail["size"] / (1024)
