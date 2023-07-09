@@ -50,6 +50,7 @@ class Downloader(TTSWorker):
             "application/octet-stream",
             "application/json",
             "application/x-tgif",
+            "model/obj",
         ),
         "assetbundle": (
             "text/plain",
@@ -337,17 +338,22 @@ class Downloader(TTSWorker):
             fetch_url = "http://" + url
         else:
             fetch_url = url
-        
+
         fetch_url = fetch_url.replace(" ", "%20")
 
         try:
-            if urllib.parse.urlparse(fetch_url).hostname.find("localhost") >= 0:
+            hostname = urllib.parse.urlparse(fetch_url).hostname
+            if hostname.find("localhost") >= 0:
                 self.state_callback("error", url, f"localhost url")
                 return None
         except:
             # URL was so badly formatted that there is no hostname.
             self.state_callback("error", url, f"Invalid hostname")
             return None
+
+        # Some MODS do not include the 'raw' link in their pastebin urls, help them out
+        if "pastebin.com" in hostname and "raw" not in fetch_url:
+            fetch_url = fetch_url.replace("pastebin.com/", "pastebin.com/raw/")
 
         # type in the response.
         if is_model(trail):
@@ -424,7 +430,7 @@ class Downloader(TTSWorker):
                         0 : dl_info["fetch_url"].rfind("?")
                     ]
                     continue
-                
+
                 if "mismatch" in results:
                     # Try again...
                     continue
@@ -449,7 +455,10 @@ class Downloader(TTSWorker):
     ):
         headers = {"User-Agent": self.user_agent}
 
-        if filename is not None and (existing_file := Path(filename).with_suffix(".tmp")).exists():
+        if (
+            filename is not None
+            and (existing_file := Path(filename).with_suffix(".tmp")).exists()
+        ):
             headers["Range"] = f"bytes={existing_file.stat().st_size}-"
         else:
             existing_file = None
@@ -560,7 +569,7 @@ class Downloader(TTSWorker):
 
         length = response.getheader("Content-Length", 0)
         self.state_callback("file_size", url, int(length))
-    
+
         temp_path = filepath.with_suffix(".tmp")
 
         # We are unable to resume, but still have existing file
@@ -588,14 +597,14 @@ class Downloader(TTSWorker):
             with suppress(FileNotFoundError):
                 os.remove(temp_path)
             raise
-            
+
         if length != 0 and os.path.getsize(temp_path) != int(length):
             msg = f"Filesize mismatch. Received {os.path.getsize(temp_path)}. Expected {length}."
             # Check if the server supports resuming downloads, if not remove the temp file
             if range_support is None or range_support != "bytes":
                 os.remove(temp_path)
             return msg
-        
+
         # We are all good!
         if filepath.exists():
             os.remove(filepath)
