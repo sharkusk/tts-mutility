@@ -48,8 +48,8 @@ class AssetListScreen(Screen):
         self.sort_order = {
             "url": False,
             "ext": False,
-            "trail": False,
             "mtime": False,
+            "trail": False,
             "fsize": False,
         }
         self.last_sort_key = "url"
@@ -73,10 +73,10 @@ class AssetListScreen(Screen):
         table.focus()
 
         table.add_column("URL", width=self.url_width, key="url")
-        table.add_column("Extension", key="ext")
-        table.add_column("Size (KB)", key="fsize")
+        table.add_column("Ext", key="ext", width=4)
+        table.add_column("Size(KB)", key="fsize", width=9)
+        table.add_column("Modified", key="mtime", width=10)
         table.add_column("Trail", key="trail")
-        table.add_column("Modified", key="mtime")
 
         assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
@@ -88,8 +88,8 @@ class AssetListScreen(Screen):
                 readable_asset["url"],
                 readable_asset["ext"],
                 readable_asset["fsize"],
-                self.trail_reformat(readable_asset["trail"]),
                 readable_asset["mtime"],
+                self.trail_reformat(readable_asset["trail"]),
                 key=asset["url"],  # Use original url for our key
             )
         table.cursor_type = "row"
@@ -118,7 +118,7 @@ class AssetListScreen(Screen):
             if asset["dl_status"] == "":
                 readable_time = "Not Found"
             else:
-                readable_time = "* " + asset["dl_status"]
+                readable_time = "*" + asset["dl_status"]
         else:
             readable_time = format_time(asset["mtime"])
         new_asset["mtime"] = readable_time

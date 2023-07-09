@@ -134,16 +134,16 @@ class ModListScreen(Screen):
 
             # TODO: Generate column names and keys in outside module
             if id == "#ml_workshop_dt":
-                table.add_column("Mod Name", width=35, key="name")
+                table.add_column("Mod Name", width=40, key="name")
             else:
-                table.add_column("Save Name", width=35, key="name")
+                table.add_column("Save Name", width=40, key="name")
             table.add_column("Created", key="created")
-            table.add_column("File Modified", key="modified")
-            table.add_column("Size (MB)", key="size")
+            table.add_column("Modified", key="modified")
+            table.add_column("Size(MB)", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")
-            table.add_column("Min P", key="min_players")
-            table.add_column("Max P", key="max_players")
+            table.add_column("MinP", key="min_players")
+            table.add_column("MaxP", key="max_players")
 
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
@@ -375,13 +375,10 @@ class ModListScreen(Screen):
             if filter_open:
                 f = self.query_one("#ml_filter")
                 if "focus-within" in fc.pseudo_classes:
-                    # If focus in on the filter, exit if filter is empty, otherwise clear it
-                    if f.value == "":
-                        table, _ = self.get_active_table()
-                        table.focus()
-                        fc.toggle_class("unhide")
-                    else:
-                        f.value = ""
+                    f.value = ""
+                    table, _ = self.get_active_table()
+                    table.focus()
+                    fc.toggle_class("unhide")
                 else:
                     # Focus is elsewhere, clear the filter value and close the filter window
                     f.value = ""
