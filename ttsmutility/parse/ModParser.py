@@ -2,7 +2,6 @@ import json
 import re
 from pathlib import Path
 
-from ..data.config import load_config
 from ..parse.FileFinder import (
     ALL_VALID_EXTS,
     recodeURL,
@@ -26,7 +25,7 @@ class ModParser:
         "custom_assetbundle",
         "custom_pdf",
         "custom_token",
-        "custom content",
+        "custom_content",
         "deck",
         "cardcustom",
     ]
@@ -73,6 +72,7 @@ class ModParser:
             done = set()
 
         name = ""
+        nickname = ""
         for k, v in dic.items():
             if k in self.MOD_INFO_FIELDS:
                 if isinstance(v, str):
@@ -80,10 +80,17 @@ class ModParser:
                 else:
                     self.mod_info[k] = v
 
-            if name == "":
+            if name == "" and nickname == "":
                 newtrail = trail + [k]
             else:
-                newtrail = trail + [f'"{name.strip()}"', k]
+                big_name = ""
+                if name != "":
+                    big_name = name.strip()
+                    if nickname != "":
+                        big_name = big_name + f" ({nickname.strip()})"
+                elif nickname != "":
+                    big_name = nickname.strip()
+                newtrail = trail + [f'"{big_name}"', k]
 
             if k == "AudioLibrary":
                 for elem in v:
@@ -132,21 +139,14 @@ class ModParser:
                 if not v or v.lower() in self.NAMES_TO_IGNORE:
                     name = ""
                 else:
-                    # Don't store the same custom name twice in a given trail
-                    if v in newtrail:
-                        name = ""
-                    else:
-                        name = v.replace("Custom_", "")
-                        # Strip inline formatting that may not work properly
-                        name = re.sub(r"(\[.+?\])", "", name)
-
-            # Prioritize storing the nickname over the name...
-            elif k.lower() == "nickname" and v:
-                # Don't store the same custom name twice in a given trail
-                if v not in newtrail:
-                    name = v
+                    name = v.replace("Custom_", "")
                     # Strip inline formatting that may not work properly
                     name = re.sub(r"(\[.+?\])", "", name)
+
+            elif k.lower() == "nickname" and v:
+                nickname = v
+                # Strip inline formatting that may not work properly
+                nickname = re.sub(r"(\[.+?\])", "", nickname)
 
             elif k == "LuaScript":
                 NO_EXT_SITES = [
