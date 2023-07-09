@@ -157,7 +157,7 @@ class ModParser:
                     "steamuserimages-a.akamaihd.net",
                 ]
                 # Check for TTS virus signature
-                if v.find("tcejbo gninwapS") != -1:
+                if v.find("tcejbo gninwapS") != -1 and v.find(" " * 200) != 1:
                     # Don't add these to the set, report all infected objects/trails...
                     yield (newtrail, INFECTION_URL)
 
