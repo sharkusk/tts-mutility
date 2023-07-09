@@ -48,3 +48,17 @@ def mod_backup_directory() -> Path:
         parents=True, exist_ok=True
     )
     return target_directory
+
+def asset_backup_directory() -> Path:
+    """Get the location of the BGG cache directory.
+
+    Returns:
+        The location of the BGG cache directory.
+
+    Note:
+        As a side effect, if the directory doesn't exist it will be created.
+    """
+    (target_directory := xdg_data_home() / "ttsmutility" / "asset_backup").mkdir(
+        parents=True, exist_ok=True
+    )
+    return target_directory

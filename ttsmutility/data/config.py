@@ -10,7 +10,7 @@ from pathlib import Path
 from xdg_base_dirs import xdg_config_home
 
 import platform
-from .data_directory import data_directory, bgg_cache_directory, mod_backup_directory
+from .data_directory import data_directory, bgg_cache_directory, mod_backup_directory, asset_backup_directory
 
 gamedata_map = {
     "Windows": "Documents/My Games/Tabletop Simulator",
@@ -44,7 +44,10 @@ class Config:
     """Location of the TTSMutility Log file"""
 
     mod_backup_dir: Path = str(mod_backup_directory())
-    """Location of the TTSMutility Log file"""
+    """Location where we put our mod backups"""
+
+    asset_backup_dir: Path = str(asset_backup_directory())
+    """Location where we move bad assets"""
 
     metadata_invalidate_days: str = "7"
     """How many days before metadata is refreshed from BGG or Steam"""

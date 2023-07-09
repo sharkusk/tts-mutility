@@ -1,19 +1,41 @@
 import os
 import os.path
-import sqlite3
 import pathlib
+import sqlite3
 import time
 from pathlib import Path
+from shutil import move
 
-from .ModParser import ModParser
 from ..data.config import load_config
 from ..parse.FileFinder import (
-    recodeURL,
-    TTS_RAW_DIRS,
     FILES_TO_IGNORE,
-    trailstring_to_trail,
+    TTS_RAW_DIRS,
+    recodeURL,
     trail_to_trailstring,
+    trailstring_to_trail,
+    get_fs_path_from_extension,
 )
+from .ModParser import ModParser
+
+
+def detect_file_type(filepath):
+    FILE_TYPES = {
+        ".unity3d": b"\x55\x6e\x69\x74\x79\x46\x53",  # UnityFS
+        ".OGG": b"\x47\x67\x67\x53",
+        ".WAV": b"\x52\x49\x46\x46",  # RIFF
+        ".MP3": b"\x49\x44\x33",  # ID3
+        ".png": b"\x89\x50\x4E\x47",  # ?PNG
+        ".jpg": b"\xFF\xD8",  # ??
+        ".obj": b"\x23\x20",  # "# "
+        ".PDF": b"\x25\x50\x44\x46",  # %PDF
+    }
+    with open(filepath, "rb") as f:
+        f_data = f.read(10)
+        for ext, pattern in FILE_TYPES.items():
+            if pattern in f_data[0 : len(pattern)]:
+                return ext
+        else:
+            return ""
 
 
 class IllegalSavegameException(ValueError):
@@ -234,6 +256,8 @@ class AssetList:
         assets = []
         scan_time = time.time()
         count = 0
+        config = load_config()
+
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
@@ -247,7 +271,16 @@ class AssetList:
             prev_scan_time = result[0]
 
             ignore_paths = ["Mods", "Workshop"]
-            ignore_files = ["sha1-verified"]
+            ignore_files = ["sha1-verified", "sha1-verified.txt"]
+
+            cursor = db.execute(
+                """
+                SELECT asset_filename, asset_ext
+                FROM tts_assets
+                """,
+            )
+            results = cursor.fetchall()
+            asset_stems, asset_exts = list(zip(*results))
 
             for root, _, files in os.walk(self.mod_dir, topdown=True):
                 path = pathlib.PurePath(root).name
@@ -255,24 +288,81 @@ class AssetList:
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
                     continue
 
-                # for filename in sorted([root+"/"+filename for filename in files], key=os.path.getmtime, reverse=True):
-                new_files = filter(
-                    lambda x: x[1] > prev_scan_time,
-                    [
-                        (filename, os.path.getmtime(root + "/" + filename))
-                        for filename in files
-                    ],
-                )
-                for filename, mtime in new_files:
+                file_stems = [Path(file).stem for file in files]
+                new_file_stems = set(file_stems).difference(set(asset_stems))
+
+                asset_filenames = list(map(str.__add__, asset_stems, asset_exts))
+                new_files = set(files).difference(set(asset_filenames))
+
+                if len(new_files) != len(new_file_stems):
+                    # We have file_stems (i.e. filenames without the ext)
+                    # that match in our DB.  However, the extensions are not the
+                    # same or there are duplicate files with diff extensions.
+                    # Detect the correct fileformat and update accordingly.
+                    no_dupes = []
+                    # file_exts = [Path(file).suffix for file in files]
+                    # We likely have duplicate filenames with different extensions.
+                    # Let's see if we can identify what is the real file.
+                    for dup_file in new_files:
+                        dup_stem = Path(dup_file).stem
+                        dup_files = [x for x in files if Path(x).stem == dup_stem]
+                        ext = ""
+                        # For each duplicate file (i.e. files with same stem),
+                        # we are going to look for the correct ext, then determine
+                        # what directory that extension belongs in, then rename
+                        # or move the duplicate file appropriately.
+                        for file in dup_files:
+                            filepath = Path(root) / file
+                            if ext == "":
+                                if (ext := detect_file_type(Path(root) / file)) != "":
+                                    if Path(file).suffix != ext:
+                                        newpath = get_fs_path_from_extension(
+                                            "", ext, Path(file).stem
+                                        )
+                                        newpath = Path(config.tts_mods_dir) / newpath
+                                        remove_file = True
+                                        if newpath is not None:
+                                            if not newpath.exists():
+                                                remove_file = False
+                                        if remove_file:
+                                            move(
+                                                filepath,
+                                                Path(config.asset_backup_dir) / file,
+                                            )
+                                        else:
+                                            # Is this going to the current path?
+                                            if filepath.with_suffix(
+                                                ""
+                                            ) == newpath.with_suffix(""):
+                                                no_dupes.append(dup_stem + ext)
+                                                os.rename(filepath, newpath)
+                                            else:
+                                                # Move the file to it's correct location
+                                                move(
+                                                    filepath,
+                                                    newpath,
+                                                )
+                                        continue
+                            # Any subsequent duplicate files (with the wrong
+                            # extension) need to be removed.
+                            if ext != "":
+                                if Path(file).suffix.lower() != ext.lower():
+                                    # Remove the files that have the wrong extension
+                                    move(filepath, Path(config.asset_backup_dir) / file)
+                    new_files = no_dupes
+
+                for filename in new_files:
                     filename = Path(root) / filename
                     if filename.stem in ignore_files:
                         continue
                     if filename.suffix.upper() in FILES_TO_IGNORE:
                         continue
                     size = os.path.getsize(filename)
+                    mtime = os.path.getmtime(filename)
                     assets.append(
                         (path, filename.stem, filename.suffix, mtime, size, 1)
                     )
+
             cursor = db.executemany(
                 """
                 INSERT INTO tts_assets
@@ -373,11 +463,14 @@ class AssetList:
                         INNER JOIN tts_mods
                             ON tts_mod_assets.mod_id_fk=tts_mods.id
                     WHERE mod_filename=?
-                    """,(mod_filename,)
-                ) 
+                    """,
+                    (mod_filename,),
+                )
                 results = cursor.fetchall()
 
-                removed_assets = list(set(list(zip(*results))[0]).symmetric_difference(set(urls)))
+                removed_assets = list(
+                    set(list(zip(*results))[0]).symmetric_difference(set(urls))
+                )
                 removed_asset_count = len(removed_assets)
                 cursor = db.executemany(
                     """
@@ -387,9 +480,7 @@ class AssetList:
                     AND
                         mod_id_fk = (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?)
                     """,
-                    tuple(
-                        zip(removed_assets, [mod_filename] * len(removed_assets))
-                    ),
+                    tuple(zip(removed_assets, [mod_filename] * len(removed_assets))),
                 )
                 if removed_asset_count != cursor.rowcount:
                     # We didn't remove assets properly!

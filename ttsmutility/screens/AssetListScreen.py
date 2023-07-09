@@ -262,7 +262,7 @@ class AssetListScreen(Screen):
         ).with_suffix(".missing.csv")
         with open(outname, "w", encoding="utf-8") as f:
             for url in self.assets:
-                if self.assets[url]["dl_status"] != "":
+                if self.assets[url]["dl_status"] != "" or self.assets[url]["fsize"] == 0:
                     f.write(
                         f"{url}, {self.assets[url]['dl_status']}, ({self.assets[url]['trail']})\n"
                     )

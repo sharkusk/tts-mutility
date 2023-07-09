@@ -12,7 +12,7 @@ TXTPATH = "Text"
 
 AUDIO_EXTS = [".mp3", ".wav", ".ogv", ".ogg"]
 IMG_EXTS = [".png", ".jpg", ".mp4", ".m4v", ".webm", ".mov", ".unity3d"]
-OBJ_EXTS = [".obj"]
+OBJ_EXTS = [".obj", ".txt"]
 BUNDLE_EXTS = [".unity3d"]
 PDF_EXTS = [".pdf"]
 TXT_EXTS = [".txt"]
@@ -20,7 +20,7 @@ TXT_EXTS = [".txt"]
 # TTS uses UPPER_CASE extensions for these files
 UPPER_EXTS = AUDIO_EXTS + PDF_EXTS + TXT_EXTS
 
-ALL_VALID_EXTS = AUDIO_EXTS + IMG_EXTS + OBJ_EXTS + BUNDLE_EXTS + PDF_EXTS + TXT_EXTS
+ALL_VALID_EXTS = AUDIO_EXTS + IMG_EXTS + OBJ_EXTS + BUNDLE_EXTS + PDF_EXTS
 
 # Order used to search to appropriate paths based on extension
 # IMG comes last (or at least after BUNDLE) as we prefer to store
@@ -31,7 +31,6 @@ MOD_PATHS = [
     (OBJ_EXTS, OBJPATH),
     (BUNDLE_EXTS, BUNDLEPATH),
     (PDF_EXTS, PDFPATH),
-    (TXT_EXTS, TXTPATH),
     (IMG_EXTS, IMGPATH),
 ]
 
@@ -97,8 +96,11 @@ def recodeURL(url):
     return re.sub(r"[\W_]", "", url)
 
 
-def get_fs_path_from_extension(url, ext):
-    recoded_name = recodeURL(url)
+def get_fs_path_from_extension(url, ext, filestem=""):
+    if filestem == "":
+        recoded_name = recodeURL(url)
+    else:
+        recoded_name = filestem
 
     for ttsexts, path in MOD_PATHS:
         if ext.lower() in ttsexts:

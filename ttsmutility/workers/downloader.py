@@ -548,6 +548,10 @@ class Downloader(TTSWorker):
             if extensions[key] != "":
                 ext = extensions[key]
                 break
+        
+        # Override text extensions to be objects
+        if ext.lower() == ".txt":
+            ext = ".obj"
 
         # TTS saves some file extensions as upper case
         ext = self.fix_ext_case(ext)
