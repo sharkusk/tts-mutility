@@ -349,6 +349,8 @@ class AssetList:
                                 if Path(file).suffix.lower() != ext.lower():
                                     # Remove the files that have the wrong extension
                                     move(filepath, Path(config.asset_backup_dir) / file)
+                                else:
+                                    no_dupes.append(file)
                     new_files = no_dupes
 
                 for filename in new_files:
@@ -625,3 +627,16 @@ class AssetList:
                     )
 
         return assets
+
+    def get_content_names(self) -> list:
+        with sqlite3.connect(self.db_path) as db:
+            # Check if we have this mod in our DB
+            cursor = db.execute(
+                """
+                SELECT asset_url, asset_content_name
+                FROM tts_assets
+                WHERE asset_content_name != ""
+                """,
+            )
+            results = cursor.fetchall()
+            return list(zip(*results))

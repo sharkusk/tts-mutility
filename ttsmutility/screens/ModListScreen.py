@@ -16,6 +16,7 @@ from ..parse import ModList
 from ..parse.AssetList import AssetList
 from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
+from ..dialogs.InfoDialog import InfoDialog
 from .DebugScreen import DebugScreen
 from .ModDetailScreen import ModDetailScreen
 
@@ -48,6 +49,7 @@ class ModListScreen(Screen):
         ("ctrl+b", "backup_mod", "Backup"),
         ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches"),
         ("ctrl+r", "mod_refresh", "Refresh Mod"),
+        ("ctrl+n", "content_name_report", "Content Name Report"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -461,3 +463,17 @@ class ModListScreen(Screen):
         table = next(self.query("#" + id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         self.post_message(self.ModRefresh(row_key.value))
+
+    def action_content_name_report(self):
+        config = load_config()
+
+        outname = Path(config.mod_backup_dir) / "content_names.csv"
+
+        asset_list = AssetList()
+        urls, content_names = asset_list.get_content_names()
+
+        with open(outname, "w", encoding="utf-8") as f:
+            for url, cn in zip(urls, content_names):
+                f.write(f"{url}, {cn}\n")
+
+        self.app.push_screen(InfoDialog(f"Saved content name report to '{outname}'."))
