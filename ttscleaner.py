@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import sys
 
-VER = "0.0.1"
+VER = "0.0.2"
 
 def clean_mod(mod):
     expr = r'( {400}.*?[^\\](?="))'
@@ -16,6 +16,17 @@ def clean_mod(mod):
     print(f"Cleaned {i} infected objects")
     return cmod, i
 
+def scan_mod(mod_path):
+    from ttsmutility.parse.ModParser import ModParser, INFECTION_URL
+
+    mod_parser = ModParser(mod_path)
+    i = 0
+    for trail, url in mod_parser.urls_from_mod():
+        if url == INFECTION_URL:
+            i += 1
+            print(f"Virus detected: {'->'.join(trail)}")
+    print(f"Detected {i} infected objects")
+
 if __name__ == "__main__":
 
     # Create the parser object.
@@ -25,13 +36,20 @@ if __name__ == "__main__":
         epilog=f"{VER}",
     )
 
-    # Add --version
     parser.add_argument(
         "-v",
         "--version",
         help="Show version information.",
         action="version",
         version=f"%(prog)s {VER}",
+    )
+
+    parser.add_argument(
+        "-s",
+        "--scan",
+        help="Scan and print virus info",
+        dest="scan",
+        action="store_true",
     )
 
     parser.add_argument("mod_path")
@@ -43,12 +61,18 @@ if __name__ == "__main__":
         print(f"'{args.mod_path}' not found!")
         sys.exit(-11)
     
-    print(f"Cleaning mod '{args.mod_path}'")
-    with open(args.mod_path, "r", encoding="utf-8") as f:
-        mod = f.read()
+    if args.scan:
+        print(f"Scanning mod '{args.mod_path}'")
+        scan_mod(args.mod_path)
+    else:
+        print(f"Cleaning mod '{args.mod_path}'")
+        with open(args.mod_path, "r", encoding="utf-8") as f:
+            mod = f.read()
 
-    cleaned, i = clean_mod(mod)
-    if i > 0:
-        with open(Path(args.mod_path).with_suffix(".cleaned"), "w", encoding="utf-8") as f:
-            f.write(cleaned)
+        cleaned, i = clean_mod(mod)
+        if i > 0:
+            dest_path = Path(args.mod_path).with_suffix(".cleaned")
+            print(f"Saving cleaned mod to '{dest_path}'")
+            with open(dest_path, "w", encoding="utf-8") as f:
+                f.write(cleaned)
     
