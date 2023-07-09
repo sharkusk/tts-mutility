@@ -6,8 +6,9 @@ from textual.widgets import Footer, Header, DataTable, Markdown
 
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
-from ..utility.util import format_time
+from ..utility.util import format_time, make_safe_filename
 from ..data.config import load_config
+from ..dialogs.InfoDialog import InfoDialog
 
 from pathlib import Path
 
@@ -16,6 +17,7 @@ class AssetListScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
         ("d", "download_asset", "Download Asset"),
+        ("r", "missing_report", "Missing Report"),
     ]
 
     class AssetSelected(Message):
@@ -251,3 +253,18 @@ class AssetListScreen(Screen):
             self.assets[row_key],
         ]
         self.post_message(self.DownloadSelected(self.mod_dir, self.save_dir, assets))
+
+    def action_missing_report(self):
+        config = load_config()
+
+        outname = (
+            Path(config.mod_backup_dir) / make_safe_filename(self.mod_name)
+        ).with_suffix(".missing.csv")
+        with open(outname, "w", encoding="utf-8") as f:
+            for url in self.assets:
+                if self.assets[url]["dl_status"] != "":
+                    f.write(
+                        f"{url}, {self.assets[url]['dl_status']}, ({self.assets[url]['trail']})\n"
+                    )
+
+        self.app.push_screen(InfoDialog(f"Saved missing asset report to '{outname}'."))

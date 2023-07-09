@@ -12,16 +12,8 @@ from textual.worker import get_current_worker
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
+from ..utility.util import make_safe_filename
 from .TTSWorker import TTSWorker
-
-
-def make_safe_filename(filename):
-    return "".join(
-        [
-            c if c.isalpha() or c.isdigit() or c in " ()[]-_{}." else "-"
-            for c in filename
-        ]
-    ).rstrip()
 
 
 class ModBackup(TTSWorker):
@@ -127,7 +119,7 @@ class ModBackup(TTSWorker):
                         mod_png_path,
                         os.path.splitext(zip_path)[0] + ".png",
                     )
-            
+
             if cancelled:
                 self.post_message(self.UpdateLog(f"Backup cancelled."))
                 os.remove(zip_path)
