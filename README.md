@@ -31,7 +31,7 @@ Once installed the app can be run by typing:
 
 ## Configuring ttsmutility Paths
 
-After the first run a config file is created in the xdg config directory.  This is typically `~/.config/ttsmutility`.  TTS paths can be configured there accordingly.
+After the first run a config file is created in the xdg config directory.  This is typically `~/.config/ttsmutility` (Linux) or `C:\Users\[username]\.config\ttsmutility` (Windows).  TTS paths can be configured there accordingly.
 
 ## Commandline options
 
