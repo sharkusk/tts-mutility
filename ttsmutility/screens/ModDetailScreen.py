@@ -12,7 +12,7 @@ from textual.containers import VerticalScroll
 from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Footer, Label, Markdown, TabbedContent, TabPane
+from textual.widgets import Footer, Label, Markdown, TabbedContent, TabPane, Header
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -54,8 +54,9 @@ class ModDetailScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        yield Label(id="md_title")
-        yield Label(id="md_infection_warning")
+        yield Header()
+        yield Label(id="title")
+        yield Label(id="infection_warning")
         with TabbedContent(initial="md_pane_mod"):
             with TabPane("Mod Details", id="md_pane_mod"):
                 with VerticalScroll(id="md_scroll_mod"):
@@ -77,9 +78,9 @@ class ModDetailScreen(Screen):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
         self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
         self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
-        self.query_one("#md_title").update(self.mod_detail["name"])
+        self.query_one("#title").update(self.mod_detail["name"])
         if self.is_infected():
-            iw = self.query_one("#md_infection_warning")
+            iw = self.query_one("#infection_warning")
             iw.update(
                 "WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!"
             )

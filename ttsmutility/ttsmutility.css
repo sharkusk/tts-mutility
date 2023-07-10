@@ -206,7 +206,7 @@ MarkdownFence {
     height: 1fr;
 }
 
-#md_title {
+#title {
     width: 100%;
     background: $primary;
     padding: 1;
@@ -214,7 +214,7 @@ MarkdownFence {
 
 }
 
-#md_infection_warning {
+#infection_warning {
     height: 0;
     width: 100%;
     visibility: hidden;
@@ -223,7 +223,7 @@ MarkdownFence {
     text-align: center;
 }
 
-#md_infection_warning.unhide {
+#infection_warning.unhide {
     visibility: visible;
     height: auto;
 }

@@ -1,16 +1,17 @@
+from pathlib import Path
+
 from textual.app import ComposeResult
 from textual.containers import Center
-from textual.screen import Screen
 from textual.message import Message
-from textual.widgets import Footer, Header, DataTable, Markdown
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer, Header, Label
 
-from ..parse.AssetList import AssetList
-from ..parse.ModList import ModList
-from ..utility.util import format_time, make_safe_filename
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
-
-from pathlib import Path
+from ..parse.AssetList import AssetList
+from ..parse.ModList import ModList
+from ..parse.ModParser import INFECTION_URL
+from ..utility.util import format_time, make_safe_filename
 
 
 class AssetListScreen(Screen):
@@ -42,8 +43,9 @@ class AssetListScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
+        yield Label(id="title")
+        yield Label(id="infection_warning")
         with Center(id="al_center"):
-            yield Markdown(id="al_modname")
             yield DataTable(id="asset-list")
 
     def on_mount(self) -> None:
@@ -61,6 +63,13 @@ class AssetListScreen(Screen):
         self.save_dir = config.tts_saves_dir
 
         asset_list = AssetList()
+        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        if self.mod_name in infected_mods:
+            iw = self.query_one("#infection_warning")
+            iw.update(
+                "WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!"
+            )
+            iw.add_class("unhide")
 
         table = next(self.query("#asset-list").results(DataTable))
         table.focus()
@@ -68,8 +77,7 @@ class AssetListScreen(Screen):
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order["url"])
 
-        name = self.query_one("#al_modname")
-        name.update(f"# {self.mod_name}")
+        self.query_one("#title").update(self.mod_name)
 
         table.clear(columns=True)
         table.focus()
@@ -262,7 +270,10 @@ class AssetListScreen(Screen):
         ).with_suffix(".missing.csv")
         with open(outname, "w", encoding="utf-8") as f:
             for url in self.assets:
-                if self.assets[url]["dl_status"] != "" or self.assets[url]["fsize"] == 0:
+                if (
+                    self.assets[url]["dl_status"] != ""
+                    or self.assets[url]["fsize"] == 0
+                ):
                     f.write(
                         f"{url}, {self.assets[url]['dl_status']}, ({self.assets[url]['trail']})\n"
                     )
