@@ -9,10 +9,10 @@ import requests
 from PIL import Image
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
+from textual.css.query import NoMatches
 from textual.events import Key
-from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Footer, Label, Markdown, TabbedContent, TabPane, Header
+from textual.widgets import Footer, Header, Label, Markdown, TabbedContent, TabPane
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -23,7 +23,6 @@ from ..parse.BggSearch import BggSearch
 from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
-
 from .AssetListScreen import AssetListScreen
 
 
@@ -398,6 +397,11 @@ class ModDetailScreen(Screen):
             new_event = TabbedContent.TabActivated(tabbed_content, pane)
             self.post_message(new_event)
             event.stop()
+        if event.key == "escape":
+            status_center = self.query_one("#worker_center")
+            if status_center.has_class("unhide"):
+                status_center.remove_class("unhide")
+                event.stop()
 
     def update_asset(
         self,

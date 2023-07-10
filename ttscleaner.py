@@ -1,6 +1,6 @@
 # Written by Sharkus
 
-from argparse import ArgumentParser, FileType
+from argparse import ArgumentParser
 from pathlib import Path
 import re
 import sys
