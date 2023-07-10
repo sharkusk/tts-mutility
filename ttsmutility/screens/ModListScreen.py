@@ -20,6 +20,8 @@ from ..dialogs.InfoDialog import InfoDialog
 from .DebugScreen import DebugScreen
 from .ModDetailScreen import ModDetailScreen
 
+import csv
+
 
 # Remove this once Rich accepts pull request #3016
 class MyText(Text):
@@ -50,6 +52,7 @@ class ModListScreen(Screen):
         ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches"),
         ("ctrl+r", "mod_refresh", "Refresh Mod"),
         ("ctrl+n", "content_name_report", "Content Name Report"),
+        ("ctrl+l", "content_name_load", "Load Content Names"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -477,3 +480,27 @@ class ModListScreen(Screen):
                 f.write(f"{url}, {cn}\n")
 
         self.app.push_screen(InfoDialog(f"Saved content name report to '{outname}'."))
+
+    def action_content_name_load(self):
+        config = load_config()
+
+        urls = []
+        content_names = []
+
+        inname = Path(config.mod_backup_dir) / "content_names.csv"
+
+        if not inname.exists():
+            self.app.push_screen(InfoDialog(f"'{inname}' not found, unable to load content names."))
+            return
+
+        with open(inname, "r", encoding="utf-8") as f:
+            csv_file = csv.reader(f)
+
+            for lines in csv_file:
+                urls.append(lines[0].strip())
+                content_names.append(lines[1].strip())
+
+        asset_list = AssetList()
+        asset_list.set_content_names(urls, content_names)
+
+        self.app.push_screen(InfoDialog(f"Loaded content names from '{inname}'."))
