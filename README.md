@@ -87,7 +87,16 @@ options:
 0.0.2
 ```
 
-Sample output from scan:
+Sample output from default clean option. Note: the tool will not overwrite the mod.  Instead it creates a "clean" copy with the file extension ".cleaned".
+
+```
+> python .\ttscleaner.py 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.json'
+Cleaning mod 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.json'
+Cleaned 5 infected objects
+Saving cleaned mod to 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.cleaned'
+```
+
+Sample output from scan operation:
 
 ```
 > python .\ttscleaner.py --scan 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.json'
