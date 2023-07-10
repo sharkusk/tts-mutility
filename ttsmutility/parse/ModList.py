@@ -387,6 +387,16 @@ class ModList:
             # This should not fail as we init to zero as part of DB init
             prev_scan_time = cursor.fetchone()[0]
 
+            cursor = db.execute(
+                """
+                SELECT mod_filename
+                FROM tts_mods
+            """
+            )
+            # This should not fail as we init to zero as part of DB init
+            results = cursor.fetchall()
+            mod_filenames = list(zip(*results))[0]
+
             for root_dir, base_dir in [
                 (self.mod_dir, "Workshop"),
                 (self.save_dir, "Saves"),
@@ -410,6 +420,7 @@ class ModList:
                     if (
                         os.path.getmtime(self._get_mod_path(f)) > prev_scan_time
                         or force_refresh
+                        or f not in mod_filenames
                     ):
                         mod_list.append((f,))
 
