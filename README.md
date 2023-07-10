@@ -51,7 +51,7 @@ options:
   --skip-asset-scan     Do not scan filesystem for new assets during init
 ```
 
-## Additional Screenshots
+## Additional ttsmutility Screenshots
 
 ### Mod Details
 ![Screenshot_20230708_100830](https://github.com/sharkusk/tts-mutility/assets/4368882/dfe2ddae-23e9-4e87-a24a-e80bff5c316d)
@@ -61,3 +61,41 @@ options:
 
 ### Asset Detail
 ![Screenshot_20230708_102647](https://github.com/sharkusk/tts-mutility/assets/4368882/5ba672bf-7d42-4e43-bd30-7f89d7f98d94)
+
+### Virus Alert
+![Screenshot 2023-07-10 124257](https://github.com/sharkusk/tts-mutility/assets/4368882/a257b5d4-a2b7-4df0-8484-7d9409ed5864)
+
+# ttscleaner.py - TTS Script Virus Removal Tool
+
+A stand alone tool is also available to remove the TTS virus from Mods and Saves.  **Please store a backup of your original mod.**
+
+```
+$ python .\ttscleaner.py --help
+usage: ttscleaner [-h] [-v] [-s] [--no-sig] mod_path
+
+ttscleaner - Tabletop Simulator mod virus removal tool
+
+positional arguments:
+  mod_path
+
+options:
+  -h, --help     show this help message and exit
+  -v, --version  Show version information.
+  -s, --scan     Scan and print virus info
+  --no-sig       Do not add signature in place of virus
+
+0.0.2
+```
+
+Sample output from scan:
+
+```
+> python .\ttscleaner.py --scan 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.json'
+Scanning mod 'C:\Program Files (x86)\Steam\steamapps\common\Tabletop Simulator\Tabletop Simulator_Data\Mods\Workshop\2967684892.json'
+Virus detected: ObjectStates->"Sample infected cards"->ContainedObjects->"Card"->LuaScript
+Virus detected: ObjectStates->"Sample infected cards"->ContainedObjects->"Card"->LuaScript
+Virus detected: ObjectStates->"Sample infected cards"->ContainedObjects->"Card"->LuaScript
+Virus detected: ObjectStates->"Sample infected cards"->ContainedObjects->"Card"->LuaScript
+Virus detected: ObjectStates->"Sample infected cards"->ContainedObjects->"Card"->LuaScript
+Detected 5 infected objects
+```
