@@ -65,6 +65,22 @@ MarkdownH1
     height: auto;
 }
 
+/*
+MarkdownTable {
+    width: 1fr;
+}
+
+MarkdownTableContent {
+    width: auto;
+    padding: 0;
+}
+*/
+
+MarkdownFence {
+    width: auto;
+    max-height: 100%;
+}
+
 #info_container {
     height: 90%;
     width: 90%;
@@ -196,4 +212,18 @@ MarkdownH1
     padding: 1;
     text-align: center;
 
+}
+
+#md_infection_warning {
+    height: 0;
+    width: 100%;
+    visibility: hidden;
+    background: red;
+    padding: 0;
+    text-align: center;
+}
+
+#md_infection_warning.unhide {
+    visibility: visible;
+    height: auto;
 }

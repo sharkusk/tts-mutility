@@ -9,10 +9,10 @@ import requests
 from PIL import Image
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.message import Message
 from textual.events import Key
+from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Footer, Markdown, TabbedContent, TabPane, Label
+from textual.widgets import Footer, Label, Markdown, TabbedContent, TabPane
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -55,6 +55,7 @@ class ModDetailScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Footer()
         yield Label(id="md_title")
+        yield Label(id="md_infection_warning")
         with TabbedContent(initial="md_pane_mod"):
             with TabPane("Mod Details", id="md_pane_mod"):
                 with VerticalScroll(id="md_scroll_mod"):
@@ -77,6 +78,12 @@ class ModDetailScreen(Screen):
         self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
         self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
         self.query_one("#md_title").update(self.mod_detail["name"])
+        if self.is_infected():
+            iw = self.query_one("#md_infection_warning")
+            iw.update(
+                "WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!"
+            )
+            iw.add_class("unhide")
 
     def format_list(self, l):
         return "\n- ".join(l).join(["\n- ", "\n"])
@@ -89,17 +96,16 @@ class ModDetailScreen(Screen):
             image_path = self.save_dir / Path(self.filename).with_suffix(".png")
         return image_path
 
-    def get_markdown_common(self) -> dict:
-        mod_detail = self.mod_detail.copy()
-
+    def is_infected(self) -> bool:
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
-        if mod_detail["name"] in infected_mods:
-            mod_detail[
-                "infection_warning"
-            ] = "\n\n\n## WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!\n\n\n"
+        if self.mod_detail["name"] in infected_mods:
+            return True
         else:
-            mod_detail["infection_warning"] = ""
+            return False
+
+    def get_markdown_common(self) -> dict:
+        mod_detail = self.mod_detail.copy()
 
         mod_detail[
             "steam_link"
@@ -150,9 +156,20 @@ class ModDetailScreen(Screen):
         with md_filepath.open("r") as f:
             mod_detail_steam = f.read()
 
-        mod_detail["steam_desc"] = self.bs.get_steam_description(
-            Path(self.filename).stem, self.force_update
+        mod_detail.update(
+            self.bs.get_steam_details(Path(self.filename).stem, self.force_update)
         )
+
+        mod_detail["time_created"] = format_time(mod_detail["time_created"])
+        mod_detail["time_updated"] = format_time(mod_detail["time_updated"])
+
+        if len(mod_detail["tags"]) > 0:
+            mod_detail["tag_list"] = self.format_list(
+                [d["tag"] for d in mod_detail["tags"]]
+            )
+        else:
+            mod_detail["tag_list"] = "- N/A"
+
         steam_md = mod_detail_steam.format(**mod_detail)
         return steam_md
 

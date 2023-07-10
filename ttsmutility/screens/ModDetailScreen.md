@@ -1,5 +1,3 @@
-{infection_warning}
-
 - Filename: [{filename}]({uri_short})
 - Steam Link: [{steam_link}]({steam_link})
 {mod_image}

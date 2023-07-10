@@ -366,8 +366,22 @@ class BggSearch:
             steam_text = steam_text.replace(*tag)
         return steam_text
 
-    def get_steam_description(self, steam_id, force_update):
-        md = ""
+    def get_steam_details(self, steam_id: str, force_update: bool) -> dict:
+        steam_info = {
+            "creator": 0,
+            "title": "",
+            "preview_url": "",
+            "description": "",
+            "time_created": 0,
+            "time_updated": 0,
+            "subscriptions": 0,
+            "lifetime_subscriptions": 0,
+            "favorited": 0,
+            "lifetime_favorited": 0,
+            "views": 0,
+            "tags": [],
+            "md": "",
+        }
         if steam_id.isdigit():
             url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
             cache_path = (
@@ -393,13 +407,19 @@ class BggSearch:
                     return ""
             data_j = json.loads(data)
             try:
-                description = data_j["response"]["publishedfiledetails"][0][
-                    "description"
-                ]
+                details = data_j["response"]["publishedfiledetails"][0]
             except KeyError:
                 # No description available on steam page
-                return md
+                return steam_info
 
-            md = markdownify(self.steam_to_html(description))
+            for key in steam_info:
+                try:
+                    steam_info[key] = details[key]
+                except KeyError:
+                    pass
 
-        return md
+            steam_info["steam_desc"] = markdownify(
+                self.steam_to_html(steam_info["description"])
+            )
+
+        return steam_info

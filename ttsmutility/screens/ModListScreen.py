@@ -194,6 +194,8 @@ class ModListScreen(Screen):
             name = name[4:].strip()
         if name[0] == "+":
             name = name[1:].strip()
+        if name[0] == '"':
+            name = name.replace('"', "")
 
         return name
 
@@ -490,7 +492,9 @@ class ModListScreen(Screen):
         inname = Path(config.mod_backup_dir) / "content_names.csv"
 
         if not inname.exists():
-            self.app.push_screen(InfoDialog(f"'{inname}' not found, unable to load content names."))
+            self.app.push_screen(
+                InfoDialog(f"'{inname}' not found, unable to load content names.")
+            )
             return
 
         with open(inname, "r", encoding="utf-8") as f:
