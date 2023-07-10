@@ -10,7 +10,12 @@ from pathlib import Path
 from xdg_base_dirs import xdg_config_home
 
 import platform
-from .data_directory import data_directory, bgg_cache_directory, mod_backup_directory, asset_backup_directory
+from .data_directory import (
+    data_directory,
+    bgg_cache_directory,
+    mod_backup_directory,
+    asset_backup_directory,
+)
 
 gamedata_map = {
     "Windows": "Documents/My Games/Tabletop Simulator",
@@ -29,31 +34,38 @@ class Config:
     """The markdown viewer configuration."""
 
     tts_mods_dir: Path = str(GAMEDATA_DEFAULT / "Mods")
-    """Location of the Tabletop Simulator 'Mods' directory"""
+    tts_mods_dir_help: str = "Location of the Tabletop Simulator 'Mods' directory."
 
     tts_saves_dir: Path = str(GAMEDATA_DEFAULT)
-    """Location of the Tabletop Simulator user directory (this directory contains the "Saves" subdirectory)"""
+    tts_saves_dir_help: str = "Location of the Tabletop Simulator user directory (this directory contains the 'Saves' subdirectory)."
 
     db_path: Path = str(data_directory() / "ttsmutility.sqlite")
-    """Location of the TTSMutility DB file"""
+    db_path_help: str = "The complete path (dir and filename) for the sqlite3 database."
 
     log_path: Path = str(data_directory() / "ttsmutility_log.md")
-    """Location of the TTSMutility Log file"""
+    log_path_help: str = "The complete path (dir and filename) for the log file (can be disabled as argument)."
 
     bgg_cache_dir: Path = str(bgg_cache_directory())
-    """Location of the TTSMutility Log file"""
+    bgg_path_dir_help: str = "Location to cache BGG and Steam description files."
 
     mod_backup_dir: Path = str(mod_backup_directory())
-    """Location where we put our mod backups"""
+    mod_backup_dir_help: str = (
+        "Location where mods should be stored during backup operation."
+    )
 
     asset_backup_dir: Path = str(asset_backup_directory())
-    """Location where we move bad assets"""
+    asset_backup_dir_help: str = "Location where bad assets should be disposed."
 
     metadata_invalidate_days: str = "7"
-    """How many days before metadata is refreshed from BGG or Steam"""
+    metadata_invalidate_days_help: str = (
+        "How many days before metadata is refreshed from Steam and BGG"
+    )
 
     steam_api_key: str = ""
-    """Optional Steam API key (must be supplied by user)"""
+    steam_api_key_help: str = (
+        "Personal Steam API key. Not currently used, so completely optional."
+    )
+
 
 def config_file() -> Path:
     """Get the path to the configuration file.
