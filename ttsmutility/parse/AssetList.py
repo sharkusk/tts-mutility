@@ -251,8 +251,10 @@ class AssetList:
             if not skip:
                 urls.append((result[0], trailstring_to_trail(result[4])))
         return urls
-    
-    def fix_duplicate_files(self, root, path, filename, asset_filename, dup_ext, dup_path) -> list:
+
+    def fix_duplicate_files(
+        self, root, path, filename, asset_filename, dup_ext, dup_path
+    ) -> list:
         # We have file_stems (i.e. filenames without the ext)
         # that match in our DB.  However, the extensions are not the
         # same or there are duplicate files with diff extensions.
@@ -289,9 +291,7 @@ class AssetList:
                                 )
                             else:
                                 # Is this going to the current path?
-                                if filepath.with_suffix(
-                                    ""
-                                ) == newpath.with_suffix(""):
+                                if filepath.with_suffix("") == newpath.with_suffix(""):
                                     no_dupes.append(dup_stem + ext)
                                     os.rename(filepath, newpath)
                                 else:
@@ -337,8 +337,14 @@ class AssetList:
                 """,
             )
             results = cursor.fetchall()
-            asset_stems, asset_exts, asset_paths = list(zip(*results))
-            asset_filenames = set(map(str.__add__, asset_stems, asset_exts))
+            if len(results) > 0:
+                asset_stems, asset_exts, asset_paths = list(zip(*results))
+                asset_filenames = set(map(str.__add__, asset_stems, asset_exts))
+            else:
+                asset_stems = []
+                asset_exts = []
+                asset_paths = []
+                asset_filenames = set()
 
             assets = []
             for root, _, files in os.walk(self.mod_dir, topdown=True):
@@ -358,8 +364,9 @@ class AssetList:
 
                     update_asset = False
                     # Determine why there is a difference.
-                    i = asset_stems.index(filename.stem)
-                    if i == -1:
+                    try:
+                        i = asset_stems.index(filename.stem)
+                    except ValueError:
                         # This is a brand new asset, not in our DB
                         update_asset = True
                     else:
@@ -369,10 +376,14 @@ class AssetList:
                             # we can simply update the DB.
                             update_asset = True
                         else:
-                            if (correct_ext := detect_file_type(Path(root) / filename)) == "":
+                            if (
+                                correct_ext := detect_file_type(Path(root) / filename)
+                            ) == "":
                                 # Unknown file, just leave it alone...
                                 continue
-                            correct_filepath = get_fs_path_from_extension("", correct_ext, filename.stem)
+                            correct_filepath = get_fs_path_from_extension(
+                                "", correct_ext, filename.stem
+                            )
                             correct_path = pathlib.PurePath(correct_filepath).parent
 
                             if asset_exts[i] != filename.suffix:
@@ -381,14 +392,29 @@ class AssetList:
                                     if asset_exts[i] != correct_ext:
                                         update_asset = True
                                 else:
-                                    if (Path(root) / filename).with_suffix(correct_ext).exists():
+                                    if (
+                                        (Path(root) / filename)
+                                        .with_suffix(correct_ext)
+                                        .exists()
+                                    ):
                                         # Remove the files that have the wrong extension
-                                        move(Path(root) / filename, Path(self.config.asset_backup_dir) / filename)
+                                        move(
+                                            Path(root) / filename,
+                                            Path(self.config.asset_backup_dir)
+                                            / filename,
+                                        )
                                     else:
                                         # Rename file to have correct ext
-                                        os.rename(Path(root) / filename, (Path(root) / filename).with_suffix(correct_ext))
+                                        os.rename(
+                                            Path(root) / filename,
+                                            (Path(root) / filename).with_suffix(
+                                                correct_ext
+                                            ),
+                                        )
                                         # Need to set new suffix to filename since it may be used later
-                                        filename = Path(filename).with_suffix(correct_ext)
+                                        filename = Path(filename).with_suffix(
+                                            correct_ext
+                                        )
 
                             if asset_paths[i] != path:
                                 # Asset exists in DB but has a different path.
@@ -397,12 +423,25 @@ class AssetList:
                                         update_asset = True
                                 else:
                                     # Move the files to correct directory or remove if already exists
-                                    if (Path(self.config.tts_mods_dir) / correct_path / filename).exists():
+                                    if (
+                                        Path(self.config.tts_mods_dir)
+                                        / correct_path
+                                        / filename
+                                    ).exists():
                                         # Remove the files that are in the wrong spot and already have a file
                                         # in the correct destination that matches
-                                        move(Path(root) / filename, Path(self.config.asset_backup_dir) / filename)
+                                        move(
+                                            Path(root) / filename,
+                                            Path(self.config.asset_backup_dir)
+                                            / filename,
+                                        )
                                     else:
-                                        move(Path(root) / filename, Path(self.config.tts_mods_dir) / correct_path / filename)
+                                        move(
+                                            Path(root) / filename,
+                                            Path(self.config.tts_mods_dir)
+                                            / correct_path
+                                            / filename,
+                                        )
 
                     if update_asset:
                         filepath = Path(root) / filename
@@ -411,7 +450,7 @@ class AssetList:
                         assets.append(
                             (path, filename.stem, filename.suffix, mtime, size, 1)
                         )
-                
+
             cursor = db.executemany(
                 """
                 INSERT INTO tts_assets

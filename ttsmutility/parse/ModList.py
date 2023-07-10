@@ -393,9 +393,11 @@ class ModList:
                 FROM tts_mods
             """
             )
-            # This should not fail as we init to zero as part of DB init
             results = cursor.fetchall()
-            mod_filenames = list(zip(*results))[0]
+            if len(results) > 0:
+                mod_filenames = list(zip(*results))[0]
+            else:
+                mod_filenames = []
 
             for root_dir, base_dir in [
                 (self.mod_dir, "Workshop"),
