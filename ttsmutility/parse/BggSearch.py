@@ -166,7 +166,11 @@ class BggSearch:
         for d in game:
             # Only store the primary name
             if d.tag == "name" and d.attrib["type"] == "primary":
-                game_info["name"] = d.attrib["value"]
+                game_info["bgg_name"] = d.attrib["value"]
+            elif d.tag == "name" and game_info["bgg_name"] == "":
+                # Only use alternative name if we haven't already found
+                # a name.
+                game_info["bgg_name"] = d.attrib["value"]
             elif d.tag in self.BGG_TEXT_FIELDS:
                 # For some reason BGG lists do not contain anything other
                 # than 4 or 5 spaces.  Replace with appropriate markdown
@@ -396,6 +400,6 @@ class BggSearch:
                 # No description available on steam page
                 return md
 
-            md = "## Steam Description\n" + markdownify(self.steam_to_html(description))
+            md = markdownify(self.steam_to_html(description))
 
         return md

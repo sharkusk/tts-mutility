@@ -1,6 +1,6 @@
 {infection_warning}
 
-## BGG Game Details
+#### {bgg_name}
 
 - BoardGameGeek Link: [{bgg_link}]({bgg_link})
 - ![Image]({image}) <----- [Set TSS Thumb]({dl_image_url})

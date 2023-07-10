@@ -256,8 +256,6 @@ class ModDetailScreen(Screen):
     def get_markdown_bgg(self) -> str:
         mod_detail = self.get_markdown_common()
 
-        mod_detail_bgg = ""
-
         if (bgg_id := mod_detail["bgg_id"]) is None:
             mod_detail["bgg_link"] = ""
             return "# No BoardGameGeek ID is associated with this game."
