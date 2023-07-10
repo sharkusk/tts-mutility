@@ -4,6 +4,7 @@ from textual.app import ComposeResult
 from textual.containers import Center
 from textual.message import Message
 from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import DataTable, Footer, Header, Label
 
 from ..data.config import load_config
@@ -14,7 +15,7 @@ from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time, make_safe_filename
 
 
-class AssetListScreen(Screen):
+class AssetListScreen(Widget):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
         ("d", "download_asset", "Download Asset"),
@@ -33,20 +34,20 @@ class AssetListScreen(Screen):
             self.assets = assets
             super().__init__()
 
-    def __init__(self, mod_filename: str, mod_name: str) -> None:
+    def __init__(self, mod_filename: str, mod_name: str, al_id: str = "") -> None:
         self.mod_filename = mod_filename
         self.mod_name = mod_name
         self.current_row = 0
         self.url_width = 40
+        if id == "":
+            self.al_id = "asset-list"
+        else:
+            self.al_id = al_id
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield Header()
-        yield Footer()
-        yield Label(id="title")
-        yield Label(id="infection_warning")
         with Center(id="al_center"):
-            yield DataTable(id="asset-list")
+            yield DataTable(id=self.al_id)
 
     def on_mount(self) -> None:
         self.sort_order = {
@@ -63,21 +64,12 @@ class AssetListScreen(Screen):
         self.save_dir = config.tts_saves_dir
 
         asset_list = AssetList()
-        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
-        if self.mod_name in infected_mods:
-            iw = self.query_one("#infection_warning")
-            iw.update(
-                "WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!"
-            )
-            iw.add_class("unhide")
 
-        table = next(self.query("#asset-list").results(DataTable))
+        table = next(self.query("#" + self.al_id).results(DataTable))
         table.focus()
 
         table.cursor_type = "row"
         table.sort("url", reverse=self.sort_order["url"])
-
-        self.query_one("#title").update(self.mod_name)
 
         table.clear(columns=True)
         table.focus()
@@ -182,7 +174,7 @@ class AssetListScreen(Screen):
             return
 
         readable_asset = self.format_asset(asset)
-        table = next(self.query("#asset-list").results(DataTable))
+        table = next(self.query("#" + self.al_id).results(DataTable))
         col_keys = ["url", "mtime", "fsize", "trail", "ext"]
         table.update_cell(
             row_key, col_keys[0], readable_asset["url"], update_width=True
@@ -254,7 +246,7 @@ class AssetListScreen(Screen):
         event.data_table.sort(event.column_key, reverse=reverse)
 
     def action_download_asset(self):
-        table = next(self.query("#asset-list").results(DataTable))
+        table = next(self.query("#" + self.al_id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
         assets = [

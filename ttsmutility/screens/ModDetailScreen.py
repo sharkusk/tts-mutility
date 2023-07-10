@@ -24,20 +24,15 @@ from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
 
+from .AssetListScreen import AssetListScreen
+
 
 class ModDetailScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
-        ("a", "asset_list", "Asset List"),
         ("b", "bgg_lookup", "BGG Lookup"),
         ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
     ]
-
-    class AssetsSelected(Message):
-        def __init__(self, mod_filename: str, mod_name: str) -> None:
-            self.mod_filename = mod_filename
-            self.mod_name = mod_name
-            super().__init__()
 
     def __init__(self, filename: str, force_md_update: bool = False) -> None:
         self.filename = filename
@@ -73,6 +68,10 @@ class ModDetailScreen(Screen):
                     yield Markdown(
                         id="md_markdown_bgg",
                     )
+            with TabPane("Asset List", id="md_pane_assets"):
+                yield AssetListScreen(
+                    self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
+                )
 
     def on_mount(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
@@ -326,9 +325,6 @@ class ModDetailScreen(Screen):
     def refresh_mod_details(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
 
-    def action_asset_list(self):
-        self.post_message(self.AssetsSelected(self.filename, self.mod_detail["name"]))
-
     def action_bgg_lookup_input(self, msg: str = "Please enter search string:"):
         def set_name(name: str) -> None:
             self.action_bgg_lookup(name)
@@ -386,6 +382,7 @@ class ModDetailScreen(Screen):
             "md_pane_mod",
             "md_pane_steam",
             "md_pane_bgg",
+            "md_pane_assets",
         ]
         if event.key == "tab":
             tabbed_content = self.query_one(TabbedContent)
@@ -401,3 +398,11 @@ class ModDetailScreen(Screen):
             new_event = TabbedContent.TabActivated(tabbed_content, pane)
             self.post_message(new_event)
             event.stop()
+
+    def update_asset(
+        self,
+        asset,
+    ) -> None:
+        pane = next(self.query("#md_pane_assets").results(TabPane))
+        al = pane.children[0]
+        al.update_asset(asset)

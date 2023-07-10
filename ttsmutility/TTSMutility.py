@@ -18,7 +18,6 @@ from .data.db import create_new_db, update_db_schema
 from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
-from .screens.DebugScreen import DebugScreen
 from .screens.ModDetailScreen import ModDetailScreen
 from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
@@ -165,7 +164,7 @@ class TTSMutility(App):
         self.write_log(f"Initialization complete.")
         self.f_log.flush()
 
-    def force_refresh_mod(self, mod_filename:str) -> None:
+    def force_refresh_mod(self, mod_filename: str) -> None:
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
 
@@ -283,8 +282,8 @@ class TTSMutility(App):
     def on_downloader_file_download_complete(
         self, event: Downloader.FileDownloadComplete
     ):
-        if self.is_screen_installed("asset_list"):
-            screen = self.get_screen("asset_list")
+        if self.is_screen_installed("mod_details"):
+            screen = self.get_screen("mod_details")
             screen.update_asset(event.asset)
 
     def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
@@ -306,13 +305,6 @@ class TTSMutility(App):
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
         self.load_screen(
             ModDetailScreen(event.filename, self.force_md_update), "mod_details"
-        )
-
-    def on_mod_detail_screen_assets_selected(
-        self, event: ModDetailScreen.AssetsSelected
-    ):
-        self.load_screen(
-            AssetListScreen(event.mod_filename, event.mod_name), "asset_list"
         )
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
