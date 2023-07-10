@@ -39,7 +39,7 @@ class AssetListScreen(Widget):
         self.mod_name = mod_name
         self.current_row = 0
         self.url_width = 40
-        if id == "":
+        if al_id == "":
             self.al_id = "asset-list"
         else:
             self.al_id = al_id
@@ -84,6 +84,11 @@ class AssetListScreen(Widget):
         self.assets = {}
 
         for i, asset in enumerate(assets):
+            if asset["url"] in self.assets:
+                # When showing sha1 mismatches we can sometimes have multiple
+                # matches with the same URL being used by multiple mods.
+                # Ignore the dups as we only need a single match.
+                continue
             self.assets[asset["url"]] = asset
             readable_asset = self.format_asset(asset)
             table.add_row(

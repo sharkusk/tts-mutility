@@ -25,6 +25,7 @@ from .workers.downloader import Downloader
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
 from .workers.backup import ModBackup
+from .screens.MissingAssetScreen import MissingAssetScreen
 
 
 class TTSMutility(App):
@@ -318,6 +319,9 @@ class TTSMutility(App):
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)
+
+    def on_mod_list_screen_show_sha1(self, event: ModListScreen.ShowSha1):
+        self.app.push_screen(MissingAssetScreen("sha1", "SHA1 Mismatches"))
 
     # ████████╗████████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗
     # ╚══██╔══╝╚══██╔══╝██╔════╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗

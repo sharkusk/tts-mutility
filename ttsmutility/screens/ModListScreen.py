@@ -1,3 +1,4 @@
+import csv
 from itertools import filterfalse
 from pathlib import Path
 from webbrowser import open as open_url
@@ -12,15 +13,14 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
 
 from ..data.config import config_file, load_config
+from ..dialogs.InfoDialog import InfoDialog
+from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse import ModList
 from ..parse.AssetList import AssetList
 from ..parse.ModParser import INFECTION_URL
 from ..utility.util import format_time
-from ..dialogs.InfoDialog import InfoDialog
 from .DebugScreen import DebugScreen
-from .ModDetailScreen import ModDetailScreen
-
-import csv
+from .MissingAssetScreen import MissingAssetScreen
 
 
 # Remove this once Rich accepts pull request #3016
@@ -44,15 +44,10 @@ class ModListScreen(Screen):
     BINDINGS = [
         ("q", "exit", "Quit"),
         ("/", "filter", "Filter"),
-        ("s", "scan_sha1", "Scan SHA1s"),
-        ("d", "download_assets", "Download Assets"),
+        ("m", "mod_ops", "Mod Operations"),
+        ("g", "global_ops", "Global Operations"),
         ("l", "view_log", "View Log"),
         ("c", "open_config", "Open Config"),
-        ("ctrl+b", "backup_mod", "Backup"),
-        ("ctrl+s", "sha1_mismatches", "SHA1 Mismatches"),
-        ("ctrl+r", "mod_refresh", "Refresh Mod"),
-        ("ctrl+n", "content_name_report", "Content Name Report"),
-        ("ctrl+l", "content_name_load", "Load Content Names"),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -120,6 +115,10 @@ class ModListScreen(Screen):
             self.save_dir = save_dir
             self.mod_filename = mod_filename
             self.mod_name = mod_name
+            super().__init__()
+
+    class ShowSha1(Message):
+        def __init__(self) -> None:
             super().__init__()
 
     def on_mount(self) -> None:
@@ -457,7 +456,7 @@ class ModListScreen(Screen):
         self.update_filtered_rows()
 
     def action_sha1_mismatches(self):
-        self.post_message(ModDetailScreen.AssetsSelected("sha1", "SHA1 Mismatches"))
+        self.post_message(self.ShowSha1())
 
     def action_mod_refresh(self):
         tabbed = self.query_one(TabbedContent)
@@ -508,3 +507,28 @@ class ModListScreen(Screen):
         asset_list.set_content_names(urls, content_names)
 
         self.app.push_screen(InfoDialog(f"Loaded content names from '{inname}'."))
+
+    def action_mod_ops(self):
+        options = [
+            ("Download Missing Assets", self.action_download_assets),
+            ("Backup Mod", self.action_backup_mod),
+            ("Refresh Mod", self.action_mod_refresh),
+        ]
+
+        def run_op(index: int) -> None:
+            options[index][1]()
+
+        self.app.push_screen(SelectOptionDialog(list(zip(*options))[0]), run_op)
+
+    def action_global_ops(self):
+        options = [
+            ("Compute SHA1s", self.action_scan_sha1),
+            ("Show SHA1 Mismatches", self.action_sha1_mismatches),
+            ("Save Content_Name Report", self.action_content_name_report),
+            ("Load Content_Names", self.action_content_name_load),
+        ]
+
+        def run_op(index: int) -> None:
+            options[index][1]()
+
+        self.app.push_screen(SelectOptionDialog(list(zip(*options))[0]), run_op)
