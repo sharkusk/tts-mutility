@@ -8,10 +8,11 @@ from webbrowser import open as open_url
 import requests
 from PIL import Image
 from textual.app import ComposeResult
-from textual.containers import Container, VerticalScroll
+from textual.containers import VerticalScroll
 from textual.message import Message
+from textual.events import Key
 from textual.screen import Screen
-from textual.widgets import Footer, Markdown
+from textual.widgets import Footer, Markdown, TabbedContent, TabPane, Label
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -48,16 +49,34 @@ class ModDetailScreen(Screen):
         self.mod_list = ModList()
         self.bs = BggSearch()
         self.force_update = force_md_update
+        self.mod_detail = self.mod_list.get_mod_details(self.filename).copy()
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        with Container(id="md_screen"):
-            yield Footer()
-            with VerticalScroll(id="md_scroll"):
-                yield Markdown(
-                    self.get_markdown(),
-                    id="md_markdown",
-                )
+        yield Footer()
+        yield Label(id="md_title")
+        with TabbedContent(initial="md_pane_mod"):
+            with TabPane("Mod Details", id="md_pane_mod"):
+                with VerticalScroll(id="md_scroll_mod"):
+                    yield Markdown(
+                        id="md_markdown_mod",
+                    )
+            with TabPane("Steam Description", id="md_pane_steam"):
+                with VerticalScroll(id="md_scroll_steam"):
+                    yield Markdown(
+                        id="md_markdown_steam",
+                    )
+            with TabPane("BoardGameGeek", id="md_pane_bgg"):
+                with VerticalScroll(id="md_scroll_bgg"):
+                    yield Markdown(
+                        id="md_markdown_bgg",
+                    )
+
+    def on_mount(self):
+        self.query_one("#md_markdown_mod").update(self.get_markdown())
+        self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
+        self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
+        self.query_one("#md_title").update(self.mod_detail["name"])
 
     def format_list(self, l):
         return "\n- ".join(l).join(["\n- ", "\n"])
@@ -70,9 +89,26 @@ class ModDetailScreen(Screen):
             image_path = self.save_dir / Path(self.filename).with_suffix(".png")
         return image_path
 
-    def get_markdown(self) -> str:
-        self.mod_detail = self.mod_list.get_mod_details(self.filename).copy()
+    def get_markdown_common(self) -> dict:
         mod_detail = self.mod_detail.copy()
+
+        asset_list = AssetList()
+        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        if mod_detail["name"] in infected_mods:
+            mod_detail[
+                "infection_warning"
+            ] = "\n\n\n## WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!\n\n\n"
+        else:
+            mod_detail["infection_warning"] = ""
+
+        mod_detail[
+            "steam_link"
+        ] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
+
+        return mod_detail
+
+    def get_markdown(self) -> str:
+        mod_detail = self.get_markdown_common()
 
         mod_detail_md = ""
         md_filepath = Path(__file__).with_name("ModDetailScreen.md")
@@ -86,18 +122,6 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["mod_image"] = ""
 
-        asset_list = AssetList()
-        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
-        if mod_detail["name"] in infected_mods:
-            mod_detail[
-                "infection_warning"
-            ] = "\n\n\n## WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!\n\n\n"
-        else:
-            mod_detail["infection_warning"] = ""
-
-        mod_detail["steam_desc"] = self.bs.get_steam_description(
-            Path(self.filename).stem, self.force_update
-        )
         mod_detail["asset_detail_url"] = quote(f"{self.ad_uri_prefix}{self.filename}")
         mod_detail["size"] = mod_detail["size"] / (1024)
         mod_detail["mtime"] = time.ctime(mod_detail["mtime"])
@@ -115,19 +139,22 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["tag_list"] = "- N/A"
 
-        mod_detail[
-            "steam_link"
-        ] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
-        if mod_detail["bgg_id"] is None:
-            mod_detail["bgg_link"] = ""
-            bgg_md = ""
-        else:
-            mod_detail["bgg_link"] = self.bs.get_game_url(mod_detail["bgg_id"])
-            bgg_md = self.get_bgg_markdown(mod_detail["bgg_id"])
-
         main_md = mod_detail_md.format(**mod_detail)
+        return main_md
 
-        return main_md + bgg_md
+    def get_markdown_steam(self) -> str:
+        mod_detail = self.get_markdown_common()
+
+        mod_detail_steam = ""
+        md_filepath = Path(__file__).with_name("SteamDetailScreen.md")
+        with md_filepath.open("r") as f:
+            mod_detail_steam = f.read()
+
+        mod_detail["steam_desc"] = self.bs.get_steam_description(
+            Path(self.filename).stem, self.force_update
+        )
+        steam_md = mod_detail_steam.format(**mod_detail)
+        return steam_md
 
     def create_chart(self, results, width):
         TICKS = "▏▎▍▌▋▊▉█"
@@ -226,37 +253,47 @@ class ModDetailScreen(Screen):
         chart += line
         return chart
 
-    def get_bgg_markdown(self, bgg_id) -> str:
+    def get_markdown_bgg(self) -> str:
+        mod_detail = self.get_markdown_common()
+
+        mod_detail_bgg = ""
+
+        if (bgg_id := mod_detail["bgg_id"]) is None:
+            mod_detail["bgg_link"] = ""
+            return "# No BoardGameGeek ID is associated with this game."
+
+        mod_detail["bgg_link"] = self.bs.get_game_url(mod_detail["bgg_id"])
+
         bgg_detail_md = ""
         md_filepath = Path(__file__).with_name("BGGDetailScreen.md")
         with md_filepath.open("r") as f:
             bgg_detail_md = f.read()
 
-        bgg_detail = self.bs.get_game_info(bgg_id, self.force_update)
+        mod_detail.update(self.bs.get_game_info(bgg_id, self.force_update))
         for field in self.bs.BGG_LISTS:
-            if field in bgg_detail:
-                bgg_detail[f"{field}_list"] = self.format_list(bgg_detail[field])
+            if field in mod_detail:
+                mod_detail[f"{field}_list"] = self.format_list(mod_detail[field])
             else:
-                bgg_detail[f"{field}_list"] = "- N/A"
+                mod_detail[f"{field}_list"] = "- N/A"
 
         for poll in self.bs.BGG_POLLS:
-            if poll in bgg_detail:
-                bgg_detail[poll + "_chart"] = self.create_chart(bgg_detail[poll], 90)
+            if poll in mod_detail:
+                mod_detail[poll + "_chart"] = self.create_chart(mod_detail[poll], 90)
 
         for stat in self.bs.BGG_STATS_LISTS:
-            if stat in bgg_detail:
-                bgg_detail["ranking"] = ""
-                for v in bgg_detail[stat]:
-                    bgg_detail["ranking"] += f"| {v['friendlyname']} | {v['value']} |\n"
+            if stat in mod_detail:
+                mod_detail["ranking"] = ""
+                for v in mod_detail[stat]:
+                    mod_detail["ranking"] += f"| {v['friendlyname']} | {v['value']} |\n"
                 # Remove trailing '\n' to make .md more readable, otherwise need to
                 # not have a linefeed after inserting the {ranking} tag in table.
-                bgg_detail["ranking"] = bgg_detail["ranking"][0:-1]  
+                mod_detail["ranking"] = mod_detail["ranking"][0:-1]
 
-        bgg_detail["dl_image_url"] = quote(f"{self.dl_image_uri_prefix}/dl_image")
+        mod_detail["dl_image_url"] = quote(f"{self.dl_image_uri_prefix}/dl_image")
 
-        self.bgg_detail = bgg_detail
+        self.bgg_detail = mod_detail
 
-        return bgg_detail_md.format(**bgg_detail)
+        return bgg_detail_md.format(**mod_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
         if "//localhost/" in event.href:
@@ -271,7 +308,7 @@ class ModDetailScreen(Screen):
             open_url(event.href)
 
     def refresh_mod_details(self):
-        self.query_one("#md_markdown").update(self.get_markdown())
+        self.query_one("#md_markdown_mod").update(self.get_markdown())
 
     def action_asset_list(self):
         self.post_message(self.AssetsSelected(self.filename, self.mod_detail["name"]))
@@ -296,9 +333,9 @@ class ModDetailScreen(Screen):
                 offset_start = options[index].rfind("[") + 1
                 offset_end = options[index].rfind("]")
                 self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
-                md = self.query_one("#md_markdown")
+                md = self.query_one("#md_markdown_bgg")
                 self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
-                md.update(self.get_markdown())
+                md.update(self.get_markdown_bgg())
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
         else:
@@ -320,3 +357,31 @@ class ModDetailScreen(Screen):
             img.save(save_path)
             self.refresh_mod_details()
             self.app.push_screen(InfoDialog("Updated TTS Thumbnail"))
+
+    def on_tabbed_content_tab_activated(
+        self, event: TabbedContent.TabActivated
+    ) -> None:
+        scroll_id = event.tab.id.replace("pane", "scroll")
+        pane = self.query_one("#" + scroll_id)
+        pane.focus()
+
+    def on_key(self, event: Key):
+        TABS = [
+            "md_pane_mod",
+            "md_pane_steam",
+            "md_pane_bgg",
+        ]
+        if event.key == "tab":
+            tabbed_content = self.query_one(TabbedContent)
+            i = TABS.index(tabbed_content.active)
+            i = i + 1
+            if i >= len(TABS):
+                i = 0
+
+            id = TABS[i]
+            tabbed_content.active = id
+
+            pane = next(self.query("#" + id).results(TabPane))
+            new_event = TabbedContent.TabActivated(tabbed_content, pane)
+            self.post_message(new_event)
+            event.stop()

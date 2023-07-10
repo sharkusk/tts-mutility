@@ -127,9 +127,10 @@ MarkdownH1
 }
 
 #ad_screen {
-    border: round blue;
+    border: round $primary;
     align: center middle;
     width: 90%;
+    height: 90%;
     background: $panel;
     padding: 2;
     padding-top: 0;
@@ -187,4 +188,12 @@ MarkdownH1
     padding-left: 1;
     padding-right: 1;
     height: 1fr;
+}
+
+#md_title {
+    width: 100%;
+    background: $primary;
+    padding: 1;
+    text-align: center;
+
 }
