@@ -23,6 +23,8 @@ If you want to play around with the code (many of the screens can be customized 
 
 ```$ pip install -e .```
 
+NOTE: Pip also supports installing directly from a zip file.  So, instead of the `.` you can substitute the zip filename.
+
 ## Running ttsmutility
 
 Once installed the app can be run by typing:
