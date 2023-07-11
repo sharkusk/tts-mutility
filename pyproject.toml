@@ -35,6 +35,8 @@ Repository = "https://github.com/sharkusk/ttsmutility"
 [project.optional-dependencies]
 dev = [
     "textual-dev",
+    "pytest",
+    "flake8",
 ]
 
 [project.scripts]

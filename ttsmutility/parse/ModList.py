@@ -274,14 +274,14 @@ class ModList:
             try:
                 min_players = int(details["PlayerCounts"][0])
                 max_players = int(details["PlayerCounts"][1])
-            except KeyError:
+            except (KeyError, IndexError):
                 min_players = 0
                 max_players = 0
 
             try:
                 min_play_time = int(details["PlayingTime"][0])
                 max_play_time = int(details["PlayingTime"][1])
-            except KeyError:
+            except (KeyError, IndexError):
                 min_play_time = 0
                 max_play_time = 0
 
@@ -296,7 +296,7 @@ class ModList:
                     for format in formats:
                         try:
                             utc_time = datetime.strptime(details["Date"], format)
-                        except KeyError:
+                        except ValueError:
                             continue
                         else:
                             epoch_time = (

@@ -389,7 +389,7 @@ class ModListScreen(Screen):
                     table.focus()
                     fc.toggle_class("unhide")
                 else:
-                    # Focus is elsewhere, clear the filter 
+                    # Focus is elsewhere, clear the filter
                     # alue and close the filter window
                     f.value = ""
                     fc.toggle_class("unhide")
