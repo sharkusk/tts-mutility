@@ -150,12 +150,13 @@ class TTSMutility(App):
                         )
                     )
                 else:
+                    if assets_in_path == 0:
+                        perc_done = 1.00
+                    else:
+                        perc_done = scanned_assets / assets_in_path
                     self.post_message(
                         self.InitProcessing(
-                            (
-                                f"Scanning Cached Assets in {path} "
-                                f"({scanned_assets/assets_in_path:0.0%})"
-                            )
+                            (f"Scanning Cached Assets in {path} " f"({perc_done:0.0%})")
                         )
                     )
                 if worker.is_cancelled:
