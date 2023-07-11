@@ -3,7 +3,7 @@ import os
 import os.path
 import time
 from pathlib import Path
-from queue import Queue, Empty
+from queue import Empty, Queue
 from zipfile import ZipFile
 
 from textual.app import ComposeResult
@@ -12,6 +12,7 @@ from textual.worker import get_current_worker
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
+from ..utility.messages import UpdateLog
 from ..utility.util import make_safe_filename
 from .TTSWorker import TTSWorker
 
@@ -49,7 +50,7 @@ class ModBackup(TTSWorker):
             mod_details = mod_list.get_mod_details(mod_filename)
 
             self.post_message(
-                self.UpdateLog(
+                UpdateLog(
                     f"Starting backup of {mod_filename}: {mod_details['name']}."
                 )
             )
@@ -75,11 +76,11 @@ class ModBackup(TTSWorker):
 
             if len(old_files) > 0:
                 for f_name in old_files:
-                    self.post_message(self.UpdateLog(f"Removing old backup: '{f_name}"))
+                    self.post_message(UpdateLog(f"Removing old backup: '{f_name}"))
                     os.remove(f_name)
 
             self.post_message(self.UpdateStatus(f"Backing up to '{zip_path}'"))
-            self.post_message(self.UpdateLog(f"Backing up to '{zip_path}'"))
+            self.post_message(UpdateLog(f"Backing up to '{zip_path}'"))
 
             cancelled = False
             with ZipFile(zip_path, "w") as modzip:
@@ -89,7 +90,7 @@ class ModBackup(TTSWorker):
                         cancelled = True
                         break
                     if asset["mtime"] > 0:
-                        # self.post_message(self.UpdateLog(f"Adding {asset['filename']}."))
+                        # self.post_message(UpdateLog(f"Adding {asset['filename']}."))
                         modzip.write(
                             Path(config.tts_mods_dir) / asset["filename"],
                             Path("Mods") / asset["filename"],
@@ -121,11 +122,11 @@ class ModBackup(TTSWorker):
                     )
 
             if cancelled:
-                self.post_message(self.UpdateLog(f"Backup cancelled."))
+                self.post_message(UpdateLog(f"Backup cancelled."))
                 os.remove(zip_path)
                 self.mod_filenames.task_done()
             else:
-                self.post_message(self.UpdateLog(f"Backup complete."))
+                self.post_message(UpdateLog(f"Backup complete."))
                 self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
                 mod_list.set_backup_time(mod_filename, backup_time)
 

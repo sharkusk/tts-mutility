@@ -1,17 +1,17 @@
+import time
 from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.message import Message
-from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer, Header, Label
+from textual.widgets import DataTable
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
-from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
+from ..utility.messages import UpdateLog
 from ..utility.util import format_time, make_safe_filename
 
 
@@ -50,6 +50,7 @@ class AssetListScreen(Widget):
             yield DataTable(id=self.al_id)
 
     def on_mount(self) -> None:
+        start = time.time()
         self.sort_order = {
             "url": False,
             "ext": False,
@@ -63,23 +64,15 @@ class AssetListScreen(Widget):
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
 
-        asset_list = AssetList()
-
         table = next(self.query("#" + self.al_id).results(DataTable))
-        table.focus()
-
-        table.cursor_type = "row"
-        table.sort("url", reverse=self.sort_order["url"])
-
-        table.clear(columns=True)
-        table.focus()
 
         table.add_column("URL", width=self.url_width, key="url")
         table.add_column("Ext", key="ext", width=4)
         table.add_column("Size(KB)", key="fsize", width=9)
         table.add_column("Modified", key="mtime", width=10)
-        table.add_column("Trail", key="trail")
+        table.add_column("Trail", key="trail", width=120)
 
+        asset_list = AssetList()
         assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
 
@@ -100,8 +93,11 @@ class AssetListScreen(Widget):
                 key=asset["url"],  # Use original url for our key
             )
         table.cursor_type = "row"
-        table.sort("trail", reverse=self.sort_order["trail"])
-        self.last_sort_key = "trail"
+        #table.sort("trail", reverse=self.sort_order["trail"])
+        #self.last_sort_key = "trail"
+
+        end = time.time()
+        self.post_message(UpdateLog(f"Time to insert asset rows: {end-start}"))
 
     def format_long_entry(self, entry, width):
         if not entry or len(entry) < width:

@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
-from queue import Queue, Empty
+from queue import Empty, Queue
 
 from textual.app import ComposeResult
 from textual.message import Message
@@ -15,21 +15,14 @@ from textual.worker import get_current_worker
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
-from ..parse.FileFinder import (
-    UPPER_EXTS,
-    get_fs_path,
-    get_fs_path_from_extension,
-    is_assetbundle,
-    is_audiolibrary,
-    is_custom_ui_asset,
-    is_from_script,
-    is_image,
-    is_model,
-    is_pdf,
-    trailstring_to_trail,
-)
+from ..parse.FileFinder import (UPPER_EXTS, get_fs_path,
+                                get_fs_path_from_extension, is_assetbundle,
+                                is_audiolibrary, is_custom_ui_asset,
+                                is_from_script, is_image, is_model, is_pdf,
+                                trailstring_to_trail)
 from ..parse.ModList import ModList
 from ..utility.advertising import USER_AGENT
+from ..utility.messages import UpdateLog
 from .TTSWorker import TTSWorker
 
 
@@ -161,14 +154,16 @@ class Downloader(TTSWorker):
                 turls = self.asset_list.get_missing_assets(mod_filename)
                 mod_details = self.mod_list.get_mod_details(mod_filename)
                 mod_name = mod_details["name"]
-                self.UpdateLog(f"From mod {mod_name}:")
+                self.post_message(
+                    UpdateLog(f"From mod {mod_name}:")
+                )
             else:
                 turls = []
                 for asset in task[1]:
                     turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
 
             self.post_message(
-                self.UpdateLog(
+                UpdateLog(
                     f"Starting Download of {len(turls)} assets.",
                     prefix="## ",
                 )
@@ -184,7 +179,7 @@ class Downloader(TTSWorker):
 
             for i, (url, trail) in enumerate(turls):
                 if self.worker.is_cancelled:
-                    self.post_message(self.UpdateLog(f"Download worker cancelled."))
+                    self.post_message(UpdateLog(f"Download worker cancelled."))
                     return
                 self.post_message(
                     self.UpdateStatus(
@@ -215,15 +210,15 @@ class Downloader(TTSWorker):
             self.asset_list.download_done(asset)
             self.post_message(self.FileDownloadComplete(asset))
             self.post_message(
-                self.UpdateLog(f"Download Failed ({error}): `{url}`", flush=True)
+                UpdateLog(f"Download Failed ({error}): `{url}`", flush=True)
             )
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.post_message(self.UpdateLog(f"---", prefix=""))
-                self.post_message(self.UpdateLog(f"Downloading: `{url}`"))
+                self.post_message(UpdateLog(f"---", prefix=""))
+                self.post_message(UpdateLog(f"Downloading: `{url}`"))
             else:
-                self.post_message(self.UpdateLog(f"Retry #{self.cur_retry}"))
+                self.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
         elif state == "file_size":
             self.cur_filesize = data
             self.post_message(
@@ -231,7 +226,7 @@ class Downloader(TTSWorker):
                     update_total=data, advance_amount=0, status_id=self.status_id
                 )
             )
-            self.post_message(self.UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
+            self.post_message(UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
         elif state == "data_read":
             self.post_message(
                 self.UpdateProgress(advance_amount=data, status_id=self.status_id)
@@ -239,14 +234,14 @@ class Downloader(TTSWorker):
         elif state == "content_name":
             self.cur_content_name = data
             self.post_message(
-                self.UpdateLog(f"Content Filename: `{self.cur_content_name}`")
+                UpdateLog(f"Content Filename: `{self.cur_content_name}`")
             )
         elif state == "filename":
             self.cur_filename = data
         elif state == "steam_sha1":
             self.steam_sha1 = data
         elif state == "asset_dir":
-            self.post_message(self.UpdateLog(f"Asset dir: `{data}`"))
+            self.post_message(UpdateLog(f"Asset dir: `{data}`"))
         elif state == "success":
             filepath = os.path.join(self.mod_dir, self.cur_filename)
             filesize = os.path.getsize(filepath)
@@ -265,7 +260,7 @@ class Downloader(TTSWorker):
                 self.asset_list.download_done(asset)
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
-                    self.UpdateLog(
+                    UpdateLog(
                         f"Download Success: `{self.cur_filename}`", flush=True
                     )
                 )
@@ -284,14 +279,14 @@ class Downloader(TTSWorker):
                 self.asset_list.download_done(asset)
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
-                    self.UpdateLog(
+                    UpdateLog(
                         f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filename}`",
                         flush=True,
                     )
                 )
         else:
             # Generic status for logging...
-            self.post_message(self.UpdateLog(f"{state}: {data}"))
+            self.post_message(UpdateLog(f"{state}: {data}"))
 
         if state in ["error", "success"]:
             # Increment overall progress here

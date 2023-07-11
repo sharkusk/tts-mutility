@@ -1,4 +1,3 @@
-import re
 import time
 from io import BytesIO
 from pathlib import Path
@@ -22,6 +21,7 @@ from ..parse.AssetList import AssetList
 from ..parse.BggSearch import BggSearch
 from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
+from ..utility.messages import UpdateLog
 from ..utility.util import format_time
 from .AssetListScreen import AssetListScreen
 
@@ -29,8 +29,10 @@ from .AssetListScreen import AssetListScreen
 class ModDetailScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
+        ("a", "load_assets", "Load Assets Tab"),
         ("b", "bgg_lookup", "BGG Lookup"),
         ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
+        ("ctrl+r", "refresh_mod_details", "Reload BGG/Steam"),
     ]
 
     def __init__(self, filename: str, force_md_update: bool = False) -> None:
@@ -44,6 +46,12 @@ class ModDetailScreen(Screen):
         self.bs = BggSearch()
         self.force_update = force_md_update
         self.mod_detail = self.mod_list.get_mod_details(self.filename).copy()
+        self.tab_names = [
+            "md_pane_mod",
+            "md_pane_steam",
+            "md_pane_bgg",
+            # "md_pane_assets",
+        ]
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -51,26 +59,26 @@ class ModDetailScreen(Screen):
         yield Header()
         yield Label(id="title")
         yield Label(id="infection_warning")
-        with TabbedContent(initial="md_pane_mod"):
-            with TabPane("Mod Details", id="md_pane_mod"):
-                with VerticalScroll(id="md_scroll_mod"):
+        with TabbedContent(initial=self.tab_names[0]):
+            with TabPane("Mod Details", id=self.tab_names[0]):
+                with VerticalScroll(id=self.tab_names[0].replace("pane", "scroll")):
                     yield Markdown(
                         id="md_markdown_mod",
                     )
-            with TabPane("Steam Description", id="md_pane_steam"):
-                with VerticalScroll(id="md_scroll_steam"):
+            with TabPane("Steam Description", id=self.tab_names[1]):
+                with VerticalScroll(id=self.tab_names[1].replace("pane", "scroll")):
                     yield Markdown(
                         id="md_markdown_steam",
                     )
-            with TabPane("BoardGameGeek", id="md_pane_bgg"):
-                with VerticalScroll(id="md_scroll_bgg"):
+            with TabPane("BoardGameGeek", id=self.tab_names[2]):
+                with VerticalScroll(id=self.tab_names[2].replace("pane", "scroll")):
                     yield Markdown(
                         id="md_markdown_bgg",
                     )
-            with TabPane("Asset List", id="md_pane_assets"):
-                yield AssetListScreen(
-                    self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
-                )
+            # with TabPane("Asset List", id="md_pane_assets"):
+            #    yield AssetListScreen(
+            #        self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
+            #    )
 
     def on_mount(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
@@ -113,6 +121,7 @@ class ModDetailScreen(Screen):
         return mod_detail
 
     def get_markdown(self) -> str:
+        start = time.time()
         mod_detail = self.get_markdown_common()
 
         mod_detail_md = ""
@@ -145,9 +154,12 @@ class ModDetailScreen(Screen):
             mod_detail["tag_list"] = "- N/A"
 
         main_md = mod_detail_md.format(**mod_detail)
+        end = time.time()
+        self.post_message(UpdateLog(f"Time to update mod markdown: {end-start}"))
         return main_md
 
-    def get_markdown_steam(self) -> str:
+    def get_markdown_steam(self, force_update=False) -> str:
+        start = time.time()
         mod_detail = self.get_markdown_common()
 
         mod_detail_steam = ""
@@ -156,7 +168,7 @@ class ModDetailScreen(Screen):
             mod_detail_steam = f.read()
 
         mod_detail.update(
-            self.bs.get_steam_details(Path(self.filename).stem, self.force_update)
+            self.bs.get_steam_details(Path(self.filename).stem, force_update)
         )
 
         mod_detail["time_created"] = format_time(mod_detail["time_created"])
@@ -170,6 +182,8 @@ class ModDetailScreen(Screen):
             mod_detail["tag_list"] = "- N/A"
 
         steam_md = mod_detail_steam.format(**mod_detail)
+        end = time.time()
+        self.post_message(UpdateLog(f"Time to update steam markdown: {end-start}"))
         return steam_md
 
     def create_chart(self, results, width):
@@ -269,7 +283,8 @@ class ModDetailScreen(Screen):
         chart += line
         return chart
 
-    def get_markdown_bgg(self) -> str:
+    def get_markdown_bgg(self, force_update=False) -> str:
+        start = time.time()
         mod_detail = self.get_markdown_common()
 
         if (bgg_id := mod_detail["bgg_id"]) is None:
@@ -283,7 +298,7 @@ class ModDetailScreen(Screen):
         with md_filepath.open("r") as f:
             bgg_detail_md = f.read()
 
-        mod_detail.update(self.bs.get_game_info(bgg_id, self.force_update))
+        mod_detail.update(self.bs.get_game_info(bgg_id, force_update))
         for field in self.bs.BGG_LISTS:
             if field in mod_detail:
                 mod_detail[f"{field}_list"] = self.format_list(mod_detail[field])
@@ -307,6 +322,8 @@ class ModDetailScreen(Screen):
 
         self.bgg_detail = mod_detail
 
+        end = time.time()
+        self.post_message(UpdateLog(f"Time to update bgg markdown: {end-start}"))
         return bgg_detail_md.format(**mod_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
@@ -321,8 +338,14 @@ class ModDetailScreen(Screen):
         else:
             open_url(event.href)
 
-    def refresh_mod_details(self):
+    def action_refresh_mod_details(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
+        self.query_one("#md_markdown_bgg").update(
+            self.get_markdown_bgg(force_update=True)
+        )
+        self.query_one("#md_markdown_steam").update(
+            self.get_markdown_steam(force_update=True)
+        )
 
     def action_bgg_lookup_input(self, msg: str = "Please enter search string:"):
         def set_name(name: str) -> None:
@@ -366,7 +389,7 @@ class ModDetailScreen(Screen):
             img = Image.open(BytesIO(response.content))
             save_path = self.get_mod_image_path()
             img.save(save_path)
-            self.refresh_mod_details()
+            self.action_refresh_mod_details()
             self.app.push_screen(InfoDialog("Updated TTS Thumbnail"))
 
     def on_tabbed_content_tab_activated(
@@ -377,20 +400,14 @@ class ModDetailScreen(Screen):
         pane.focus()
 
     def on_key(self, event: Key):
-        TABS = [
-            "md_pane_mod",
-            "md_pane_steam",
-            "md_pane_bgg",
-            "md_pane_assets",
-        ]
         if event.key == "tab":
             tabbed_content = self.query_one(TabbedContent)
-            i = TABS.index(tabbed_content.active)
+            i = self.tab_names.index(tabbed_content.active)
             i = i + 1
-            if i >= len(TABS):
+            if i >= len(self.tab_names):
                 i = 0
 
-            id = TABS[i]
+            id = self.tab_names[i]
             tabbed_content.active = id
 
             pane = next(self.query("#" + id).results(TabPane))
@@ -410,3 +427,18 @@ class ModDetailScreen(Screen):
         pane = next(self.query("#md_pane_assets").results(TabPane))
         al = pane.children[0]
         al.update_asset(asset)
+
+    def action_load_assets(self):
+        if "md_pane_assets" not in self.tab_names:
+            self.tab_names.append("md_pane_assets")
+
+            tabbed_content = self.query_one(TabbedContent)
+            tabbed_content.add_pane(
+                TabPane(
+                    "Asset List",
+                    AssetListScreen(
+                        self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
+                    ),
+                    id="md_pane_assets",
+                )
+            )

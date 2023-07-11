@@ -2,7 +2,8 @@ import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
+from textual import \
+    __version__ as textual_version  # pylint: disable=no-name-in-module
 from textual import work
 from textual.app import App, ComposeResult
 from textual.css.query import NoMatches
@@ -18,14 +19,15 @@ from .data.db import create_new_db, update_db_schema
 from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
 from .screens.AssetListScreen import AssetListScreen
+from .screens.MissingAssetScreen import MissingAssetScreen
 from .screens.ModDetailScreen import ModDetailScreen
 from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
+from .utility.messages import UpdateLog
+from .workers.backup import ModBackup
 from .workers.downloader import Downloader
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
-from .workers.backup import ModBackup
-from .screens.MissingAssetScreen import MissingAssetScreen
 
 
 class TTSMutility(App):
@@ -330,7 +332,7 @@ class TTSMutility(App):
     #    ██║      ██║   ███████║╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████╗██║  ██║
     #    ╚═╝      ╚═╝   ╚══════╝ ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
-    def on_ttsworker_update_log(self, event: TTSWorker.UpdateLog):
+    def on_update_log(self, event: UpdateLog):
         params = {
             "prefix": event.prefix,
             "suffix": event.suffix,

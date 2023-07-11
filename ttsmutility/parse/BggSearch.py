@@ -368,6 +368,7 @@ class BggSearch:
 
     def get_steam_details(self, steam_id: str, force_update: bool) -> dict:
         steam_info = {
+            "steam_desc": "",
             "creator": 0,
             "title": "",
             "preview_url": "",

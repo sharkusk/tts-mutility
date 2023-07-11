@@ -10,7 +10,8 @@ from textual.containers import Center
 from textual.events import Key, ScreenResume
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
+from textual.widgets import (DataTable, Footer, Header, Input, TabbedContent,
+                             TabPane)
 
 from ..data.config import config_file, load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -18,6 +19,7 @@ from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse import ModList
 from ..parse.AssetList import AssetList
 from ..parse.ModParser import INFECTION_URL
+from ..utility.messages import UpdateLog
 from ..utility.util import format_time
 from .DebugScreen import DebugScreen
 from .MissingAssetScreen import MissingAssetScreen
@@ -344,6 +346,9 @@ class ModListScreen(Screen):
         self.app.exit()
 
     def action_view_log(self) -> None:
+        # TODO: This requires loading log twice, need to flush log before this
+        # or wait until flush is complete...
+        self.post_message(UpdateLog("", prefix="", suffix="", flush=True))
         config = load_config()
         with open(config.log_path, "r", encoding="utf-8") as f:
             self.app.push_screen(DebugScreen(Markdown(f.read())))
