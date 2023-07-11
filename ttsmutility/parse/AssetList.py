@@ -311,9 +311,10 @@ class AssetList:
                         no_dupes.append(file)
         return no_dupes
 
-    def scan_cached_assets(self) -> int:
+    def scan_cached_assets(self):
         scan_time = time.time()
-        count = 0
+        new_count = 0
+        scan_count = 0
 
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
@@ -353,14 +354,22 @@ class AssetList:
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
                     continue
 
-                new_files = set(files).difference(asset_filenames)
+                total_files_in_path = len(files)
 
-                for filename in new_files:
+                yield path, new_count, 0, total_files_in_path
+
+                new_files = set(files).difference(asset_filenames)
+                old_count = len(files) - len(new_files)
+
+                for i, filename in enumerate(new_files):
                     filename = Path(filename)
                     if filename.stem in ignore_files:
                         continue
                     if filename.suffix.upper() in FILES_TO_IGNORE:
                         continue
+
+                    if i % 1000 == 0:
+                        yield path, new_count, old_count + i, total_files_in_path
 
                     update_asset = False
                     # Determine why there is a difference.
@@ -444,12 +453,15 @@ class AssetList:
                                         )
 
                     if update_asset:
+                        new_count += 1
                         filepath = Path(root) / filename
                         size = os.path.getsize(filepath)
                         mtime = os.path.getmtime(filepath)
                         assets.append(
                             (path, filename.stem, filename.suffix, mtime, size, 1)
                         )
+
+            yield "Complete", new_count, 0, 0
 
             cursor = db.executemany(
                 """
@@ -467,7 +479,9 @@ class AssetList:
                 """,
                 assets,
             )
-            count = cursor.rowcount
+            if new_count != cursor.rowcount:
+                # Things that make you go hmmmm.
+                pass
 
             db.execute(
                 """
@@ -479,7 +493,6 @@ class AssetList:
             )
 
             db.commit()
-        return count
 
     def update_mod_assets(self, mod_filename: str, mod_mtime) -> int:
         if mod_filename.find("Workshop") == 0:

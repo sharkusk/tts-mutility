@@ -109,6 +109,7 @@ class TTSMutility(App):
 
     def initialize_database(self) -> None:
         config = load_config()
+        worker = get_current_worker()
 
         self.write_log(f"## Init", prefix="")
 
@@ -131,16 +132,26 @@ class TTSMutility(App):
         if self.skip_asset_scan:
             self.post_message(self.InitProcessing(f"Skipping Asset Scan"))
         else:
+            prev_path = ""
             self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
-            num_assets = mod_asset_list.scan_cached_assets()
-            self.write_log(f"Found {num_assets} new assets.")
+            for path, new_assets, scanned_assets, assets_in_path in mod_asset_list.scan_cached_assets():
+                if path != prev_path:
+                    if prev_path != "":
+                        self.write_log(f"Found {new_assets} new assets.")
+                    self.write_log(f"Scanning {path}.")
+                    prev_path = path
+                if path == "Complete":
+                    self.post_message(self.InitProcessing(f"Scanning Complete. Found {new_assets} new assets."))
+                else:
+                    self.post_message(self.InitProcessing(f"Scanning Cached Assets in {path} ({scanned_assets/assets_in_path:0.0%})"))
+                if worker.is_cancelled:
+                    self.post_message(self.UpdateLog(f"Scan cancelled."))
+                    return
 
         if self.force_refresh:
             mods = mod_list.get_all_mod_filenames()
         else:
             mods = mod_list.get_mods_needing_asset_refresh()
-
-        worker = get_current_worker()
 
         self.write_log(f"Refreshing {len(mods)} Mods.")
         for i, mod_filename in enumerate(mods):
