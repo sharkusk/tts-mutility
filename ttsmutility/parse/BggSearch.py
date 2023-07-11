@@ -347,9 +347,13 @@ class BggSearch:
             ("[/olist]", "</ol>"),
             ("[img]", '<img src="'),
             ("[/img]", '"/>'),
+            ("[hr]", "<hr>"),
+            ("[/hr]", "</hr>"),
             ("* ", "- "),
         )
-        steam_text = steam_text.replace("\r", "")
+        steam_text = steam_text.replace("\r\n", "<br>")
+        steam_text = steam_text.replace("\n", "<br>")
+        steam_text = steam_text.replace("\r", "<br>")
         steam_text = steam_text.replace("\t", "    ")
 
         # Handle list elements
