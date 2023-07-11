@@ -49,6 +49,7 @@ def mod_backup_directory() -> Path:
     )
     return target_directory
 
+
 def asset_backup_directory() -> Path:
     """Get the location of the BGG cache directory.
 

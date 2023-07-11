@@ -163,13 +163,17 @@ class ModParser:
 
                 # Parse lauscript for potential URLs
                 url_matches = re.findall(
-                    r"((?:http|https):\/\/(?:[\w\-_]+(?:(?:\.[\w\-_]+)+))(?:[\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?)",
+                    (
+                        r"((?:http|https):\/\/(?:[\w\-_]+(?:(?:\.[\w\-_]+)+))"
+                        r"(?:[\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?)"
+                    ),
                     v,
                 )
                 for url in url_matches:
                     valid_url = False
 
-                    # Detect if URL ends in a valid extension or is from a site which doesn't use extension
+                    # Detect if URL ends in a valid extension or is from
+                    # a site which doesn't use extension
                     for site in NO_EXT_SITES:
                         if url.lower().find(site) >= 0:
                             valid_url = True

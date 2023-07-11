@@ -1,5 +1,6 @@
 from textual.message import Message
 
+
 class UpdateLog(Message):
     def __init__(
         self,

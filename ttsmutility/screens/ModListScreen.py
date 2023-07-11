@@ -10,8 +10,7 @@ from textual.containers import Center
 from textual.events import Key, ScreenResume
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import (DataTable, Footer, Header, Input, TabbedContent,
-                             TabPane)
+from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
 
 from ..data.config import config_file, load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -22,7 +21,6 @@ from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import format_time
 from .DebugScreen import DebugScreen
-from .MissingAssetScreen import MissingAssetScreen
 
 
 # Remove this once Rich accepts pull request #3016
@@ -391,7 +389,8 @@ class ModListScreen(Screen):
                     table.focus()
                     fc.toggle_class("unhide")
                 else:
-                    # Focus is elsewhere, clear the filter value and close the filter window
+                    # Focus is elsewhere, clear the filter 
+                    # alue and close the filter window
                     f.value = ""
                     fc.toggle_class("unhide")
                 event.stop()

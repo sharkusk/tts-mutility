@@ -38,7 +38,7 @@ class Sha1Scanner(TTSWorker):
 
         worker = get_current_worker()
 
-        self.post_message(UpdateLog(f"Starting SHA1 scan."))
+        self.post_message(UpdateLog("Starting SHA1 scan."))
         self.post_message(self.UpdateProgress(100, None))
 
         for root, _, files in os.walk(config.tts_mods_dir, topdown=True):
@@ -69,7 +69,7 @@ class Sha1Scanner(TTSWorker):
 
             for filename in files:
                 if worker.is_cancelled:
-                    self.post_message(UpdateLog(f"SHA1 scan cancelled."))
+                    self.post_message(UpdateLog("SHA1 scan cancelled."))
                     return
 
                 ext = os.path.splitext(filename)[1]
@@ -125,5 +125,5 @@ class Sha1Scanner(TTSWorker):
 
                 asset_list.sha1_scan_done(asset_path, sha1, steam_sha1, mtime)
 
-        self.post_message(UpdateLog(f"SHA1 scan complete."))
-        self.post_message(self.UpdateStatus(f"SHA1 scan complete."))
+        self.post_message(UpdateLog("SHA1 scan complete."))
+        self.post_message(self.UpdateStatus("SHA1 scan complete."))

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from functools import lru_cache
 from json import dumps, loads
 from pathlib import Path
@@ -37,13 +37,19 @@ class Config:
     tts_mods_dir_help: str = "Location of the Tabletop Simulator 'Mods' directory."
 
     tts_saves_dir: Path = str(GAMEDATA_DEFAULT)
-    tts_saves_dir_help: str = "Location of the Tabletop Simulator user directory (this directory contains the 'Saves' subdirectory)."
+    tts_saves_dir_help: str = (
+        "Location of the Tabletop Simulator user directory"
+        "(this directory contains the 'Saves' subdirectory)."
+    )
 
     db_path: Path = str(data_directory() / "ttsmutility.sqlite")
     db_path_help: str = "The complete path (dir and filename) for the sqlite3 database."
 
     log_path: Path = str(data_directory() / "ttsmutility_log.md")
-    log_path_help: str = "The complete path (dir and filename) for the log file (can be disabled as argument)."
+    log_path_help: str = (
+        "The complete path (dir and filename) for the log"
+        "file (can be disabled as argument)."
+    )
 
     bgg_cache_dir: Path = str(bgg_cache_directory())
     bgg_path_dir_help: str = "Location to cache BGG and Steam description files."

@@ -158,7 +158,10 @@ class BggSearch:
         return self._parse_games(root)
 
     def _make_link(self, elem):
-        return f"[{elem.attrib['value']}]({self.BGG_URL}/{elem.attrib['type']}/{elem.attrib['id']})"
+        return (
+            f"[{elem.attrib['value']}]"
+            f"({self.BGG_URL}/{elem.attrib['type']}/{elem.attrib['id']})"
+        )
 
     def _parse_game_element(self, game):
         game_info = {}
@@ -194,7 +197,7 @@ class BggSearch:
                             <rank type="subtype" id="1" name="boardgame" friendlyname="Board Game Rank" value="168" bayesaverage="7.3665"/>
                             <rank type="family" id="5497" name="strategygames" friendlyname="Strategy Game Rank" value="125" bayesaverage="7.40438"/>
                         </ranks>
-                        """
+                        """  # noqa
                         for r in s:
                             d = {}
                             for key in r.attrib.keys():
@@ -232,7 +235,7 @@ class BggSearch:
                         <result value="3" numvotes="0"/>
                     </results>
                 </poll>
-                """
+                """  # noqa
                 p = {}
                 for key in d.attrib.keys():
                     p[key] = d.attrib[key]
@@ -388,7 +391,10 @@ class BggSearch:
             "md": "",
         }
         if steam_id.isdigit():
-            url = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+            url = (
+                "https://api.steampowered.com/"
+                "ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+            )
             cache_path = (
                 Path(self.config.bgg_cache_dir) / recodeURL(url + steam_id)
             ).with_suffix(".json")

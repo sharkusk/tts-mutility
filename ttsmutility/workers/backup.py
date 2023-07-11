@@ -70,7 +70,8 @@ class ModBackup(TTSWorker):
                 zip_filename = zip_basename + ".zip"
 
             zip_path = Path(config.mod_backup_dir) / zip_filename
-            # Check if we have any old zipfiles for this mod with filename used with missing files
+            # Check if we have any old zipfiles for this mod with
+            # filename used with missing files
             glob_path = glob.escape(Path(config.mod_backup_dir) / zip_basename)
             old_files = glob.glob(f"{glob_path} (-*")
 
@@ -122,11 +123,11 @@ class ModBackup(TTSWorker):
                     )
 
             if cancelled:
-                self.post_message(UpdateLog(f"Backup cancelled."))
+                self.post_message(UpdateLog("Backup cancelled."))
                 os.remove(zip_path)
                 self.mod_filenames.task_done()
             else:
-                self.post_message(UpdateLog(f"Backup complete."))
+                self.post_message(UpdateLog("Backup complete."))
                 self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
                 mod_list.set_backup_time(mod_filename, backup_time)
 

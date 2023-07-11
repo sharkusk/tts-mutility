@@ -8,7 +8,6 @@ import requests
 from PIL import Image
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
-from textual.css.query import NoMatches
 from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Markdown, TabbedContent, TabPane
@@ -88,12 +87,15 @@ class ModDetailScreen(Screen):
         if self.is_infected():
             iw = self.query_one("#infection_warning")
             iw.update(
-                "WARNING!  A TTS viral infection has been detected in this mod.  Do not copy objects from this mod!"
+                (
+                    "WARNING!  A TTS viral infection has been detected in this mod. "
+                    "Do not copy objects from this mod!"
+                )
             )
             iw.add_class("unhide")
 
-    def format_list(self, l):
-        return "\n- ".join(l).join(["\n- ", "\n"])
+    def format_list(self, my_list):
+        return "\n- ".join(my_list).join(["\n- ", "\n"])
         # return "`\n- `".join(l).join(["\n- `", "`\n"])
 
     def get_mod_image_path(self) -> Path:
@@ -114,9 +116,10 @@ class ModDetailScreen(Screen):
     def get_markdown_common(self) -> dict:
         mod_detail = self.mod_detail.copy()
 
-        mod_detail[
-            "steam_link"
-        ] = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
+        mod_detail["steam_link"] = (
+            f"https://steamcommunity.com/sharedfiles/"
+            f"filedetails/?id={Path(self.filename).stem}"
+        )
 
         return mod_detail
 
@@ -130,9 +133,10 @@ class ModDetailScreen(Screen):
             mod_detail_md = f.read()
 
         if (image_path := self.get_mod_image_path()).exists():
-            mod_detail[
-                "mod_image"
-            ] = f"- TTS Image: [Mod Image]({image_path.as_uri().replace('file:///', '//localhost/')})"
+            mod_detail["mod_image"] = (
+                f"- TTS Image: [Mod Image]"
+                f"({image_path.as_uri().replace('file:///', '//localhost/')})"
+            )
         else:
             mod_detail["mod_image"] = ""
 
@@ -201,7 +205,6 @@ class ModDetailScreen(Screen):
 
         chart_name = results["name"]
         chart_title = results["title"]
-        total_votes = results["totalvotes"]
 
         chart = f"## {chart_title}\n"
 
@@ -381,7 +384,10 @@ class ModDetailScreen(Screen):
         if self.mod_detail["bgg_id"] is None:
             self.app.push_screen(
                 InfoDialog(
-                    "Unable to update thumbnail.\nThere is no BGG game associated with this MOD."
+                    (
+                        "Unable to update thumbnail.\n"
+                        "There is no BGG game associated with this MOD."
+                    )
                 )
             )
         else:

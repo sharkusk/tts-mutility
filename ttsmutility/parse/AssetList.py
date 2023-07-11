@@ -80,9 +80,13 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
-                SELECT asset_sha1, asset_steam_sha1, asset_sha1_mtime, asset_mtime, asset_size
-                FROM tts_assets
-                WHERE asset_filename=? and asset_path=?
+                SELECT
+                    asset_sha1, asset_steam_sha1, asset_sha1_mtime,
+                    asset_mtime, asset_size
+                FROM
+                    tts_assets
+                WHERE
+                    asset_filename=? and asset_path=?
                 """,
                 (filename, path),
             )
@@ -163,7 +167,9 @@ class AssetList:
                 db.execute(
                     """
                     UPDATE tts_assets
-                    SET asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
+                    SET
+                        asset_mtime=?, asset_size=?, asset_dl_status=?,
+                        asset_content_name=?, asset_steam_sha1=?
                     WHERE asset_url=?
                     """,
                     (
@@ -183,8 +189,10 @@ class AssetList:
                 db.execute(
                     """
                     UPDATE tts_assets
-                    SET asset_filename=?, asset_path=?, asset_ext=?,
-                        asset_mtime=?, asset_size=?, asset_dl_status=?, asset_content_name=?, asset_steam_sha1=?
+                    SET
+                        asset_filename=?, asset_path=?, asset_ext=?,
+                        asset_mtime=?, asset_size=?, asset_dl_status=?,
+                        asset_content_name=?, asset_steam_sha1=?
                     WHERE asset_url=?
                     """,
                     (
@@ -202,7 +210,8 @@ class AssetList:
 
             # dl_status is empty if the download was succesfull
             if asset["dl_status"] == "":
-                # Set mod asset counts containing this asset to -1 to represent an update to the system
+                # Set mod asset counts containing this asset to -1
+                # to represent an update to the system
                 db.execute(
                     """
                     UPDATE tts_mods
@@ -224,7 +233,9 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
-                SELECT asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail
+                SELECT
+                    asset_url, asset_mtime, asset_sha1,
+                    asset_steam_sha1, mod_asset_trail
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
                         ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -240,7 +251,8 @@ class AssetList:
             skip = True
             # Has this file already been downloaded, if so we generally skip it
             if result[1] != 0:
-                # Check if SHA1 computed from file contents matches steam filename SHA1
+                # Check if SHA1 computed from file contents matches steam
+                # filename SHA1
                 if result[2] != "" and result[3] != "":
                     if result[2] != result[3]:
                         # We have a SHA1 mismatch so re-download
@@ -252,82 +264,11 @@ class AssetList:
                 urls.append((result[0], trailstring_to_trail(result[4])))
         return urls
 
-    def fix_duplicate_files(
-        self, root, path, filename, asset_filename, dup_ext, dup_path
-    ) -> list:
-        # We have file_stems (i.e. filenames without the ext)
-        # that match in our DB.  However, the extensions are not the
-        # same or there are duplicate files with diff extensions.
-        # Detect the correct fileformat and update accordingly.
-        no_dupes = []
-        # file_exts = [Path(file).suffix for file in files]
-        # We likely have duplicate filenames with different extensions.
-        # Let's see if we can identify what is the real file.
-        for dup_file in new_files:
-            dup_stem = Path(dup_file).stem
-            dup_files = [x for x in files if Path(x).stem == dup_stem]
-            ext = ""
-            # For each duplicate file (i.e. files with same stem),
-            # we are going to look for the correct ext, then determine
-            # what directory that extension belongs in, then rename
-            # or move the duplicate file appropriately.
-            for file in dup_files:
-                filepath = Path(root) / file
-                if ext == "":
-                    if (ext := detect_file_type(Path(root) / file)) != "":
-                        if Path(file).suffix != ext:
-                            newpath = get_fs_path_from_extension(
-                                "", ext, Path(file).stem
-                            )
-                            newpath = Path(self.config.tts_mods_dir) / newpath
-                            remove_file = True
-                            if newpath is not None:
-                                if not newpath.exists():
-                                    remove_file = False
-                            if remove_file:
-                                move(
-                                    filepath,
-                                    Path(self.config.asset_backup_dir) / file,
-                                )
-                            else:
-                                # Is this going to the current path?
-                                if filepath.with_suffix("") == newpath.with_suffix(""):
-                                    no_dupes.append(dup_stem + ext)
-                                    os.rename(filepath, newpath)
-                                else:
-                                    # Move the file to it's correct location
-                                    move(
-                                        filepath,
-                                        newpath,
-                                    )
-                            continue
-                # Any subsequent duplicate files (with the wrong
-                # extension) need to be removed.
-                if ext != "":
-                    if Path(file).suffix.lower() != ext.lower():
-                        # Remove the files that have the wrong extension
-                        move(filepath, Path(self.config.asset_backup_dir) / file)
-                    else:
-                        no_dupes.append(file)
-        return no_dupes
-
     def scan_cached_assets(self):
         scan_time = time.time()
         new_count = 0
-        scan_count = 0
 
         with sqlite3.connect(self.db_path) as db:
-            cursor = db.execute(
-                """
-                SELECT asset_last_scan_time
-                FROM tts_app
-                WHERE id=1
-            """
-            )
-            result = cursor.fetchone()
-            # This should not fail as we init to zero as part of DB init
-            prev_scan_time = result[0]
-
             ignore_paths = ["Mods", "Workshop"]
             ignore_files = ["sha1-verified", "sha1-verified.txt"]
 
@@ -354,9 +295,9 @@ class AssetList:
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
                     continue
 
-                total_files_in_path = len(files)
+                files_in_path = len(files)
 
-                yield path, new_count, 0, total_files_in_path
+                yield path, new_count, 0, files_in_path
 
                 new_files = set(files).difference(asset_filenames)
                 old_count = len(files) - len(new_files)
@@ -369,7 +310,7 @@ class AssetList:
                         continue
 
                     if i % 1000 == 0:
-                        yield path, new_count, old_count + i, total_files_in_path
+                        yield path, new_count, old_count + i, files_in_path
 
                     update_asset = False
                     # Determine why there is a difference.
@@ -406,7 +347,8 @@ class AssetList:
                                         .with_suffix(correct_ext)
                                         .exists()
                                     ):
-                                        # Remove the files that have the wrong extension
+                                        # Remove the files that have
+                                        # the wrong extension
                                         move(
                                             Path(root) / filename,
                                             Path(self.config.asset_backup_dir)
@@ -420,7 +362,8 @@ class AssetList:
                                                 correct_ext
                                             ),
                                         )
-                                        # Need to set new suffix to filename since it may be used later
+                                        # Need to set new suffix to filename
+                                        # since it may be used later
                                         filename = Path(filename).with_suffix(
                                             correct_ext
                                         )
@@ -431,14 +374,17 @@ class AssetList:
                                     if asset_paths[i] != correct_path:
                                         update_asset = True
                                 else:
-                                    # Move the files to correct directory or remove if already exists
+                                    # Move the files to correct directory or
+                                    # remove if already exists
                                     if (
                                         Path(self.config.tts_mods_dir)
                                         / correct_path
                                         / filename
                                     ).exists():
-                                        # Remove the files that are in the wrong spot and already have a file
-                                        # in the correct destination that matches
+                                        # Remove the files that are in the
+                                        # wrong spot and already have a file
+                                        # in the correct destination that
+                                        # matches
                                         move(
                                             Path(root) / filename,
                                             Path(self.config.asset_backup_dir)
@@ -466,7 +412,8 @@ class AssetList:
             cursor = db.executemany(
                 """
                 INSERT INTO tts_assets
-                    (asset_path, asset_filename, asset_ext, asset_mtime, asset_size, asset_new)
+                    (asset_path, asset_filename, asset_ext,
+                    asset_mtime, asset_size, asset_new)
                 VALUES
                     (?, ?, ?, ?, ?, ?)
                 ON CONFLICT (asset_filename)
@@ -517,13 +464,15 @@ class AssetList:
             with sqlite3.connect(self.db_path) as db:
                 filenames, urls, trails = zip(*mod_assets)
 
-                # Combine the URLs/filenames from the mod with what is already in the DB
-                # (from filesystem scan and possible previous mod scan)
+                # Combine the URLs/filenames from the mod with
+                # what is already in the DB (from filesystem scan
+                # and possible previous mod scan)
 
-                # Since the filesystem is scanned before the mods are processed, filenames
-                # may exist in the DB before the associated URLs are discovered in the mod
-                # file.  Therefore, when we conflict on the filename, we still need to update
-                # the URL.
+                # Since the filesystem is scanned before the mods
+                # are processed, filenames may exist in the DB
+                # before the associated URLs are discovered in the mod
+                # file.  Therefore, when we conflict on the filename,
+                # we still need to update the URL.
                 cursor = db.executemany(
                     """
                     INSERT INTO tts_assets
@@ -544,15 +493,17 @@ class AssetList:
                     INSERT OR IGNORE INTO tts_mod_assets
                         (asset_id_fk, mod_id_fk, mod_asset_trail)
                     VALUES (
-                        (SELECT tts_assets.id FROM tts_assets WHERE asset_filename=?),
-                        (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?),
+                        (SELECT tts_assets.id FROM tts_assets
+                        WHERE asset_filename=?),
+                        (SELECT tts_mods.id FROM tts_mods
+                        WHERE mod_filename=?),
                         ?)
                     """,
                     tuple(
                         zip(filenames, [mod_filename] * len(filenames), trailstrings)
                     ),
                 )
-                new_asset_trails = cursor.rowcount
+                # new_asset_trails = cursor.rowcount
 
                 # Detect assets that are no longer included in the mod
                 cursor = db.execute(
@@ -577,9 +528,11 @@ class AssetList:
                     """
                     DELETE FROM tts_mod_assets
                     WHERE
-                        asset_id_fk = (SELECT tts_assets.id FROM tts_assets WHERE asset_url=?)
+                        asset_id_fk = (SELECT tts_assets.id FROM tts_assets
+                                        WHERE asset_url=?)
                     AND
-                        mod_id_fk = (SELECT tts_mods.id FROM tts_mods WHERE mod_filename=?)
+                        mod_id_fk = (SELECT tts_mods.id FROM tts_mods
+                                        WHERE mod_filename=?)
                     """,
                     tuple(zip(removed_assets, [mod_filename] * len(removed_assets))),
                 )
@@ -617,7 +570,8 @@ class AssetList:
                     db.execute(
                         """
                         UPDATE tts_mods
-                        SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_max_asset_mtime=?
+                        SET mod_total_assets=-1, mod_missing_assets=-1,
+                            mod_size=-1, mod_max_asset_mtime=?
                         WHERE mod_filename=?
                         """,
                         (max_asset_mtime, mod_filename),
@@ -675,7 +629,7 @@ class AssetList:
             )
             result = cursor.fetchone()
             refresh_mod = force_refresh
-            if result == None:
+            if result is None:
                 refresh_mod = True
             else:
                 prev_mod_mtime = result[0]
@@ -692,8 +646,9 @@ class AssetList:
                         """
                     SELECT
                         asset_url, asset_path, asset_filename, asset_ext,
-                        asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
-                        asset_dl_status, asset_size, asset_content_name
+                        asset_mtime, asset_sha1, asset_steam_sha1,
+                        mod_asset_trail, asset_dl_status, asset_size,
+                        asset_content_name
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -742,7 +697,7 @@ class AssetList:
 
     def set_content_names(self, urls, content_names) -> None:
         with sqlite3.connect(self.db_path) as db:
-            cursor = db.executemany(
+            db.executemany(
                 """
                 UPDATE tts_assets
                 SET asset_content_name=?
@@ -750,5 +705,4 @@ class AssetList:
                 """,
                 tuple(zip(content_names, urls)),
             )
-            count = cursor.rowcount
             db.commit()

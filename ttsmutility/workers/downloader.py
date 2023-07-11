@@ -15,11 +15,19 @@ from textual.worker import get_current_worker
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
-from ..parse.FileFinder import (UPPER_EXTS, get_fs_path,
-                                get_fs_path_from_extension, is_assetbundle,
-                                is_audiolibrary, is_custom_ui_asset,
-                                is_from_script, is_image, is_model, is_pdf,
-                                trailstring_to_trail)
+from ..parse.FileFinder import (
+    UPPER_EXTS,
+    get_fs_path,
+    get_fs_path_from_extension,
+    is_assetbundle,
+    is_audiolibrary,
+    is_custom_ui_asset,
+    is_from_script,
+    is_image,
+    is_model,
+    is_pdf,
+    trailstring_to_trail,
+)
 from ..parse.ModList import ModList
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
@@ -154,9 +162,7 @@ class Downloader(TTSWorker):
                 turls = self.asset_list.get_missing_assets(mod_filename)
                 mod_details = self.mod_list.get_mod_details(mod_filename)
                 mod_name = mod_details["name"]
-                self.post_message(
-                    UpdateLog(f"From mod {mod_name}:")
-                )
+                self.post_message(UpdateLog(f"From mod {mod_name}:"))
             else:
                 turls = []
                 for asset in task[1]:
@@ -179,7 +185,7 @@ class Downloader(TTSWorker):
 
             for i, (url, trail) in enumerate(turls):
                 if self.worker.is_cancelled:
-                    self.post_message(UpdateLog(f"Download worker cancelled."))
+                    self.post_message(UpdateLog("Download worker cancelled."))
                     return
                 self.post_message(
                     self.UpdateStatus(
@@ -215,7 +221,7 @@ class Downloader(TTSWorker):
         elif state == "download_starting":
             self.cur_retry = data
             if self.cur_retry == 0:
-                self.post_message(UpdateLog(f"---", prefix=""))
+                self.post_message(UpdateLog("---", prefix=""))
                 self.post_message(UpdateLog(f"Downloading: `{url}`"))
             else:
                 self.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
@@ -233,9 +239,7 @@ class Downloader(TTSWorker):
             )
         elif state == "content_name":
             self.cur_content_name = data
-            self.post_message(
-                UpdateLog(f"Content Filename: `{self.cur_content_name}`")
-            )
+            self.post_message(UpdateLog(f"Content Filename: `{self.cur_content_name}`"))
         elif state == "filename":
             self.cur_filename = data
         elif state == "steam_sha1":
@@ -260,9 +264,7 @@ class Downloader(TTSWorker):
                 self.asset_list.download_done(asset)
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
-                    UpdateLog(
-                        f"Download Success: `{self.cur_filename}`", flush=True
-                    )
+                    UpdateLog(f"Download Success: `{self.cur_filename}`", flush=True)
                 )
             else:
                 mtime = 0
@@ -280,7 +282,10 @@ class Downloader(TTSWorker):
                 self.post_message(self.FileDownloadComplete(asset))
                 self.post_message(
                     UpdateLog(
-                        f"Filesize Mismatch. Expected {self.cur_filesize}; received {filesize}: `{self.cur_filename}`",
+                        (
+                            f"Filesize Mismatch. Expected {self.cur_filesize}; "
+                            f"received {filesize}: `{self.cur_filename}`"
+                        ),
                         flush=True,
                     )
                 )
@@ -339,11 +344,11 @@ class Downloader(TTSWorker):
         try:
             hostname = urllib.parse.urlparse(fetch_url).hostname
             if hostname.find("localhost") >= 0:
-                self.state_callback("error", url, f"localhost url")
+                self.state_callback("error", url, "localhost url")
                 return None
-        except:
+        except ValueError:
             # URL was so badly formatted that there is no hostname.
-            self.state_callback("error", url, f"Invalid hostname")
+            self.state_callback("error", url, "Invalid hostname")
             return None
 
         # Some MODS do not include the 'raw' link in their pastebin urls, help them out
@@ -410,9 +415,9 @@ class Downloader(TTSWorker):
                     dl_info["tts_type"],
                     dl_info["default_ext"],
                 )
-            except socket.timeout as error:
+            except socket.timeout:
                 continue
-            except http.client.IncompleteRead as error:
+            except http.client.IncompleteRead:
                 continue
             if results is not None:
                 if first_error == "":
@@ -431,7 +436,7 @@ class Downloader(TTSWorker):
                     continue
             break
         else:
-            self.state_callback("error", url, f"Retries exhausted")
+            self.state_callback("error", url, "Retries exhausted")
             results = "Retries exhausted"
 
         if results is None:
@@ -475,7 +480,7 @@ class Downloader(TTSWorker):
         try:
             if os.path.basename(response.url) == "removed.png":
                 # Imgur sends bogus png when files are missing, ignore them
-                return f"Removed"
+                return "Removed"
         except UnboundLocalError:
             pass
 
@@ -507,7 +512,8 @@ class Downloader(TTSWorker):
             extensions["mime"] = self.DEFAULT_EXT[content_type]
 
         # Format of content disposition looks like this:
-        # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3"; filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3'
+        # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3";
+        # filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3'
         content_disposition = response.getheader("Content-Disposition", "").strip()
         offset_std = content_disposition.find('filename="')
         offset_utf = content_disposition.find("filename*=UTF-8")
@@ -521,7 +527,8 @@ class Downloader(TTSWorker):
                 content_disp_name.split(";")[0]
             )
         else:
-            # Use the url to extract the extension, ignoring any trailing ? url parameters
+            # Use the url to extract the extension,
+            # ignoring any trailing ? url parameters
             offset = url.rfind("?")
             if offset > 0:
                 extensions["url"] = os.path.splitext(url[0 : url.rfind("?")])[1]
@@ -543,7 +550,7 @@ class Downloader(TTSWorker):
             if extensions[key] != "":
                 ext = extensions[key]
                 break
-        
+
         # Override text extensions to be objects
         if ext.lower() == ".txt":
             ext = ".obj"
@@ -598,8 +605,12 @@ class Downloader(TTSWorker):
             raise
 
         if length != 0 and os.path.getsize(temp_path) != int(length):
-            msg = f"Filesize mismatch. Received {os.path.getsize(temp_path)}. Expected {length}."
-            # Check if the server supports resuming downloads, if not remove the temp file
+            msg = (
+                f"Filesize mismatch. Received {os.path.getsize(temp_path)}. "
+                f"Expected {length}."
+            )
+            # Check if the server supports resuming downloads,
+            # if not remove the temp file
             if range_support is None or range_support != "bytes":
                 os.remove(temp_path)
             return msg

@@ -2,9 +2,7 @@ import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from textual import \
-    __version__ as textual_version  # pylint: disable=no-name-in-module
-from textual import work
+from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
 from textual.app import App, ComposeResult
 from textual.css.query import NoMatches
 from textual.events import Key
@@ -92,7 +90,6 @@ class TTSMutility(App):
             self.f_log.close()
 
     def compose(self) -> ComposeResult:
-        config = load_config()
         yield Header()
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
@@ -104,48 +101,65 @@ class TTSMutility(App):
                 self.f_log.write(f"{output}{suffix}")
             else:
                 self.f_log.write(
-                    f"{prefix}{time.time() - self.start_time:.3f}: {output}{suffix}"
+                    f"{prefix}{time.time() - self.start_time:.3f}:"
+                    + f"{output}{suffix}"
                 )
 
     def initialize_database(self) -> None:
         config = load_config()
         worker = get_current_worker()
 
-        self.write_log(f"## Init", prefix="")
+        self.write_log("## Init", prefix="")
 
         # Wait for DB to be created on first pass
         if not Path(config.db_path).exists():
-            self.post_message(self.InitProcessing(f"Creating Database"))
+            self.post_message(self.InitProcessing("Creating Database"))
             db_schema = create_new_db(config.db_path)
             self.write_log(f"Created DB with schema version {db_schema}.")
         else:
             db_schema = update_db_schema(config.db_path)
             self.write_log(f"Using DB schema version {db_schema}.")
 
-        self.post_message(self.InitProcessing(f"Loading Workshop Mods"))
+        self.post_message(self.InitProcessing("Loading Workshop Mods"))
         mod_list = ModList.ModList(max_mods=self.max_mods)
         mod_list.get_mods(parse_only=True, force_refresh=self.force_refresh)
-        self.write_log(f"Loaded Mods.")
+        self.write_log("Loaded Mods.")
 
         mod_asset_list = AssetList.AssetList()
 
         if self.skip_asset_scan:
-            self.post_message(self.InitProcessing(f"Skipping Asset Scan"))
+            self.post_message(self.InitProcessing("Skipping Asset Scan"))
         else:
             prev_path = ""
-            self.post_message(self.InitProcessing(f"Scanning Cached Assets"))
-            for path, new_assets, scanned_assets, assets_in_path in mod_asset_list.scan_cached_assets():
+            self.post_message(self.InitProcessing("Scanning Cached Assets"))
+            for (
+                path,
+                new_assets,
+                scanned_assets,
+                assets_in_path,
+            ) in mod_asset_list.scan_cached_assets():
                 if path != prev_path:
                     if prev_path != "":
                         self.write_log(f"Found {new_assets} new assets.")
                     self.write_log(f"Scanning {path}.")
                     prev_path = path
                 if path == "Complete":
-                    self.post_message(self.InitProcessing(f"Scanning Complete. Found {new_assets} new assets."))
+                    self.post_message(
+                        self.InitProcessing(
+                            f"Scanning Complete. Found {new_assets} new assets."
+                        )
+                    )
                 else:
-                    self.post_message(self.InitProcessing(f"Scanning Cached Assets in {path} ({scanned_assets/assets_in_path:0.0%})"))
+                    self.post_message(
+                        self.InitProcessing(
+                            (
+                                f"Scanning Cached Assets in {path} "
+                                f"({scanned_assets/assets_in_path:0.0%})"
+                            )
+                        )
+                    )
                 if worker.is_cancelled:
-                    self.post_message(self.UpdateLog(f"Scan cancelled."))
+                    self.post_message(self.UpdateLog("Scan cancelled."))
                     return
 
         if self.force_refresh:
@@ -156,7 +170,7 @@ class TTSMutility(App):
         self.write_log(f"Refreshing {len(mods)} Mods.")
         for i, mod_filename in enumerate(mods):
             if worker.is_cancelled:
-                self.post_message(self.UpdateLog(f"Init cancelled."))
+                self.post_message(self.UpdateLog("Init cancelled."))
                 return
 
             self.post_message(
@@ -173,9 +187,9 @@ class TTSMutility(App):
             mod_list.update_mod_counts(mod_filename)
             self.write_log(f"'{mod_filename}' refreshed.")
 
-        self.post_message(self.InitProcessing(f"Init complete. Loading UI."))
+        self.post_message(self.InitProcessing("Init complete. Loading UI."))
         self.post_message(self.InitComplete())
-        self.write_log(f"Initialization complete.")
+        self.write_log("Initialization complete.")
         self.f_log.flush()
 
     def force_refresh_mod(self, mod_filename: str) -> None:
@@ -212,7 +226,7 @@ class TTSMutility(App):
 
             if self.is_screen_installed("mod_details"):
                 screen = self.get_screen("mod_details")
-                screen.refresh_mod_details()
+                screen.action_refresh_mod_details()
 
     def load_screen(self, new_screen: Screen, name: str):
         if self.is_screen_installed(name):
@@ -271,12 +285,14 @@ class TTSMutility(App):
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         self.f_log.flush()
 
+    """
     #  █████╗ ███████╗███████╗███████╗████████╗██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
     # ██╔══██╗██╔════╝██╔════╝██╔════╝╚══██╔══╝██║     ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║
     # ███████║███████╗███████╗█████╗     ██║   ██║     ██║███████╗   ██║   ███████╗██║     ██████╔╝█████╗  █████╗  ██╔██╗ ██║
     # ██╔══██║╚════██║╚════██║██╔══╝     ██║   ██║     ██║╚════██║   ██║   ╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║
     # ██║  ██║███████║███████║███████╗   ██║   ███████╗██║███████║   ██║   ███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║
     # ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝   ╚═╝   ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
+    """  # noqa
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
         self.push_screen(AssetDetailScreen(event.asset_detail))
@@ -286,12 +302,14 @@ class TTSMutility(App):
     ):
         self.ad.add_assets(event.assets)
 
+    """
     # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
     # ██╔══██╗██╔═══██╗██║    ██║████╗  ██║██║     ██╔═══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗
     # ██║  ██║██║   ██║██║ █╗ ██║██╔██╗ ██║██║     ██║   ██║███████║██║  ██║█████╗  ██████╔╝
     # ██║  ██║██║   ██║██║███╗██║██║╚██╗██║██║     ██║   ██║██╔══██║██║  ██║██╔══╝  ██╔══██╗
     # ██████╔╝╚██████╔╝╚███╔███╔╝██║ ╚████║███████╗╚██████╔╝██║  ██║██████╔╝███████╗██║  ██║
     # ╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+    """  # noqa
 
     def on_downloader_file_download_complete(
         self, event: Downloader.FileDownloadComplete
@@ -306,12 +324,14 @@ class TTSMutility(App):
         self.progress_total = 100
         self.last_status = ""
 
+    """
     # ███╗   ███╗ ██████╗ ██████╗ ██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
     # ████╗ ████║██╔═══██╗██╔══██╗██║     ██║██╔════╝╚══██╔══╝██╔════╝██╔════╝██╔══██╗██╔════╝██╔════╝████╗  ██║
     # ██╔████╔██║██║   ██║██║  ██║██║     ██║███████╗   ██║   ███████╗██║     ██████╔╝█████╗  █████╗  ██╔██╗ ██║
     # ██║╚██╔╝██║██║   ██║██║  ██║██║     ██║╚════██║   ██║   ╚════██║██║     ██╔══██╗██╔══╝  ██╔══╝  ██║╚██╗██║
     # ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗██║███████║   ██║   ███████║╚██████╗██║  ██║███████╗███████╗██║ ╚████║
     # ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝╚══════╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝
+    """  # noqa
 
     def on_mod_list_screen_mod_refresh(self, event: ModListScreen.ModRefresh):
         self.force_refresh_mod(event.filename)
@@ -336,12 +356,14 @@ class TTSMutility(App):
     def on_mod_list_screen_show_sha1(self, event: ModListScreen.ShowSha1):
         self.app.push_screen(MissingAssetScreen("sha1", "SHA1 Mismatches"))
 
+    """
     # ████████╗████████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗
     # ╚══██╔══╝╚══██╔══╝██╔════╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗
     #    ██║      ██║   ███████╗██║ █╗ ██║██║   ██║██████╔╝█████╔╝ █████╗  ██████╔╝
     #    ██║      ██║   ╚════██║██║███╗██║██║   ██║██╔══██╗██╔═██╗ ██╔══╝  ██╔══██╗
     #    ██║      ██║   ███████║╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████╗██║  ██║
     #    ╚═╝      ╚═╝   ╚══════╝ ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+    """  # noqa
 
     def on_update_log(self, event: UpdateLog):
         params = {

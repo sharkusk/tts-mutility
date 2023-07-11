@@ -127,7 +127,7 @@ def create_new_db(db_path: Path) -> int:
                 mod_asset_trail VARCHAR(128)    NOT NULL,
                 UNIQUE(asset_id_fk, mod_id_fk)
                 )
-            """
+            """  # noqa
             )
 
             cursor.execute(
@@ -147,7 +147,7 @@ def create_new_db(db_path: Path) -> int:
                 mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id) ON DELETE CASCADE,
                 UNIQUE(tag_id_fk, mod_id_fk)
                 )
-            """
+            """  # noqa
             )
 
             cursor.execute(

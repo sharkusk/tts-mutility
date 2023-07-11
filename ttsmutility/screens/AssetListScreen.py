@@ -10,7 +10,6 @@ from textual.widgets import DataTable
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
-from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import format_time, make_safe_filename
 
@@ -93,8 +92,8 @@ class AssetListScreen(Widget):
                 key=asset["url"],  # Use original url for our key
             )
         table.cursor_type = "row"
-        #table.sort("trail", reverse=self.sort_order["trail"])
-        #self.last_sort_key = "trail"
+        table.sort("trail", reverse=self.sort_order["trail"])
+        self.last_sort_key = "trail"
 
         end = time.time()
         self.post_message(UpdateLog(f"Time to insert asset rows: {end-start}"))
@@ -126,7 +125,6 @@ class AssetListScreen(Widget):
             readable_time = format_time(asset["mtime"])
         new_asset["mtime"] = readable_time
 
-        readable_size = sizeof_fmt(asset["fsize"])
         new_asset["fsize"] = new_asset["fsize"] / 1024
 
         if asset["url"][-1] == "/":
@@ -268,7 +266,10 @@ class AssetListScreen(Widget):
                     or self.assets[url]["fsize"] == 0
                 ):
                     f.write(
-                        f"{url}, {self.assets[url]['dl_status']}, ({self.assets[url]['trail']})\n"
+                        (
+                            f"{url}, {self.assets[url]['dl_status']}, "
+                            f"({self.assets[url]['trail']})\n"
+                        )
                     )
 
         self.app.push_screen(InfoDialog(f"Saved missing asset report to '{outname}'."))
