@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 [tool.versioningit]
 
 [tool.versioningit.vcs]
-method = git-archive
+method = "git-archive"
 # Honor all tags, exclude '*rc' tags:
 describe-subst = "$Format:%(describe:tags,exclude=*rc)$"
 
