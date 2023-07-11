@@ -11,6 +11,7 @@ from textual.events import Key, ScreenResume
 from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
+from textual.widgets.data_table import CellDoesNotExist
 
 from ..data.config import config_file, load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -268,10 +269,15 @@ class ModListScreen(Screen):
         mods[row_key]["missing_assets"] = missing_assets
         mods[row_key]["size"] = size
 
-        table.update_cell(row_key, "name", name)
-        table.update_cell(row_key, "total_assets", total_assets)
-        table.update_cell(row_key, "missing_assets", missing_assets)
-        table.update_cell(row_key, "size", size / (1024 * 1024))
+        try:
+            table.update_cell(row_key, "name", name)
+            table.update_cell(row_key, "total_assets", total_assets)
+            table.update_cell(row_key, "missing_assets", missing_assets)
+            table.update_cell(row_key, "size", size / (1024 * 1024))
+        except CellDoesNotExist:
+            # This can happen if some of our mods are filtered and an
+            # asset is shared with a filtered one that isn't being displayed.
+            pass
 
     def action_show_tab(self, tab: str) -> None:
         self.get_child_by_type(TabbedContent).active = tab
