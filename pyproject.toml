@@ -6,6 +6,8 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.versioningit]
+# Honor all tags, exclude '*rc' tags:
+describe-subst = "$Format:%(describe:tags,exclude=*rc)$"
 
 [project]
 name="ttsmutility"
