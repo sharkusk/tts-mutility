@@ -291,7 +291,8 @@ class Downloader(TTSWorker):
                 )
         else:
             # Generic status for logging...
-            self.post_message(UpdateLog(f"{state}: {data}"))
+            # self.post_message(UpdateLog(f"{state}: {data}"))
+            pass
 
         if state in ["error", "success"]:
             # Increment overall progress here
