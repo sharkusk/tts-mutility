@@ -53,8 +53,8 @@ class AssetDetailScreen(ModalScreen):
             # Read in mod file, find string in first LUA script section,
             # find start/end of function, and extract...
             with open(self.asset_detail["mod_path"], "r", encoding="utf-8") as f:
-                lines_before = 12
-                lines_after = 12
+                lines_before = 18
+                lines_after = 18
                 data = f.read()
                 url_loc = data.find(self.asset_detail["url"])
                 if url_loc == -1:
@@ -84,13 +84,19 @@ class AssetDetailScreen(ModalScreen):
                         break
                     end_lua = new_end
 
+                if start_lua < url_loc - (lines_before * 120):
+                    start_lua = url_loc - (lines_before * 120)
+
+                if end_lua > url_loc + (lines_after * 120):
+                    end_lua = url_loc + (lines_after * 120)
+
                 self.asset_detail["LuaScript"] = (
                     data[start_lua:end_lua]
                     .replace(r"\r", "")
                     .replace(r"\n", "\n")
                     .replace(r"\"", '"')
                     .replace(r"\t", "\t")
-                    .strip()
+                    # .strip()
                 )
 
         return asset_detail_md.format(**self.asset_detail)

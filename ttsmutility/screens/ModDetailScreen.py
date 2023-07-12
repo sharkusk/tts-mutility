@@ -341,6 +341,9 @@ class ModDetailScreen(Screen):
             open_url(event.href)
 
     def action_refresh_mod_details(self):
+        asset_list = AssetList()
+        asset_list.get_mod_assets(self.filename, parse_only=True, force_refresh=True)
+
         self.query_one("#md_markdown_mod").update(self.get_markdown())
         self.query_one("#md_markdown_bgg").update(
             self.get_markdown_bgg(force_update=True)

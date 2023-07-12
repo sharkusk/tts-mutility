@@ -147,6 +147,9 @@ class ModParser:
                 nickname = v
                 # Strip inline formatting that may not work properly
                 nickname = re.sub(r"(\[.+?\])", "", nickname)
+                nickname = nickname.replace("\r\n", " ")
+                nickname = nickname.replace("\n", " ")
+                nickname = nickname.replace("\r", " ")
 
             elif k == "LuaScript":
                 NO_EXT_SITES = [

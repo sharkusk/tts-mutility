@@ -545,7 +545,7 @@ class AssetList:
                 trailstrings = [trail_to_trailstring(trail) for trail in trails]
                 cursor = db.executemany(
                     """
-                    INSERT OR IGNORE INTO tts_mod_assets
+                    INSERT INTO tts_mod_assets
                         (asset_id_fk, mod_id_fk, mod_asset_trail)
                     VALUES (
                         (SELECT tts_assets.id FROM tts_assets
@@ -553,6 +553,9 @@ class AssetList:
                         (SELECT tts_mods.id FROM tts_mods
                         WHERE mod_filename=?),
                         ?)
+                    ON CONFLICT (asset_id_fk, mod_id_fk)
+                    DO UPDATE SET
+                        mod_asset_trail=excluded.mod_asset_trail
                     """,
                     tuple(
                         zip(filenames, [mod_filename] * len(filenames), trailstrings)

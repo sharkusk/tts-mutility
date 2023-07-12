@@ -208,7 +208,7 @@ class TTSMutility(App):
 
         if self.is_screen_installed("mod_details"):
             screen = self.get_screen("mod_details")
-            screen.refresh_mod_details()
+            screen.action_refresh_mod_details()
 
     def refresh_mods(self) -> None:
         mod_list = ModList.ModList()
