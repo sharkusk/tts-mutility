@@ -67,10 +67,10 @@ class AssetListScreen(Widget):
         table = next(self.query("#" + self.al_id).results(DataTable))
 
         table.add_column("URL", width=self.url_width, key="url")
-        table.add_column("Ext", key="ext", width=7)
+        table.add_column("Ext", key="ext")
         table.add_column("Size(KB)", key="fsize", width=9)
-        table.add_column("Modified", key="mtime", width=10)
-        table.add_column("Trail", key="trail", width=120)
+        table.add_column("Modified", key="mtime", width=15)
+        table.add_column("Trail", key="trail")
 
         self.load_data()
 
