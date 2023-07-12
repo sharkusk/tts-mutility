@@ -125,7 +125,7 @@ class TTSMutility(App):
         mod_list.get_mods(parse_only=True, force_refresh=self.force_refresh)
         self.write_log("Loaded Mods.")
 
-        mod_asset_list = AssetList.AssetList()
+        mod_asset_list = AssetList.AssetList(post_message=self.post_message)
 
         if self.skip_asset_scan:
             self.post_message(self.InitProcessing("Skipping Asset Scan"))
