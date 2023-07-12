@@ -1,6 +1,7 @@
 import time
 from pathlib import Path
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.message import Message
@@ -42,6 +43,11 @@ class AssetListScreen(Widget):
             self.al_id = "asset-list"
         else:
             self.al_id = al_id
+
+        config = load_config()
+        self.mod_dir = config.tts_mods_dir
+        self.save_dir = config.tts_saves_dir
+
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -49,7 +55,6 @@ class AssetListScreen(Widget):
             yield DataTable(id=self.al_id)
 
     def on_mount(self) -> None:
-        start = time.time()
         self.sort_order = {
             "url": False,
             "ext": False,
@@ -59,10 +64,6 @@ class AssetListScreen(Widget):
         }
         self.last_sort_key = "url"
 
-        config = load_config()
-        self.mod_dir = config.tts_mods_dir
-        self.save_dir = config.tts_saves_dir
-
         table = next(self.query("#" + self.al_id).results(DataTable))
 
         table.add_column("URL", width=self.url_width, key="url")
@@ -71,9 +72,16 @@ class AssetListScreen(Widget):
         table.add_column("Modified", key="mtime", width=10)
         table.add_column("Trail", key="trail", width=120)
 
+        self.load_data()
+
+    @work
+    def load_data(self):
+        start = time.time()
         asset_list = AssetList()
         assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
+
+        table = next(self.query("#" + self.al_id).results(DataTable))
 
         for i, asset in enumerate(assets):
             if asset["url"] in self.assets:

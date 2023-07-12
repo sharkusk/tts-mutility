@@ -28,7 +28,6 @@ from .AssetListScreen import AssetListScreen
 class ModDetailScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
-        ("a", "load_assets", "Load Assets Tab"),
         ("b", "bgg_lookup", "BGG Lookup"),
         ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
         ("ctrl+r", "refresh_mod_details", "Reload BGG/Steam"),
@@ -49,7 +48,7 @@ class ModDetailScreen(Screen):
             "md_pane_mod",
             "md_pane_steam",
             "md_pane_bgg",
-            # "md_pane_assets",
+            "md_pane_assets",
         ]
         super().__init__()
 
@@ -74,10 +73,10 @@ class ModDetailScreen(Screen):
                     yield Markdown(
                         id="md_markdown_bgg",
                     )
-            # with TabPane("Asset List", id="md_pane_assets"):
-            #    yield AssetListScreen(
-            #        self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
-            #    )
+            with TabPane("Asset List", id="md_pane_assets"):
+                yield AssetListScreen(
+                    self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
+                )
 
     def on_mount(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
@@ -433,18 +432,3 @@ class ModDetailScreen(Screen):
         pane = next(self.query("#md_pane_assets").results(TabPane))
         al = pane.children[0]
         al.update_asset(asset)
-
-    def action_load_assets(self):
-        if "md_pane_assets" not in self.tab_names:
-            self.tab_names.append("md_pane_assets")
-
-            tabbed_content = self.query_one(TabbedContent)
-            tabbed_content.add_pane(
-                TabPane(
-                    "Asset List",
-                    AssetListScreen(
-                        self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
-                    ),
-                    id="md_pane_assets",
-                )
-            )
