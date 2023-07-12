@@ -94,19 +94,21 @@ class ModParser:
 
             if k == "AudioLibrary":
                 for elem in v:
-                    try:
-                        # It appears that AudioLibrary items are mappings of form
-                        # “Item1” → URL, “Item2” → audio title.
-                        url = elem["Item1"]
-                        recode = recodeURL(url)
-                        if recode in done:
-                            continue
-                        done.add(recode)
-                        yield (newtrail, url)
-                    except KeyError:
-                        raise NotImplementedError(
-                            "AudioLibrary has unexpected structure: {}".format(v)
-                        )
+                    # Found mod that has an empty audio library, skip it
+                    if len(elem) > 0:
+                        try:
+                            # It appears that AudioLibrary items are mappings of form
+                            # “Item1” → URL, “Item2” → audio title.
+                            url = elem["Item1"]
+                            recode = recodeURL(url)
+                            if recode in done:
+                                continue
+                            done.add(recode)
+                            yield (newtrail, url)
+                        except KeyError:
+                            raise NotImplementedError(
+                                "AudioLibrary has unexpected structure: {}".format(v)
+                            )
 
             elif isinstance(v, dict):
                 yield from self.seekURL(v, newtrail, done)
