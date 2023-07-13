@@ -359,8 +359,8 @@ class AssetList:
                                     self.post_message(
                                         UpdateLog(
                                             (
-                                                f"Found DB entry ({asset_filepath} with wrong ext. "
-                                                f"Expected {correct_ext}. Updating."
+                                                f"Found DB entry (`{asset_filepath}` with wrong ext. "
+                                                f"Expected `{correct_ext}`. Updating."
                                             )
                                         )
                                     )
@@ -370,7 +370,9 @@ class AssetList:
                                         move(src, correct_filepath)
                                         self.post_message(
                                             UpdateLog(
-                                                (f"Moved {src} to {correct_filepath}")
+                                                (
+                                                    f"Moved `{src}` to `{correct_filepath}`"
+                                                )
                                             )
                                         )
                                         filepath = correct_filepath
@@ -380,9 +382,9 @@ class AssetList:
                                     self.post_message(
                                         UpdateLog(
                                             (
-                                                f"Found asset ({filename}) "
+                                                f"Found asset (`{filename}`) "
                                                 f"with wrong ext. "
-                                                f"Expected {correct_ext}."
+                                                f"Expected `{correct_ext}`."
                                             )
                                         )
                                     )
@@ -391,8 +393,8 @@ class AssetList:
                                             UpdateLog(
                                                 (
                                                     f"Correct file already "
-                                                    f"exists, moving incorrect "
-                                                    f"file to {backup_dest}"
+                                                    f"exists, moving `{src}`  "
+                                                    f"file to `{backup_dest}`"
                                                 )
                                             )
                                         )
@@ -403,7 +405,9 @@ class AssetList:
                                         move(src, correct_filepath)
                                         self.post_message(
                                             UpdateLog(
-                                                (f"Moved {src} to {correct_filepath}")
+                                                (
+                                                    f"Moved `{src}` to `{correct_filepath}`"
+                                                )
                                             )
                                         )
                                     filepath = correct_filepath
@@ -414,8 +418,8 @@ class AssetList:
                                     self.post_message(
                                         UpdateLog(
                                             (
-                                                f"Found DB entry ({asset_filepath}) with wrong path"
-                                                f"Expected {correct_path}. Updating DB."
+                                                f"Found DB entry (`{asset_filepath}`) with wrong path"
+                                                f"Expected `{correct_path}`. Updating DB."
                                             )
                                         )
                                     )
