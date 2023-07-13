@@ -12,12 +12,11 @@ from textual.events import Key, ScreenResume
 from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
-from textual.widgets.data_table import CellDoesNotExist
+from textual.widgets.data_table import CellDoesNotExist, RowKey
 
 from ..data.config import config_file, load_config
 from ..dialogs.HelpDialog import HelpDialog
 from ..dialogs.InfoDialog import InfoDialog
-from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse import ModList
 from ..parse.AssetList import AssetList
 from ..parse.ModParser import INFECTION_URL
@@ -245,6 +244,7 @@ class ModListScreen(Screen):
                 self.filtered_rows[filename] = self.active_rows[filename]
                 self.active_rows.pop(filename)
         else:
+            row_key = self.get_current_row_key()
             # Filter is getting shorter, so we may be adding rows (if any now match)
             filenames_to_add = list(
                 filter(
@@ -260,7 +260,21 @@ class ModListScreen(Screen):
             self.get_active_table()[0].sort(
                 self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
             )
+
+        if self.filter == "":
+            # Now jump to the previously selected row
+            self.call_after_refresh(self.jump_to_row_key, row_key)
+
         self.prev_filter = self.filter
+
+    def jump_to_row_key(self, row_key):
+        (
+            table,
+            _,
+        ) = self.get_active_table()
+        # TODO: Remove internal API calls once Textual #2876 is published
+        row_index = table._row_locations.get(row_key)
+        table.cursor_coordinate = (row_index, 0)
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
@@ -300,8 +314,7 @@ class ModListScreen(Screen):
         else:
             id = "#ml_saves_dt"
         table = next(self.query(id).results(DataTable))
-        table.sort("name", reverse=self.sort_order["name"])
-        self.last_sort_key = "name"
+        table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
         table.focus()
 
     def get_mod_by_row(self, id: str, row_key) -> tuple:
@@ -326,7 +339,9 @@ class ModListScreen(Screen):
             self.sort_order[event.column_key.value] = False
 
         reverse = self.sort_order[event.column_key.value]
+
         self.last_sort_key = event.column_key.value
+        self.sort_order[self.last_sort_key] = reverse
 
         event.data_table.sort(event.column_key, reverse=reverse)
 
@@ -337,13 +352,7 @@ class ModListScreen(Screen):
         self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
 
     def action_download_assets(self) -> None:
-        tabbed = self.query_one(TabbedContent)
-        if tabbed.active == "ml_pane_workshop":
-            id = "ml_workshop_dt"
-        else:
-            id = "ml_saves_dt"
-        table = next(self.query("#" + id).results(DataTable))
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        row_key = self.get_current_row_key()
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.DownloadSelected(*args))
 
@@ -368,13 +377,7 @@ class ModListScreen(Screen):
         open_url(config_file().as_uri())
 
     def action_backup_mod(self) -> None:
-        tabbed = self.query_one(TabbedContent)
-        if tabbed.active == "ml_pane_workshop":
-            id = "ml_workshop_dt"
-        else:
-            id = "ml_saves_dt"
-        table = next(self.query("#" + id).results(DataTable))
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        row_key = self.get_current_row_key()
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.BackupSelected(*args))
 
@@ -384,6 +387,16 @@ class ModListScreen(Screen):
         else:
             table_id = "#ml_saves_dt"
         return next(self.query(table_id).results(DataTable)), table_id[1:]
+
+    def get_current_row_key(self) -> RowKey:
+        tabbed = self.query_one(TabbedContent)
+        if tabbed.active == "ml_pane_workshop":
+            id = "ml_workshop_dt"
+        else:
+            id = "ml_saves_dt"
+        table = next(self.query("#" + id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        return row_key
 
     def on_key(self, event: Key):
         fc = self.query_one("#ml_filter_center")
@@ -397,15 +410,15 @@ class ModListScreen(Screen):
             if filter_open:
                 f = self.query_one("#ml_filter")
                 if "focus-within" in fc.pseudo_classes:
+                    fc.remove_class("unhide")
                     f.value = ""
                     table, _ = self.get_active_table()
                     table.focus()
-                    fc.toggle_class("unhide")
                 else:
+                    fc.remove_class("unhide")
                     # Focus is elsewhere, clear the filter
                     # alue and close the filter window
                     f.value = ""
-                    fc.toggle_class("unhide")
                 event.stop()
 
         elif event.key == "up":
