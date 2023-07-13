@@ -77,6 +77,15 @@ class ModParser:
             if k in self.MOD_INFO_FIELDS:
                 if isinstance(v, str):
                     self.mod_info[k] = v.strip()
+                elif isinstance(v, dict):
+                    self.mod_info[k] = "-".join(v.values())
+                elif isinstance(v, list):
+                    self.mod_info[k] = []
+                    for entry in v:
+                        if isinstance(entry, dict):
+                            self.mod_info[k].append("-".join(entry.values()))
+                        else:
+                            self.mod_info[k].append(entry)
                 else:
                     self.mod_info[k] = v
 

@@ -318,6 +318,7 @@ class AssetList:
                     if i % 1000 == 0:
                         yield path, new_count, old_count + i, files_in_path
 
+                    filepath = Path(root) / filename
                     update_asset = False
                     # Determine why there is a difference.
                     try:
@@ -337,31 +338,45 @@ class AssetList:
                             ) == "":
                                 # Unknown file, just leave it alone...
                                 continue
-                            correct_filepath = get_fs_path_from_extension(
+                            cf = get_fs_path_from_extension(
                                 "", correct_ext, filename.stem
                             )
-                            correct_path = pathlib.PurePath(correct_filepath).parent
+                            correct_path = pathlib.PurePath(cf).parent
 
                             src = Path(root) / filename
                             backup_dest = Path(self.config.asset_backup_dir) / filename
+                            correct_filepath = (
+                                Path(self.config.tts_mods_dir) / correct_path / filename
+                            ).with_suffix(correct_ext)
+                            asset_filepath = (
+                                Path(asset_paths[i]) / asset_stems[i]
+                            ).with_suffix(asset_exts[i])
+
                             if asset_exts[i] != filename.suffix:
-                                # Asset exists in DB but has a different ext.
+                                # Asset exists in DB but has a different extension than current file
                                 if filename.suffix == correct_ext:
-                                    af = (
-                                        Path(asset_paths[i])
-                                        / asset_stems[i]
-                                        / asset_exts[i]
-                                    )
+                                    # The file has correct extension, DB is wrong
                                     self.post_message(
                                         UpdateLog(
                                             (
-                                                f"Found DB entry ({af} with wrong ext. "
+                                                f"Found DB entry ({asset_filepath} with wrong ext. "
                                                 f"Expected {correct_ext}. Updating."
                                             )
                                         )
                                     )
+                                    if src != correct_filepath:
+                                        # The filename and suffix is correct but in the wrong directory.
+                                        # Move it for now, and the DB will get updated on the next pass
+                                        move(src, correct_filepath)
+                                        self.post_message(
+                                            UpdateLog(
+                                                (f"Moved {src} to {correct_filepath}")
+                                            )
+                                        )
+                                        filepath = correct_filepath
                                     update_asset = True
                                 else:
+                                    # The file has incorrect extension, DB is correct
                                     self.post_message(
                                         UpdateLog(
                                             (
@@ -371,7 +386,7 @@ class AssetList:
                                             )
                                         )
                                     )
-                                    if src.with_suffix(correct_ext).exists():
+                                    if correct_filepath.exists():
                                         self.post_message(
                                             UpdateLog(
                                                 (
@@ -385,81 +400,43 @@ class AssetList:
                                         # the wrong extension
                                         move(src, backup_dest)
                                     else:
-                                        # Rename file to have correct ext
-                                        os.rename(src, src.with_suffix(correct_ext))
-                                        # Need to set new suffix to filename
-                                        # since it may be used later
-                                        filename = Path(filename).with_suffix(
-                                            correct_ext
-                                        )
+                                        move(src, correct_filepath)
                                         self.post_message(
                                             UpdateLog(
-                                                (
-                                                    f"Correct file does not exists, "
-                                                    f"renamed file to be {filename}."
-                                                )
+                                                (f"Moved {src} to {correct_filepath}")
                                             )
                                         )
+                                    filepath = correct_filepath
 
                             if asset_paths[i] != path:
-                                # Asset exists in DB but has a different path.
-                                if path == correct_path:
-                                    af = (
-                                        Path(asset_paths[i])
-                                        / asset_stems[i]
-                                        / asset_exts[i]
-                                    )
+                                # Asset exists in DB but has the wrong path.
+                                if Path(path) == correct_path:
                                     self.post_message(
                                         UpdateLog(
                                             (
-                                                f"Found DB entry ({af}) with wrong path"
+                                                f"Found DB entry ({asset_filepath}) with wrong path"
                                                 f"Expected {correct_path}. Updating DB."
                                             )
                                         )
                                     )
                                     update_asset = True
-                                else:
-                                    cf = (
-                                        Path(self.config.tts_mods_dir)
-                                        / correct_path
-                                        / filename
-                                    )
-                                    # Move the files to correct directory or
-                                    # remove if already exists
-                                    if cf.exists():
-                                        # Remove the files that are in the
-                                        # wrong spot and already have a file
-                                        # in the correct destination that
-                                        # matches
-                                        move(src, backup_dest)
-                                        self.post_message(
-                                            UpdateLog(
-                                                (
-                                                    f"File in correct path ({cf}) "
-                                                    f"already exists, moved {src} to "
-                                                    f"{backup_dest}"
-                                                )
-                                            )
-                                        )
-                                    else:
-                                        move(src, cf)
-                                        self.post_message(
-                                            UpdateLog(
-                                                (
-                                                    f"File in correct path ({cf}) "
-                                                    f"did not exist, moved {src} to "
-                                                    f"{cf}"
-                                                )
-                                            )
-                                        )
+                                    # Since the incorrect file is in another path, it will get
+                                    # moved later (or possibly on the next scan) as the conflict
+                                    # will trigger again.
 
                     if update_asset:
                         new_count += 1
-                        filepath = Path(root) / filename
                         size = os.path.getsize(filepath)
                         mtime = os.path.getmtime(filepath)
                         assets.append(
-                            (path, filename.stem, filename.suffix, mtime, size, 1)
+                            (
+                                filepath.parent.stem,
+                                filepath.stem,
+                                filepath.suffix,
+                                mtime,
+                                size,
+                                1,
+                            )
                         )
 
             yield "Complete", new_count, 0, 0
