@@ -12,7 +12,7 @@ from textual.widgets import Header, LoadingIndicator, Static
 from textual.worker import Worker, get_current_worker
 
 from . import __version__
-from .data import load_config, save_config
+from .data import load_config, save_config, config_override
 from .data.db import create_new_db, update_db_schema
 from .parse import AssetList, ModList
 from .screens.AssetDetailScreen import AssetDetailScreen
@@ -77,6 +77,9 @@ class TTSMutility(App):
             self.skip_asset_scan = True
         else:
             self.skip_asset_scan = False
+        
+        if cli_args.config_file is not None:
+            config_override(cli_args.config_file)
 
         self.force_md_update = cli_args.force_md_update
 
@@ -417,6 +420,13 @@ class TTSMutility(App):
             pass
 
 
+def file_path(filepath):
+    if Path(filepath).exists():
+        return filepath
+    else:
+        raise NotADirectoryError(filepath)
+
+
 def get_args() -> Namespace:
     """Parse and return the command line arguments.
 
@@ -482,6 +492,11 @@ def get_args() -> Namespace:
         dest="force_md_update",
         action="store_true",
     )
+
+    parser.add_argument(
+        '-c', '--config_file',
+        help="Override default config file path (including filename)",
+        type=file_path)
 
     # Finally, parse the command line.
     return parser.parse_args()

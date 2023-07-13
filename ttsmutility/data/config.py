@@ -28,6 +28,8 @@ try:
 except KeyError:
     GAMEDATA_DEFAULT = Path.home() / gamedata_map["Windows"]
 
+CONFIG_OVERRIDE = ""
+
 
 @dataclass
 class Config:
@@ -73,6 +75,22 @@ class Config:
     )
 
 
+def config_override(config_file: Path) -> None:
+    """Overrides the default configfile location.
+
+    Args:
+        config_file: The configuration file to use.
+
+    Returns:
+        None
+
+    Note:
+        No checks are done to ensure the config_file exists.
+    """
+    global CONFIG_OVERRIDE
+    CONFIG_OVERRIDE = config_file
+
+
 def config_file() -> Path:
     """Get the path to the configuration file.
 
@@ -83,8 +101,11 @@ def config_file() -> Path:
         As a side-effect, the configuration directory will be created if it
         does not exist.
     """
-    (config_dir := xdg_config_home() / "ttsmutility").mkdir(parents=True, exist_ok=True)
-    return config_dir / "configuration.json"
+    if CONFIG_OVERRIDE == "":
+        (config_dir := xdg_config_home() / "ttsmutility").mkdir(parents=True, exist_ok=True)
+        return config_dir / "configuration.json"
+    else:
+        return CONFIG_OVERRIDE
 
 
 def save_config(config: Config) -> Config:
