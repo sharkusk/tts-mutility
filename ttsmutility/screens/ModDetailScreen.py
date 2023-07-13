@@ -408,12 +408,17 @@ class ModDetailScreen(Screen):
         pane.focus()
 
     def on_key(self, event: Key):
-        if event.key == "tab":
+        if event.key == "tab" or event.key == "shift+tab":
             tabbed_content = self.query_one(TabbedContent)
             i = self.tab_names.index(tabbed_content.active)
-            i = i + 1
-            if i >= len(self.tab_names):
-                i = 0
+            if event.key == "tab":
+                i = i + 1
+                if i >= len(self.tab_names):
+                    i = 0
+            else:
+                i = i - 1
+                if i < 0:
+                    i = len(self.tab_names) - 1
 
             id = self.tab_names[i]
             tabbed_content.active = id

@@ -347,7 +347,7 @@ class Downloader(TTSWorker):
             if hostname.find("localhost") >= 0:
                 self.state_callback("error", url, "localhost url")
                 return None
-        except ValueError:
+        except (ValueError, AttributeError):
             # URL was so badly formatted that there is no hostname.
             self.state_callback("error", url, "Invalid hostname")
             return None
