@@ -6,6 +6,7 @@ from webbrowser import open as open_url
 from rich.markdown import Markdown
 from rich.text import Text
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Center
 from textual.events import Key, ScreenResume
 from textual.message import Message
@@ -14,6 +15,7 @@ from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, Tab
 from textual.widgets.data_table import CellDoesNotExist
 
 from ..data.config import config_file, load_config
+from ..dialogs.HelpDialog import HelpDialog
 from ..dialogs.InfoDialog import InfoDialog
 from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse import ModList
@@ -43,12 +45,20 @@ class MyText(Text):
 
 class ModListScreen(Screen):
     BINDINGS = [
-        ("q", "exit", "Quit"),
-        ("/", "filter", "Filter"),
-        ("m", "mod_ops", "Mod Operations"),
-        ("g", "global_ops", "Global Operations"),
-        ("l", "view_log", "View Log"),
-        ("c", "open_config", "Open Config"),
+        Binding("f1", "help", "Help"),
+        Binding("ctrl+q", "app.quit", "Quit"),
+        Binding("/", "filter", "Filter"),
+        Binding("ctrl+l", "view_log", "View Log", show=False),
+        Binding("ctrl+o", "open_config", "Open Config", show=False),
+        Binding("ctrl+d", "download_assets", "Download Missing Assets", show=False),
+        Binding("ctrl+b", "backup_mod", "Backup mod to zip", show=False),
+        Binding("ctrl+r", "mod_refresh", "Refresh Mod", show=False),
+        Binding("ctrl+l", "view_log", "View Log", show=False),
+        Binding("ctrl+o", "open_config", "Open Config", show=False),
+        Binding("ctrl+s", "scan_sha1", "Compute SHA1s", show=False),
+        Binding("ctrl+m", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
+        Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
+        Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -346,9 +356,6 @@ class ModListScreen(Screen):
         else:
             self.get_active_table()[0].focus()
 
-    def action_exit(self) -> None:
-        self.app.exit()
-
     def action_view_log(self) -> None:
         # TODO: This requires loading log twice, need to flush log before this
         # or wait until flush is complete...
@@ -518,27 +525,6 @@ class ModListScreen(Screen):
 
         self.app.push_screen(InfoDialog(f"Loaded content names from '{inname}'."))
 
-    def action_mod_ops(self):
-        options = [
-            ("Download Missing Assets", self.action_download_assets),
-            ("Backup Mod", self.action_backup_mod),
-            ("Refresh Mod", self.action_mod_refresh),
-        ]
-
-        def run_op(index: int) -> None:
-            options[index][1]()
-
-        self.app.push_screen(SelectOptionDialog(list(zip(*options))[0]), run_op)
-
-    def action_global_ops(self):
-        options = [
-            ("Compute SHA1s", self.action_scan_sha1),
-            ("Show SHA1 Mismatches", self.action_sha1_mismatches),
-            ("Save Content_Name Report", self.action_content_name_report),
-            ("Load Content_Names", self.action_content_name_load),
-        ]
-
-        def run_op(index: int) -> None:
-            options[index][1]()
-
-        self.app.push_screen(SelectOptionDialog(list(zip(*options))[0]), run_op)
+    def action_help(self) -> None:
+        """Show the help."""
+        self.app.push_screen(HelpDialog())
