@@ -230,6 +230,7 @@ class ModListScreen(Screen):
         self.active_rows[filename] = mod["name"]
 
     def update_filtered_rows(self) -> None:
+        row_key = self.get_current_row_key()
         if len(self.filter) > len(self.prev_filter):
             # Filter is getting longer, so we are going to be removing rows
             filenames_to_remove = list(
@@ -244,7 +245,6 @@ class ModListScreen(Screen):
                 self.filtered_rows[filename] = self.active_rows[filename]
                 self.active_rows.pop(filename)
         else:
-            row_key = self.get_current_row_key()
             # Filter is getting shorter, so we may be adding rows (if any now match)
             filenames_to_add = list(
                 filter(
@@ -261,8 +261,8 @@ class ModListScreen(Screen):
                 self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
             )
 
-        if self.filter == "":
-            # Now jump to the previously selected row
+        # Now jump to the previously selected row
+        if row_key != "":
             self.call_after_refresh(self.jump_to_row_key, row_key)
 
         self.prev_filter = self.filter
@@ -274,7 +274,8 @@ class ModListScreen(Screen):
         ) = self.get_active_table()
         # TODO: Remove internal API calls once Textual #2876 is published
         row_index = table._row_locations.get(row_key)
-        table.cursor_coordinate = (row_index, 0)
+        if row_index is not None and table.is_valid_row_index(row_index):
+            table.cursor_coordinate = (row_index, 0)
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
@@ -395,7 +396,10 @@ class ModListScreen(Screen):
         else:
             id = "ml_saves_dt"
         table = next(self.query("#" + id).results(DataTable))
-        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        if table.is_valid_coordinate(table.cursor_coordinate):
+            row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        else:
+            row_key = ""
         return row_key
 
     def on_key(self, event: Key):
