@@ -19,7 +19,7 @@ HELP: Final[
 
 Welcome to {APPLICATION_TITLE} Help! {APPLICATION_TITLE} was built with [Textual](https://github.com/Textualize/textual).
 
-## NOTE: Keys are reliminary and may change at any time!
+## NOTE: Keys are preliminary and may change at any time!
 
 | Key | Navigation Command |
 | -- | -- |
