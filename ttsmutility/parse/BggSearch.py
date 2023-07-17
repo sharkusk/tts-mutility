@@ -109,6 +109,7 @@ class BggSearch:
         for e in root:
             name = ""
             id = ""
+            year = ""
             if e.tag == "item" and e.attrib["type"] == "boardgame":
                 # We found our games!
                 id = e.attrib["id"]
@@ -302,6 +303,7 @@ class BggSearch:
         cache_path = (Path(self.config.bgg_cache_dir) / recodeURL(url)).with_suffix(
             ".xml"
         )
+        data = ""
         if (
             cache_path.exists()
             and not self.update_metadata(cache_path)
@@ -309,7 +311,8 @@ class BggSearch:
         ):
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = f.read()
-        else:
+        
+        if len(data) == 0:
             with urlopen(url) as f:
                 data = f.read().decode("utf-8")
                 with open(cache_path, "w", encoding="utf-8") as f:
