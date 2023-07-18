@@ -4,6 +4,7 @@ from pathlib import Path
 from webbrowser import open as open_url
 
 from rich.markdown import Markdown
+from rich.progress import Progress, BarColumn, MofNCompleteColumn
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -68,6 +69,9 @@ class ModListScreen(Screen):
         self.prev_filter = ""
         self.active_rows = {}
         self.filtered_rows = {}
+        self.progress = {}
+        self.progress_id = {}
+        self.status = {}
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -158,6 +162,8 @@ class ModListScreen(Screen):
             table.add_column("Missing", key="missing_assets")
             table.add_column("MinP", key="min_players")
             table.add_column("MaxP", key="max_players")
+            table.add_column("Status", key="status")
+            table.add_column("Progress", key="progress")
 
             table.cursor_type = "row"
             table.sort("name", reverse=self.sort_order["name"])
@@ -225,6 +231,8 @@ class ModListScreen(Screen):
             mod["missing_assets"],
             mod["min_players"],
             mod["max_players"],
+            "",  # No status to start...
+            "",  # No progress to start...
             key=filename,
         )
         self.active_rows[filename] = mod["name"]
@@ -354,6 +362,12 @@ class ModListScreen(Screen):
 
     def action_download_assets(self) -> None:
         row_key = self.get_current_row_key()
+
+        table, _ = self.get_active_table()
+
+        self.status[row_key] = "DL Q"
+        self.update_status(row_key.value)
+
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.DownloadSelected(*args))
 
@@ -382,7 +396,7 @@ class ModListScreen(Screen):
         args = self.get_mod_by_row(id, row_key)
         self.post_message(self.BackupSelected(*args))
 
-    def get_active_table(self) -> tuple:
+    def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
             table_id = "#ml_workshop_dt"
         else:
@@ -545,3 +559,30 @@ class ModListScreen(Screen):
     def action_help(self) -> None:
         """Show the help."""
         self.app.push_screen(HelpDialog())
+
+    def update_status(self, filename):
+        table, _ = self.get_mod_table(filename)
+        table.update_cell(filename, "status", self.status[filename])
+
+    def set_files_remaining(self, filename, files_remaining):
+        table, _ = self.get_mod_table(filename)
+
+        if self.status[filename] == "DL Q":
+            # This is the first update, so configure our progress bar
+            self.status[filename] = "DL'ing"
+            self.update_status(filename)
+
+            self.progress[filename] = Progress(MofNCompleteColumn(), BarColumn())
+            self.progress_id[filename] = self.progress[filename].add_task(
+                "Files", total=files_remaining
+            )
+            table.update_cell(
+                filename, "progress", self.progress[filename], update_width=True
+            )
+        else:
+            self.progress[filename].update(self.progress_id[filename], advance=1)
+            table.update_cell(filename, "progress", self.progress[filename])
+
+        if files_remaining == 0:
+            self.status[filename] = "Done"
+            self.update_status(filename)

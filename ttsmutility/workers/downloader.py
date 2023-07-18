@@ -1,17 +1,18 @@
 import http.client
 import os
 import socket
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
 from queue import Empty, Queue
+from typing import NamedTuple
 
 from textual.app import ComposeResult
 from textual.message import Message
 from textual.worker import get_current_worker
+from textual.widget import Widget
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
@@ -28,13 +29,81 @@ from ..parse.FileFinder import (
     is_pdf,
     trailstring_to_trail,
 )
-from ..parse.ModList import ModList
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
 from .TTSWorker import TTSWorker
 
 
 class Downloader(TTSWorker):
+    class FileDownloadComplete(Message):
+        def __init__(
+            self,
+            asset: dict,
+        ) -> None:
+            super().__init__()
+            self.asset = asset
+
+    class DownloadEntry(NamedTuple):
+        url: str
+        trail: str
+
+    def __init__(self):
+        super().__init__()
+        self.asset_list = AssetList()
+        self.tasks = Queue()
+
+    # Base class is installed in each screen, so we don't want
+    # to inherit the same widgets when this subclass is mounted
+    def compose(self) -> ComposeResult:
+        return []
+
+    def add_urls(self, urls, trails) -> None:
+        for url, trail in zip(urls, trails):
+            if type(trail) is not list:
+                trail = trailstring_to_trail(trail)
+
+            self.tasks.put(self.DownloadEntry(url, trail))
+
+    def download_daemon(self) -> None:
+        self.worker = get_current_worker()
+
+        while True:
+            if self.worker.is_cancelled:
+                return
+
+            try:
+                dl_task = self.tasks.get(timeout=1)
+            except Empty:
+                continue
+
+            fd = FileDownload(dl_task.url, dl_task.trail)
+
+            error, asset = fd.download()
+
+            if error == "":
+                self.post_message(
+                    UpdateLog(
+                        f"Download Complete: `{asset['filename']}` (`{asset['content_name']}`)",
+                        flush=True,
+                    )
+                )
+            else:
+                self.post_message(
+                    UpdateLog(f"Download Failed ({error}): `{dl_task.url}`", flush=True)
+                )
+
+            self.asset_list.download_done(asset)
+            self.post_message(self.FileDownloadComplete(asset))
+
+
+class FileDownload(Widget):
+    class FileDownloadProgress(Message):
+        def __init__(self, url, filesize=None, bytes_complete=0) -> None:
+            super().__init__()
+            self.url = url
+            self.filesize = filesize
+            self.bytes_complete = bytes_complete
+
     DEFAULT_EXT = {
         "text/plain": ".obj",
         "application/pdf": ".pdf",
@@ -90,23 +159,10 @@ class Downloader(TTSWorker):
         ),
     }
 
-    class FileDownloadComplete(Message):
-        def __init__(
-            self,
-            asset: dict,
-            status_id: int = 0,
-        ) -> None:
-            super().__init__()
-            self.asset = asset
-            self.status_id = status_id
-
-    class DownloadComplete(Message):
-        def __init__(self, status_id: int = 0) -> None:
-            super().__init__()
-            self.status_id = status_id
-
     def __init__(
         self,
+        url,
+        trail,
         timeout: int = 10,
         timeout_retries: int = 10,
         user_agent: str = USER_AGENT,
@@ -115,204 +171,43 @@ class Downloader(TTSWorker):
         chunk_size: int = 64 * 1024,
     ):
         super().__init__()
-        self.asset_list = AssetList()
-        self.mod_list = ModList()
-        self.status = ""
-        config = load_config()
-        self.mod_dir = config.tts_mods_dir
-        self.save_dir = config.tts_saves_dir
+        self.url = url
+        self.trail = trail
         self.timeout = timeout
         self.timeout_retries = timeout_retries
         self.user_agent = user_agent
         self.status_id = status_id
         self.ignore_content_type = ignore_content_type
         self.chunk_size = chunk_size
-        self.tasks = Queue()
 
-    # Base class is installed in each screen, so we don't want
-    # to inherit the same widgets when this subclass is mounted
+        config = load_config()
+        self.mod_dir = config.tts_mods_dir
+
+        # Asset information
+        # TODO: Convert assets and other structures to named tuples
+        self.cur_retry = 0
+        self.filename = ""
+        self.content_name = ""
+        self.filesize = 0
+        self.steam_sha1 = ""
+        self.error = ""
+        self.mtime = 0
+
     def compose(self) -> ComposeResult:
         return []
 
-    def add_mods(self, mod_filenames: list) -> None:
-        for mod_filename in mod_filenames:
-            self.tasks.put(("mod", mod_filename))
-
-    def add_assets(self, assets: list) -> None:
-        self.tasks.put(("assets", assets))
-
-    def download_daemon(self) -> None:
-        self.worker = get_current_worker()
-        mod_name = ""
-        mod_filename = ""
-
-        while True:
-            if self.worker.is_cancelled:
-                return
-
-            try:
-                task = self.tasks.get(timeout=1)
-            except Empty:
-                continue
-
-            fetch_time = time.time()
-
-            if task[0] == "mod":
-                mod_filename = task[1]
-                turls = self.asset_list.get_missing_assets(mod_filename)
-                mod_details = self.mod_list.get_mod_details(mod_filename)
-                mod_name = mod_details["name"]
-                self.post_message(UpdateLog(f"From mod {mod_name}:"))
-            else:
-                turls = []
-                for asset in task[1]:
-                    turls.append((asset["url"], trailstring_to_trail(asset["trail"])))
-
-            self.post_message(
-                UpdateLog(
-                    f"Starting Download of {len(turls)} assets.",
-                    prefix="## ",
-                )
-            )
-
-            self.post_message(
-                self.UpdateProgress(
-                    update_total=len(turls),
-                    advance_amount=0,
-                    status_id=self.status_id,
-                )
-            )
-
-            for i, (url, trail) in enumerate(turls):
-                if self.worker.is_cancelled:
-                    self.post_message(UpdateLog("Download worker cancelled."))
-                    return
-                self.post_message(
-                    self.UpdateStatus(
-                        f"{mod_name}: Downloading ({i+1}/{len(turls)}): `{url}`"
-                    )
-                )
-                self.download_file(url, trail)
-
-            self.post_message(self.DownloadComplete(status_id=self.status_id))
-            self.post_message(self.UpdateStatus(f"Download Complete: {mod_name}"))
-
-            if mod_filename != "":
-                self.mod_list.set_fetch_time(mod_filename, fetch_time)
-
-    def state_callback(self, state: str, url: str, data) -> None:
-        if state == "error":
-            error = data
-            asset = {
-                "url": url,
-                "filename": self.cur_filename,
-                "mtime": 0,
-                "fsize": 0,
-                "sha1": "",
-                "steam_sha1": self.steam_sha1,
-                "dl_status": error,
-                "content_name": self.cur_content_name,
-            }
-            self.asset_list.download_done(asset)
-            self.post_message(self.FileDownloadComplete(asset))
-            self.post_message(
-                UpdateLog(f"Download Failed ({error}): `{url}`", flush=True)
-            )
-        elif state == "download_starting":
-            self.cur_retry = data
-            if self.cur_retry == 0:
-                self.post_message(UpdateLog("---", prefix=""))
-                self.post_message(UpdateLog(f"Downloading: `{url}`"))
-            else:
-                self.post_message(UpdateLog(f"Retry #{self.cur_retry}"))
-        elif state == "file_size":
-            self.cur_filesize = data
-            self.post_message(
-                self.UpdateProgress(
-                    update_total=data, advance_amount=0, status_id=self.status_id
-                )
-            )
-            self.post_message(UpdateLog(f"Filesize: `{self.cur_filesize:,}`"))
-        elif state == "data_read":
-            self.post_message(
-                self.UpdateProgress(advance_amount=data, status_id=self.status_id)
-            )
-        elif state == "content_name":
-            self.cur_content_name = data
-            self.post_message(UpdateLog(f"Content Filename: `{self.cur_content_name}`"))
-        elif state == "filename":
-            self.cur_filename = data
-        elif state == "steam_sha1":
-            self.steam_sha1 = data
-        elif state == "asset_dir":
-            self.post_message(UpdateLog(f"Asset dir: `{data}`"))
-        elif state == "success":
-            filepath = os.path.join(self.mod_dir, self.cur_filename)
-            filesize = os.path.getsize(filepath)
-            if self.cur_filesize == 0 or filesize == self.cur_filesize:
-                mtime = os.path.getmtime(filepath)
-                asset = {
-                    "url": url,
-                    "filename": self.cur_filename,
-                    "mtime": mtime,
-                    "fsize": filesize,
-                    "sha1": "",
-                    "steam_sha1": self.steam_sha1,
-                    "dl_status": "",
-                    "content_name": self.cur_content_name,
-                }
-                self.asset_list.download_done(asset)
-                self.post_message(self.FileDownloadComplete(asset))
-                self.post_message(
-                    UpdateLog(f"Download Success: `{self.cur_filename}`", flush=True)
-                )
-            else:
-                mtime = 0
-                asset = {
-                    "url": url,
-                    "filename": self.cur_filename,
-                    "mtime": mtime,
-                    "fsize": filesize,
-                    "sha1": "",
-                    "steam_sha1": self.steam_sha1,
-                    "dl_status": f"Filesize mismatch (expected {self.cur_filesize})",
-                    "content_name": self.cur_content_name,
-                }
-                self.asset_list.download_done(asset)
-                self.post_message(self.FileDownloadComplete(asset))
-                self.post_message(
-                    UpdateLog(
-                        (
-                            f"Filesize Mismatch. Expected {self.cur_filesize}; "
-                            f"received {filesize}: `{self.cur_filename}`"
-                        ),
-                        flush=True,
-                    )
-                )
-        else:
-            # Generic status for logging...
-            # self.post_message(UpdateLog(f"{state}: {data}"))
-            pass
-
-        if state in ["error", "success"]:
-            # Increment overall progress here
-            # self.query_one("#dl_progress_all").advance(1)
-            pass
-
-        if state in ["init", "error", "download_starting", "success"]:
-            # Reset state data here
-            self.cur_retry = 0
-            self.cur_filename = ""
-            self.cur_content_name = ""
-            self.cur_filesize = 0
-            self.steam_sha1 = ""
-
-        if state in ["download_starting"]:
-            self.post_message(
-                self.UpdateProgress(
-                    update_total=100, advance_amount=0, status_id=self.status_id
-                )
-            )
+    def make_asset(self):
+        asset = {
+            "url": self.url,
+            "filename": self.filename,
+            "mtime": self.mtime,
+            "fsize": self.filesize,
+            "sha1": "",
+            "steam_sha1": self.steam_sha1,
+            "dl_status": self.error,
+            "content_name": self.content_name,
+        }
+        return asset
 
     def fix_ext_case(self, ext):
         if ext.lower() in UPPER_EXTS:
@@ -328,143 +223,124 @@ class Downloader(TTSWorker):
             )
         )
 
-    def _prep_url_for_download(self, url, trail):
-        if type(trail) is not list:
-            self.state_callback("error", url, f"trail '{trail}' not converted to list")
-            return None
-
+    def _prep_url_for_download(self):
         # Some mods contain malformed URLs missing a prefix. I’m not
         # sure how TTS deals with these. Let’s assume http for now.
-        if not urllib.parse.urlparse(url).scheme:
-            fetch_url = "http://" + url
+        if not urllib.parse.urlparse(self.url).scheme:
+            self.fetch_url = "http://" + self.url
         else:
-            fetch_url = url
+            self.fetch_url = self.url
 
-        fetch_url = fetch_url.replace(" ", "%20")
+        self.fetch_url = self.fetch_url.replace(" ", "%20")
 
         try:
-            hostname = urllib.parse.urlparse(fetch_url).hostname
+            hostname = urllib.parse.urlparse(self.fetch_url).hostname
             if hostname.find("localhost") >= 0:
-                self.state_callback("error", url, "localhost url")
-                return None
+                self.error = "localhost url"
+                return
         except (ValueError, AttributeError):
             # URL was so badly formatted that there is no hostname.
-            self.state_callback("error", url, "Invalid hostname")
-            return None
+            self.error = "Invalid hostname"
+            return
 
         # Some MODS do not include the 'raw' link in their pastebin urls, help them out
-        if "pastebin.com" in hostname and "raw" not in fetch_url:
-            fetch_url = fetch_url.replace("pastebin.com/", "pastebin.com/raw/")
+        if "pastebin.com" in hostname and "raw" not in self.fetch_url:
+            self.fetch_url = self.fetch_url.replace(
+                "pastebin.com/", "pastebin.com/raw/"
+            )
 
         # type in the response.
-        if is_model(trail):
-            default_ext = ".obj"
-            tts_type = "model"
-
-        elif is_assetbundle(trail):
-            default_ext = ".unity3d"
-            tts_type = "assetbundle"
-
-        elif is_image(trail):
-            default_ext = ".png"
-            tts_type = "image"
-
-        elif is_audiolibrary(trail):
-            default_ext = ".WAV"
-            tts_type = "audiolibrary"
-
-        elif is_pdf(trail):
-            default_ext = ".PDF"
-            tts_type = "pdf"
-
-        elif is_from_script(trail) or is_custom_ui_asset(trail):
-            default_ext = ".png"
-            tts_type = "script"
-
+        if is_model(self.trail):
+            self.default_ext = ".obj"
+            self.tts_type = "model"
+        elif is_assetbundle(self.trail):
+            self.default_ext = ".unity3d"
+            self.tts_type = "assetbundle"
+        elif is_image(self.trail):
+            self.default_ext = ".png"
+            self.tts_type = "image"
+        elif is_audiolibrary(self.trail):
+            self.default_ext = ".WAV"
+            self.tts_type = "audiolibrary"
+        elif is_pdf(self.trail):
+            self.default_ext = ".PDF"
+            self.tts_type = "pdf"
+        elif is_from_script(self.trail) or is_custom_ui_asset(self.trail):
+            self.default_ext = ".png"
+            self.tts_type = "script"
         else:
             errstr = "Do not know how to retrieve URL {url} at {trail}.".format(
-                url=url, trail=trail
+                url=self.url, trail=self.trail
             )
-            # raise ValueError(errstr)
-            self.state_callback("error", url, errstr)
-            return None
-
-        filename = get_fs_path(trail, url)
-
-        return {
-            "url": url,
-            "fetch_url": fetch_url,
-            "filename": filename,
-            "tts_type": tts_type,
-            "default_ext": default_ext,
-        }
-
-    def download_file(self, url, trail):
-        self.state_callback("init", None, None)
-
-        if (dl_info := self._prep_url_for_download(url, trail)) is None:
+            self.error = errstr
             return
+
+        self.filename = get_fs_path(self.trail, self.url)
+        return
+
+    def download(self):
+        self._prep_url_for_download()
+        if self.error != "":
+            return self.error, self.make_asset()
 
         first_error = ""
         for i in range(self.timeout_retries):
-            self.state_callback("download_starting", url, i)
+            if i == 0:
+                self.post_message(UpdateLog("---", prefix=""))
+                self.post_message(UpdateLog(f"Downloading: `{self.url}`"))
+            else:
+                self.post_message(UpdateLog(f"Retry #{i}"))
             try:
-                results = self._download_file(
-                    url,
-                    dl_info["fetch_url"],
-                    dl_info["filename"],
-                    dl_info["tts_type"],
-                    dl_info["default_ext"],
-                )
+                error = self._download_file()
             except socket.timeout:
                 continue
             except http.client.IncompleteRead:
                 continue
-            if results is not None:
+            if error is not None:
                 if first_error == "":
-                    first_error = results
+                    first_error = error
 
                 # See if we have some trailing URL options and retry if so
-                offset = dl_info["fetch_url"].rfind("?")
+                offset = self.fetch_url.rfind("?")
                 if offset > 0:
-                    dl_info["fetch_url"] = dl_info["fetch_url"][
-                        0 : dl_info["fetch_url"].rfind("?")
-                    ]
+                    self.fetch_url = self.fetch_url[0 : self.fetch_url.rfind("?")]
                     continue
 
-                if "mismatch" in results:
+                if "mismatch" in error:
                     # Try again...
                     continue
             break
         else:
-            self.state_callback("error", url, "Retries exhausted")
-            results = "Retries exhausted"
+            self.error = "Retries exhausted"
+            return error, self.make_asset()
 
-        if results is None:
-            self.state_callback("success", url, None)
-            return None
+        if error is None:
+            filepath = os.path.join(self.mod_dir, self.filename)
+            self.filesize = os.path.getsize(filepath)
+            self.mtime = os.path.getmtime(filepath)
+            self.post_message(
+                UpdateLog(f"Download Success: `{self.filename}`", flush=True)
+            )
+            self.error = ""
+            return "", self.make_asset()
         else:
             # We retried with a different URL, but use the first error
             if first_error != "":
-                results = first_error
+                self.error = first_error
+            return self.error, self.make_asset()
 
-            self.state_callback("error", url, results)
-            return results
-
-    def _download_file(
-        self, url, fetch_url, filename, tts_type, default_ext_from_trail
-    ):
+    def _download_file(self):
         headers = {"User-Agent": self.user_agent}
 
         if (
-            filename is not None
-            and (existing_file := Path(filename).with_suffix(".tmp")).exists()
+            self.filename is not None
+            and (existing_file := Path(self.filename).with_suffix(".tmp")).exists()
         ):
             headers["Range"] = f"bytes={existing_file.stat().st_size}-"
         else:
             existing_file = None
 
-        request = urllib.request.Request(url=fetch_url, headers=headers)
+        request = urllib.request.Request(url=self.fetch_url, headers=headers)
 
         try:
             response = urllib.request.urlopen(request, timeout=self.timeout)
@@ -495,16 +371,18 @@ class Downloader(TTSWorker):
             "trail": "",
         }
 
-        extensions["trail"] = default_ext_from_trail
+        extensions["trail"] = self.default_ext
 
-        if filename is not None:
-            extensions["filename"] = os.path.splitext(filename)[1]
+        if self.filename is not None:
+            extensions["filename"] = os.path.splitext(self.filename)[1]
 
         range_support = response.getheader("Accept-Ranges")
         # Some content_type arrives as: 'text/plain; charset=utf-8', we only care about
         # the first part...
         content_type = response.getheader("Content-Type", "").split(";")[0].strip()
-        is_expected = not content_type or self.content_expected(content_type, tts_type)
+        is_expected = not content_type or self.content_expected(
+            content_type, self.tts_type
+        )
         if not (is_expected or self.ignore_content_type):
             # Google drive sends html error page when file is removed/missing
             return f"Wrong context type ({content_type})"
@@ -530,21 +408,24 @@ class Downloader(TTSWorker):
         else:
             # Use the url to extract the extension,
             # ignoring any trailing ? url parameters
-            offset = url.rfind("?")
+            offset = self.url.rfind("?")
             if offset > 0:
-                extensions["url"] = os.path.splitext(url[0 : url.rfind("?")])[1]
+                extensions["url"] = os.path.splitext(self.url[0 : self.url.rfind("?")])[
+                    1
+                ]
             else:
-                extensions["url"] = os.path.splitext(url)[1]
+                extensions["url"] = os.path.splitext(self.url)[1]
 
         if content_disp_name != "":
-            if "steamusercontent" in url:
-                if url[-1] == "/":
-                    hexdigest = os.path.splitext(url)[0][-41:-1]
+            if "steamusercontent" in self.url:
+                if self.url[-1] == "/":
+                    hexdigest = os.path.splitext(self.url)[0][-41:-1]
                 else:
-                    hexdigest = os.path.splitext(url)[0][-40:]
+                    hexdigest = os.path.splitext(self.url)[0][-40:]
                 content_disp_name = content_disp_name.split(hexdigest + "_")[1]
-                self.state_callback("steam_sha1", url, hexdigest)
-            self.state_callback("content_name", url, content_disp_name)
+                self.steam_sha1 = hexdigest
+            self.content_name = content_disp_name
+            self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
 
         ext = ""
         for key in extensions.keys():
@@ -558,24 +439,22 @@ class Downloader(TTSWorker):
 
         # TTS saves some file extensions as upper case
         ext = self.fix_ext_case(ext)
-        self.state_callback("ext", url, f"`{ext}` from `{key}`.")
 
-        if filename is None:
-            filename = get_fs_path_from_extension(url, ext)
-            if filename is None:
+        if self.filename is None:
+            self.filename = get_fs_path_from_extension(self.url, ext)
+            if self.filename is None:
                 return f"Cannot detect filename ({ext})"
 
-        filename = Path(filename).with_suffix(ext)
-        self.state_callback("filename", url, filename)
-
-        filepath = Path(self.mod_dir) / filename
-        self.state_callback("filepath", url, filepath)
-
+        self.filename = Path(self.filename).with_suffix(ext)
+        filepath = Path(self.mod_dir) / self.filename
         asset_dir = os.path.split(os.path.split(filepath)[0])[1]
-        self.state_callback("asset_dir", url, f"Mods/{asset_dir}")
+        self.post_message(UpdateLog(f"Asset dir: `{asset_dir}`"))
 
-        length = response.getheader("Content-Length", 0)
-        self.state_callback("file_size", url, int(length))
+        length = int(response.getheader("Content-Length", 0))
+        self.post_message(
+            self.FileDownloadProgress(self.url, filesize=length, bytes_complete=0)
+        )
+        self.post_message(UpdateLog(f"URL Filesize: `{length}`"))
 
         temp_path = filepath.with_suffix(".tmp")
 
@@ -583,13 +462,27 @@ class Downloader(TTSWorker):
         if existing_file is None and temp_path.exists():
             os.remove(temp_path)
 
+        # This will actually go negative since we already assume
+        # that we will read the chunk_size.
+        remaining = length
         try:
             with open(temp_path, "ab") as outfile:
                 data = response.read(self.chunk_size)
+                remaining -= self.chunk_size
                 while data:
-                    self.state_callback("data_read", url, self.chunk_size)
+                    if remaining < 0:
+                        bytes_complete = self.chunk_size - remaining
+                    else:
+                        bytes_complete = self.chunk_size
+
+                    self.post_message(
+                        self.FileDownloadProgress(
+                            self.url, bytes_complete=bytes_complete
+                        )
+                    )
                     outfile.write(data)
                     data = response.read(self.chunk_size)
+                    remaining -= self.chunk_size
 
         except FileNotFoundError as error:
             return f"Error writing object to disk: {error}"
@@ -605,7 +498,7 @@ class Downloader(TTSWorker):
                 os.remove(temp_path)
             raise
 
-        if length != 0 and os.path.getsize(temp_path) != int(length):
+        if length != 0 and os.path.getsize(temp_path) != length:
             msg = (
                 f"Filesize mismatch. Received {os.path.getsize(temp_path)}. "
                 f"Expected {length}."
@@ -618,6 +511,7 @@ class Downloader(TTSWorker):
 
         # We are all good!
         if filepath.exists():
+            # There may be an old file around, delete it.
             os.remove(filepath)
 
         os.rename(temp_path, filepath)

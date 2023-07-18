@@ -29,9 +29,7 @@ class AssetListScreen(Widget):
             super().__init__()
 
     class DownloadSelected(Message):
-        def __init__(self, mod_dir: str, save_dir: str, assets: list) -> None:
-            self.mod_dir = mod_dir
-            self.save_dir = save_dir
+        def __init__(self, assets: list) -> None:
             self.assets = assets
             super().__init__()
 
@@ -262,7 +260,7 @@ class AssetListScreen(Widget):
         assets = [
             self.assets[row_key],
         ]
-        self.post_message(self.DownloadSelected(self.mod_dir, self.save_dir, assets))
+        self.post_message(self.DownloadSelected(assets))
 
     def action_missing_report(self):
         config = load_config()

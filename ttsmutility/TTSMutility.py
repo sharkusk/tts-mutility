@@ -23,7 +23,7 @@ from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
 from .utility.messages import UpdateLog
 from .workers.backup import ModBackup
-from .workers.downloader import Downloader
+from .workers.downloader import Downloader, FileDownload
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
 
@@ -58,6 +58,9 @@ class TTSMutility(App):
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
 
+        self.mods_queued_dl = {}
+        self.mods_queued_backup = []
+
         if cli_args.force_refresh:
             self.force_refresh = True
         else:
@@ -77,7 +80,7 @@ class TTSMutility(App):
             self.skip_asset_scan = True
         else:
             self.skip_asset_scan = False
-        
+
         if cli_args.config_file is not None:
             config_override(cli_args.config_file)
 
@@ -304,7 +307,12 @@ class TTSMutility(App):
     def on_asset_list_screen_download_selected(
         self, event: AssetListScreen.DownloadSelected
     ):
-        self.ad.add_assets(event.assets)
+        urls = []
+        trails = []
+        for asset in event.assets:
+            urls.append(asset["url"])
+            trails.append(asset["trail"])
+        self.ad.add_urls(urls, trails)
 
     """
     # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
@@ -315,18 +323,29 @@ class TTSMutility(App):
     # ╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
     """  # noqa
 
+    def on_file_download_file_download_progress(
+        self, event: FileDownload.FileDownloadProgress
+    ):
+        # Progress bar for current file being downloaded...
+        # TODO: This isn't working since we can't bubble messages outside the DOM
+        pass
+
     def on_downloader_file_download_complete(
         self, event: Downloader.FileDownloadComplete
     ):
+        # Find the mods being downloaded that contain this URL so we can update the status
+        for mod_filename in self.mods_queued_dl:
+            if event.asset["url"] in self.mods_queued_dl[mod_filename]:
+                self.mods_queued_dl[mod_filename].remove(event.asset["url"])
+                files_remaining = len(self.mods_queued_dl[mod_filename])
+                screen = self.get_screen("mod_list")
+                screen.set_files_remaining(mod_filename, files_remaining)
+                if files_remaining == 0:
+                    self.refresh_mods()
+
         if self.is_screen_installed("mod_details"):
             screen = self.get_screen("mod_details")
             screen.update_asset(event.asset)
-
-    def on_downloader_download_complete(self, event: Downloader.DownloadComplete):
-        self.refresh_mods()
-        self.progress_advance = 0
-        self.progress_total = 100
-        self.last_status = ""
 
     """
     # ███╗   ███╗ ██████╗ ██████╗ ██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
@@ -346,13 +365,27 @@ class TTSMutility(App):
         )
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
+        self.mods_queued_backup.append(event.mod_filename)
         self.backup.add_mods([event.mod_filename])
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
         self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
-        self.ad.add_mods([event.mod_filename])
+        mod_asset_list = AssetList.AssetList()
+        turls = mod_asset_list.get_missing_assets(event.mod_filename)
+        if len(turls) > 0:
+            urls, trails = tuple(zip(*turls))
+        else:
+            return
+        self.mods_queued_dl[event.mod_filename] = list(urls)
+
+        # screen = self.get_screen("mod_list")
+        # screen.set_files_remaining(
+        #     event.mod_filename, len(self.mods_queued_dl[event.mod_filename])
+        # )
+
+        self.ad.add_urls(urls, trails)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)
@@ -379,7 +412,7 @@ class TTSMutility(App):
         if event.flush:
             self.f_log.flush()
 
-    def on_ttsworker_update_progress(self, event: Downloader.UpdateProgress):
+    def on_ttsworker_update_progress(self, event: TTSWorker.UpdateProgress):
         if event.update_total is not None:
             self.progress_total = event.update_total
             self.progress_advance = 0
@@ -402,7 +435,7 @@ class TTSMutility(App):
         except NoMatches:
             pass
 
-    def on_ttsworker_update_status(self, event: Downloader.UpdateStatus):
+    def on_ttsworker_update_status(self, event: TTSWorker.UpdateStatus):
         self.last_status = event.status
         try:
             status_center = self.screen_stack[-1].query_one("#worker_center")
@@ -494,9 +527,11 @@ def get_args() -> Namespace:
     )
 
     parser.add_argument(
-        '-c', '--config_file',
+        "-c",
+        "--config_file",
         help="Override default config file path (including filename)",
-        type=file_path)
+        type=file_path,
+    )
 
     # Finally, parse the command line.
     return parser.parse_args()

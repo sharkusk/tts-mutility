@@ -169,7 +169,7 @@ class AssetList:
     def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
         with sqlite3.connect(self.db_path) as db:
-            if asset["filename"] == "":
+            if asset["filename"] is None or asset["filename"] == "":
                 db.execute(
                     """
                     UPDATE tts_assets
