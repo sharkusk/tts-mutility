@@ -1,10 +1,12 @@
 import csv
 from itertools import filterfalse
 from pathlib import Path
+from queue import Empty, Queue
 from webbrowser import open as open_url
+from typing import NamedTuple
 
 from rich.markdown import Markdown
-from rich.progress import Progress, BarColumn, MofNCompleteColumn
+from rich.progress import BarColumn, MofNCompleteColumn, Progress
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -14,16 +16,19 @@ from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
 from textual.widgets.data_table import CellDoesNotExist, RowKey
+from textual.worker import get_current_worker
 
 from ..data.config import config_file, load_config
 from ..dialogs.HelpDialog import HelpDialog
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse import ModList
 from ..parse.AssetList import AssetList
+from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import format_time
 from .DebugScreen import DebugScreen
+from ..workers.downloader import FileDownload
 
 
 # Remove this once Rich accepts pull request #3016
@@ -44,6 +49,18 @@ class MyText(Text):
 
 
 class ModListScreen(Screen):
+    class FileDownloadComplete(Message):
+        def __init__(
+            self,
+            asset: dict,
+        ) -> None:
+            super().__init__()
+            self.asset = asset
+
+    class DownloadEntry(NamedTuple):
+        url: str
+        trail: str
+
     BINDINGS = [
         Binding("f1", "help", "Help"),
         Binding("ctrl+q", "app.quit", "Quit"),
@@ -72,7 +89,15 @@ class ModListScreen(Screen):
         self.progress = {}
         self.progress_id = {}
         self.status = {}
+        self.dl_queue = Queue()
         super().__init__()
+
+        config = load_config()
+
+        for i in range(int(config.num_download_threads)):
+            self.run_worker(
+                self.download_daemon, group="downloaders", description=f"DL Task {i}"
+            )
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -573,16 +598,61 @@ class ModListScreen(Screen):
             self.update_status(filename)
 
             self.progress[filename] = Progress(MofNCompleteColumn(), BarColumn())
+
+            # This function gets called after the first file is already downloaded.
+            # Therefore we need to add 1 to our total number of files
             self.progress_id[filename] = self.progress[filename].add_task(
-                "Files", total=files_remaining
+                "Files", total=files_remaining + 1
             )
             table.update_cell(
                 filename, "progress", self.progress[filename], update_width=True
             )
-        else:
-            self.progress[filename].update(self.progress_id[filename], advance=1)
-            table.update_cell(filename, "progress", self.progress[filename])
+
+        self.progress[filename].update(self.progress_id[filename], advance=1)
+        table.update_cell(filename, "progress", self.progress[filename])
 
         if files_remaining == 0:
             self.status[filename] = "Done"
             self.update_status(filename)
+
+    def dl_urls(self, urls, trails) -> None:
+        for url, trail in zip(urls, trails):
+            if type(trail) is not list:
+                trail = trailstring_to_trail(trail)
+
+            self.dl_queue.put(self.DownloadEntry(url, trail))
+
+    def download_daemon(self) -> None:
+        worker = get_current_worker()
+        asset_list = AssetList()
+
+        while True:
+            if worker.is_cancelled:
+                return
+
+            try:
+                dl_task = self.dl_queue.get(timeout=1)
+            except Empty:
+                continue
+
+            fd = FileDownload(dl_task.url, dl_task.trail)
+
+            error, asset = fd.download()
+
+            if error == "":
+                message = (
+                    f"{worker.description}: Download Complete `{asset['filename']}`"
+                )
+                if asset["content_name"] != "":
+                    message += f" (`{asset['content_name']}`)"
+                self.post_message(UpdateLog(message, flush=True))
+            else:
+                self.post_message(
+                    UpdateLog(
+                        f"{worker.description}: Download Failed ({error}): `{dl_task.url}`",
+                        flush=True,
+                    )
+                )
+
+            asset_list.download_done(asset)
+            self.post_message(self.FileDownloadComplete(asset))

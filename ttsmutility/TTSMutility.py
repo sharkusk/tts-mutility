@@ -23,7 +23,7 @@ from .screens.ModListScreen import ModListScreen
 from .utility.advertising import APPLICATION_TITLE, PACKAGE_NAME
 from .utility.messages import UpdateLog
 from .workers.backup import ModBackup
-from .workers.downloader import Downloader, FileDownload
+from .workers.downloader import FileDownload
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
 
@@ -54,7 +54,6 @@ class TTSMutility(App):
         save_config(config)
         self.max_mods = cli_args.max_mods
         self.start_time = time.time()
-        self.ad = Downloader()
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
 
@@ -244,14 +243,12 @@ class TTSMutility(App):
 
         # Mount the worker screens so our messages bubbled
         if name == "mod_list":
-            screen.mount(self.ad)
             screen.mount(self.sha1)
             screen.mount(self.backup)
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
         self.run_worker(self.backup.backup_daemon)
-        self.run_worker(self.ad.download_daemon)
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
@@ -312,7 +309,9 @@ class TTSMutility(App):
         for asset in event.assets:
             urls.append(asset["url"])
             trails.append(asset["trail"])
-        self.ad.add_urls(urls, trails)
+
+        screen = self.get_screen("mod_list")
+        screen.dl_urls(urls, trails)
 
     """
     # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
@@ -330,8 +329,15 @@ class TTSMutility(App):
         # TODO: This isn't working since we can't bubble messages outside the DOM
         pass
 
-    def on_downloader_file_download_complete(
-        self, event: Downloader.FileDownloadComplete
+    def on_mod_list_screen_file_download_progress(
+        self, event: FileDownload.FileDownloadProgress
+    ):
+        # Progress bar for current file being downloaded...
+        # TODO: This isn't working since we can't bubble messages outside the DOM
+        pass
+
+    def on_mod_list_screen_file_download_complete(
+        self, event: ModListScreen.FileDownloadComplete
     ):
         # Find the mods being downloaded that contain this URL so we can update the status
         for mod_filename in self.mods_queued_dl:
@@ -380,12 +386,8 @@ class TTSMutility(App):
             return
         self.mods_queued_dl[event.mod_filename] = list(urls)
 
-        # screen = self.get_screen("mod_list")
-        # screen.set_files_remaining(
-        #     event.mod_filename, len(self.mods_queued_dl[event.mod_filename])
-        # )
-
-        self.ad.add_urls(urls, trails)
+        screen = self.get_screen("mod_list")
+        screen.dl_urls(urls, trails)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)

@@ -69,6 +69,11 @@ class Config:
         "How many days before metadata is refreshed from Steam and BGG"
     )
 
+    num_download_threads: str = "3"
+    num_download_threads_help: str = (
+        "Number of background threads to use when downloading missing assets"
+    )
+
     steam_api_key: str = ""
     steam_api_key_help: str = (
         "Personal Steam API key. Not currently used, so completely optional."
@@ -102,7 +107,9 @@ def config_file() -> Path:
         does not exist.
     """
     if CONFIG_OVERRIDE == "":
-        (config_dir := xdg_config_home() / "ttsmutility").mkdir(parents=True, exist_ok=True)
+        (config_dir := xdg_config_home() / "ttsmutility").mkdir(
+            parents=True, exist_ok=True
+        )
         return config_dir / "configuration.json"
     else:
         return CONFIG_OVERRIDE

@@ -6,16 +6,12 @@ import urllib.parse
 import urllib.request
 from contextlib import suppress
 from pathlib import Path
-from queue import Empty, Queue
-from typing import NamedTuple
 
 from textual.app import ComposeResult
 from textual.message import Message
-from textual.worker import get_current_worker
 from textual.widget import Widget
 
 from ..data.config import load_config
-from ..parse.AssetList import AssetList
 from ..parse.FileFinder import (
     UPPER_EXTS,
     get_fs_path,
@@ -27,73 +23,9 @@ from ..parse.FileFinder import (
     is_image,
     is_model,
     is_pdf,
-    trailstring_to_trail,
 )
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
-from .TTSWorker import TTSWorker
-
-
-class Downloader(TTSWorker):
-    class FileDownloadComplete(Message):
-        def __init__(
-            self,
-            asset: dict,
-        ) -> None:
-            super().__init__()
-            self.asset = asset
-
-    class DownloadEntry(NamedTuple):
-        url: str
-        trail: str
-
-    def __init__(self):
-        super().__init__()
-        self.asset_list = AssetList()
-        self.tasks = Queue()
-
-    # Base class is installed in each screen, so we don't want
-    # to inherit the same widgets when this subclass is mounted
-    def compose(self) -> ComposeResult:
-        return []
-
-    def add_urls(self, urls, trails) -> None:
-        for url, trail in zip(urls, trails):
-            if type(trail) is not list:
-                trail = trailstring_to_trail(trail)
-
-            self.tasks.put(self.DownloadEntry(url, trail))
-
-    def download_daemon(self) -> None:
-        self.worker = get_current_worker()
-
-        while True:
-            if self.worker.is_cancelled:
-                return
-
-            try:
-                dl_task = self.tasks.get(timeout=1)
-            except Empty:
-                continue
-
-            fd = FileDownload(dl_task.url, dl_task.trail)
-
-            error, asset = fd.download()
-
-            if error == "":
-                self.post_message(
-                    UpdateLog(
-                        f"Download Complete: `{asset['filename']}` (`{asset['content_name']}`)",
-                        flush=True,
-                    )
-                )
-            else:
-                self.post_message(
-                    UpdateLog(f"Download Failed ({error}): `{dl_task.url}`", flush=True)
-                )
-
-            self.asset_list.download_done(asset)
-            self.post_message(self.FileDownloadComplete(asset))
 
 
 class FileDownload(Widget):
