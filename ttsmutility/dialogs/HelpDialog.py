@@ -31,6 +31,7 @@ Welcome to {APPLICATION_TITLE} Help! {APPLICATION_TITLE} was built with [Textual
 | Key | Mod Command |
 | -- | -- |
 | `Ctrl+d` | Download Missing Assets from Mod |
+| `Ctrl+a` | Download Missing Assets from ALL Displayed Mods |
 | `Ctrl+b` | Create zip backup of Mod |
 | `Ctrl+r` | Force refresh Mod |
 

@@ -1,9 +1,10 @@
 import csv
+from dataclasses import dataclass
 from itertools import filterfalse
 from pathlib import Path
 from queue import Empty, Queue
-from webbrowser import open as open_url
 from typing import NamedTuple
+from webbrowser import open as open_url
 
 from rich.markdown import Markdown
 from rich.progress import BarColumn, MofNCompleteColumn, Progress
@@ -27,8 +28,8 @@ from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import format_time
-from .DebugScreen import DebugScreen
 from ..workers.downloader import FileDownload
+from .DebugScreen import DebugScreen
 
 
 # Remove this once Rich accepts pull request #3016
@@ -61,12 +62,18 @@ class ModListScreen(Screen):
         url: str
         trail: str
 
+    @dataclass
+    class WorkerStatus:
+        download: str
+        backup: str
+
     BINDINGS = [
         Binding("f1", "help", "Help"),
         Binding("ctrl+q", "app.quit", "Quit"),
         Binding("/", "filter", "Filter"),
         Binding("ctrl+l", "view_log", "View Log", show=False),
         Binding("ctrl+o", "open_config", "Open Config", show=False),
+        Binding("ctrl+a", "download_all", "Download All Missing Assets", show=False),
         Binding("ctrl+d", "download_assets", "Download Missing Assets", show=False),
         Binding("ctrl+b", "backup_mod", "Backup mod to zip", show=False),
         Binding("ctrl+r", "mod_refresh", "Refresh Mod", show=False),
@@ -208,6 +215,7 @@ class ModListScreen(Screen):
 
         for mod_filename in self.mods.keys():
             self.add_mod_row(self.mods[mod_filename])
+            self.status[mod_filename] = self.WorkerStatus("", "")
 
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
@@ -351,14 +359,6 @@ class ModListScreen(Screen):
         table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
         table.focus()
 
-    def get_mod_by_row(self, id: str, row_key) -> tuple:
-        mod_filename = self.mods[row_key.value]["filename"]
-        mod_name = self.mods[row_key.value]["name"]
-        # assets are always stored in mod_dir
-        mod_dir = self.mod_dir
-        save_dir = self.save_dir
-        return (mod_filename, mod_name, mod_dir, save_dir)
-
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if self.prev_selected is not None and event.row_key == self.prev_selected:
             self.post_message(self.ModSelected(event.row_key.value))
@@ -385,16 +385,19 @@ class ModListScreen(Screen):
     def action_scan_sha1(self) -> None:
         self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
 
+    def action_download_all(self) -> None:
+        for filename in self.active_rows:
+            self.download_missing_assets(filename)
+
     def action_download_assets(self) -> None:
         row_key = self.get_current_row_key()
-
-        table, _ = self.get_active_table()
-
-        self.status[row_key] = "DL Q"
-        self.update_status(row_key.value)
-
-        args = self.get_mod_by_row(id, row_key)
-        self.post_message(self.DownloadSelected(*args))
+        self.download_missing_assets(row_key.value)
+    
+    def download_missing_assets(self, filename):
+        self.status[filename].download = "Queued"
+        self.update_status(filename)
+        mod_name = self.mods[filename]["name"]
+        self.post_message(self.DownloadSelected(filename, mod_name, self.mod_dir, self.save_dir))
 
     def action_filter(self) -> None:
         f = self.query_one("#ml_filter_center")
@@ -418,8 +421,9 @@ class ModListScreen(Screen):
 
     def action_backup_mod(self) -> None:
         row_key = self.get_current_row_key()
-        args = self.get_mod_by_row(id, row_key)
-        self.post_message(self.BackupSelected(*args))
+        filename = row_key.value
+        mod_name = self.mods[filename]["name"]
+        self.post_message(self.BackupSelected(filename, mod_name, self.mod_dir, self.save_dir))
 
     def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
@@ -587,16 +591,31 @@ class ModListScreen(Screen):
 
     def update_status(self, filename):
         table, _ = self.get_mod_table(filename)
-        table.update_cell(filename, "status", self.status[filename])
+
+        stat = []
+        if self.status[filename].download == "Queued":
+            stat.append("DL-Q")
+        elif self.status[filename].download == "Running":
+            stat.append("DL'ing")
+        if self.status[filename].backup == "Queued":
+            stat.append("B-Q")
+        elif self.status[filename].backup == "Running":
+            stat.append("B'ing")
+        if len(stat) > 0:
+            stat_message = ",".join(stat)
+        else:
+            stat_message = ""
+
+        table.update_cell(filename, "status", stat_message)
 
     def set_files_remaining(self, filename, files_remaining):
         table, _ = self.get_mod_table(filename)
 
-        if self.status[filename] == "DL Q":
-            # This is the first update, so configure our progress bar
-            self.status[filename] = "DL'ing"
+        if self.status[filename].download == "Queued":
+            self.status[filename].download = "Running"
             self.update_status(filename)
 
+            # This is the first update, so configure our progress bar
             self.progress[filename] = Progress(MofNCompleteColumn(), BarColumn())
 
             # This function gets called after the first file is already downloaded.
@@ -612,7 +631,7 @@ class ModListScreen(Screen):
         table.update_cell(filename, "progress", self.progress[filename])
 
         if files_remaining == 0:
-            self.status[filename] = "Done"
+            self.status[filename].download = ""
             self.update_status(filename)
 
     def dl_urls(self, urls, trails) -> None:
