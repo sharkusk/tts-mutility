@@ -52,10 +52,15 @@ class AssetDetailScreen(ModalScreen):
         if "LuaScript" in self.asset_detail["trail"]:
             # Read in mod file, find string in first LUA script section,
             # find start/end of function, and extract...
-            with open(self.asset_detail["mod_path"], "r", encoding="utf-8") as f:
+            try:
+                with open(self.asset_detail["mod_path"], "r", encoding="utf-8") as f:
+                    data = f.read()
+            except FileNotFoundError:
+                # Expected for sha1 mismatches
+                pass
+            else:
                 lines_before = 18
                 lines_after = 18
-                data = f.read()
                 url_loc = data.find(self.asset_detail["url"])
                 if url_loc == -1:
                     url_loc = data.find("tcejbo gninwapS")

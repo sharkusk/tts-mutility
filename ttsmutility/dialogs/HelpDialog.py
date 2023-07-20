@@ -41,7 +41,7 @@ Welcome to {APPLICATION_TITLE} Help! {APPLICATION_TITLE} was built with [Textual
 | `ctrl+l` | View log |
 | `ctrl+o` | Open Config |
 | `ctrl+s` | Compute SHA1s |
-| `ctrl+m` | Show SHA1 Mismatches |
+| `ctrl+p` | Show SHA1 Mismatches |
 | `ctrl+n` | Save Content Names to .csv |
 | `ctrl+f` | Load Content Names from .csv |
 

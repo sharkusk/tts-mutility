@@ -80,7 +80,7 @@ class ModListScreen(Screen):
         Binding("ctrl+l", "view_log", "View Log", show=False),
         Binding("ctrl+o", "open_config", "Open Config", show=False),
         Binding("ctrl+s", "scan_sha1", "Compute SHA1s", show=False),
-        Binding("ctrl+m", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
+        Binding("ctrl+p", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
         Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
         Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
     ]
@@ -392,12 +392,14 @@ class ModListScreen(Screen):
     def action_download_assets(self) -> None:
         row_key = self.get_current_row_key()
         self.download_missing_assets(row_key.value)
-    
+
     def download_missing_assets(self, filename):
         self.status[filename].download = "Queued"
         self.update_status(filename)
         mod_name = self.mods[filename]["name"]
-        self.post_message(self.DownloadSelected(filename, mod_name, self.mod_dir, self.save_dir))
+        self.post_message(
+            self.DownloadSelected(filename, mod_name, self.mod_dir, self.save_dir)
+        )
 
     def action_filter(self) -> None:
         f = self.query_one("#ml_filter_center")
@@ -423,7 +425,9 @@ class ModListScreen(Screen):
         row_key = self.get_current_row_key()
         filename = row_key.value
         mod_name = self.mods[filename]["name"]
-        self.post_message(self.BackupSelected(filename, mod_name, self.mod_dir, self.save_dir))
+        self.post_message(
+            self.BackupSelected(filename, mod_name, self.mod_dir, self.save_dir)
+        )
 
     def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
