@@ -174,15 +174,11 @@ class AssetList:
                     """
                     UPDATE tts_assets
                     SET
-                        asset_mtime=?, asset_size=?, asset_dl_status=?,
-                        asset_content_name=?, asset_steam_sha1=?
+                        asset_dl_status=?, asset_steam_sha1=?
                     WHERE asset_url=?
                     """,
                     (
-                        asset["mtime"],
-                        asset["fsize"],
                         asset["dl_status"],
-                        asset["content_name"],
                         asset["steam_sha1"],
                         asset["url"],
                     ),
@@ -261,7 +257,7 @@ class AssetList:
                 # filename SHA1
                 if result[2] != "" and result[3] != "":
                     if result[2] != result[3]:
-                        # We have a SHA1 mismatch so re-download
+                        # We have a SHA1 mismatch so attempt to re-download
                         skip = False
             else:
                 # File doesn't exist, so download it
