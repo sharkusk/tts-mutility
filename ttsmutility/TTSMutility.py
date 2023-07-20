@@ -1,3 +1,4 @@
+import asyncio
 import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -339,6 +340,8 @@ class TTSMutility(App):
     def on_mod_list_screen_file_download_complete(
         self, event: ModListScreen.FileDownloadComplete
     ):
+        asset_list = AssetList.AssetList()
+        asset_list.download_done(event.asset)
         # Find the mods being downloaded that contain this URL so we can update the status
         for mod_filename in self.mods_queued_dl:
             if event.asset["url"] in self.mods_queued_dl[mod_filename]:
@@ -370,24 +373,30 @@ class TTSMutility(App):
             ModDetailScreen(event.filename, self.force_md_update), "mod_details"
         )
 
-    def on_mod_list_screen_backup_selected(self, event: ModListScreen.DownloadSelected):
+    def on_mod_list_screen_backup_selected(self, event: ModListScreen.BackupSelected):
         self.mods_queued_backup.append(event.mod_filename)
         self.backup.add_mods([event.mod_filename])
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        self.write_log(f"Downloading missing assets from `{event.mod_filename}`.")
-        mod_asset_list = AssetList.AssetList()
-        turls = mod_asset_list.get_missing_assets(event.mod_filename)
-        if len(turls) > 0:
-            urls, trails = tuple(zip(*turls))
-        else:
-            return
-        self.mods_queued_dl[event.mod_filename] = list(urls)
+        self.run_worker(self.download_selected(event.mod_filenames))
 
+    async def download_selected(self, mod_filenames: list[str]) -> None:
+        mod_asset_list = AssetList.AssetList()
         screen = self.get_screen("mod_list")
-        screen.dl_urls(urls, trails)
+
+        for mod_filename in mod_filenames:
+            asyncio.sleep(0.1)
+            turls = mod_asset_list.get_missing_assets(mod_filename)
+            if len(turls) > 0:
+                urls, trails = tuple(zip(*turls))
+            else:
+                continue
+            self.write_log(f"Downloading missing assets from `{mod_filename}`.")
+            self.mods_queued_dl[mod_filename] = list(urls)
+
+            screen.dl_urls(urls, trails)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True)

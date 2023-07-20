@@ -144,23 +144,13 @@ class ModListScreen(Screen):
             super().__init__()
 
     class DownloadSelected(Message):
-        def __init__(
-            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
-        ) -> None:
-            self.mod_dir = mod_dir
-            self.save_dir = save_dir
-            self.mod_filename = mod_filename
-            self.mod_name = mod_name
+        def __init__(self, mod_filenames: list[str]) -> None:
+            self.mod_filenames = mod_filenames
             super().__init__()
 
     class BackupSelected(Message):
-        def __init__(
-            self, mod_filename: str, mod_name: str, mod_dir: str, save_dir: str
-        ) -> None:
-            self.mod_dir = mod_dir
-            self.save_dir = save_dir
+        def __init__(self, mod_filename: str) -> None:
             self.mod_filename = mod_filename
-            self.mod_name = mod_name
             super().__init__()
 
     class ShowSha1(Message):
@@ -386,20 +376,20 @@ class ModListScreen(Screen):
         self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
 
     def action_download_all(self) -> None:
+        filenames = []
         for filename in self.active_rows:
-            self.download_missing_assets(filename)
+            filenames.append(filename)
+        self.download_missing_assets(filenames)
 
     def action_download_assets(self) -> None:
         row_key = self.get_current_row_key()
-        self.download_missing_assets(row_key.value)
+        self.download_missing_assets([row_key.value])
 
-    def download_missing_assets(self, filename):
-        self.status[filename].download = "Queued"
-        self.update_status(filename)
-        mod_name = self.mods[filename]["name"]
-        self.post_message(
-            self.DownloadSelected(filename, mod_name, self.mod_dir, self.save_dir)
-        )
+    def download_missing_assets(self, filenames):
+        for filename in filenames:
+            self.status[filename].download = "Queued"
+            self.update_status(filename)
+        self.post_message(self.DownloadSelected(filenames))
 
     def action_filter(self) -> None:
         f = self.query_one("#ml_filter_center")
@@ -424,10 +414,7 @@ class ModListScreen(Screen):
     def action_backup_mod(self) -> None:
         row_key = self.get_current_row_key()
         filename = row_key.value
-        mod_name = self.mods[filename]["name"]
-        self.post_message(
-            self.BackupSelected(filename, mod_name, self.mod_dir, self.save_dir)
-        )
+        self.post_message(self.BackupSelected(filename))
 
     def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
@@ -647,7 +634,6 @@ class ModListScreen(Screen):
 
     def download_daemon(self) -> None:
         worker = get_current_worker()
-        asset_list = AssetList()
 
         while True:
             if worker.is_cancelled:
@@ -677,5 +663,4 @@ class ModListScreen(Screen):
                     )
                 )
 
-            asset_list.download_done(asset)
             self.post_message(self.FileDownloadComplete(asset))
