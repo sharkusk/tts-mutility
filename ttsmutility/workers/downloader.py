@@ -181,6 +181,9 @@ class FileDownload(Widget):
                 "pastebin.com/", "pastebin.com/raw/"
             )
 
+        if "paste.ee" in hostname and "/p/" in self.fetch_url:
+            self.fetch_url = self.fetch_url.replace("paste.ee/p/", "paste.ee/d/")
+
         # type in the response.
         if is_model(self.trail):
             self.default_ext = ".obj"
