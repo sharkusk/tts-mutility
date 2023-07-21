@@ -387,12 +387,9 @@ class TTSMutility(App):
         screen = self.get_screen("mod_list")
 
         for mod_filename in mod_filenames:
-            asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
             turls = mod_asset_list.get_missing_assets(mod_filename)
-            if len(turls) > 0:
-                urls, trails = tuple(zip(*turls))
-            else:
-                continue
+            urls, trails = tuple(zip(*turls))
             self.write_log(f"Downloading missing assets from `{mod_filename}`.")
             self.mods_queued_dl[mod_filename] = list(urls)
 

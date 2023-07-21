@@ -382,7 +382,8 @@ class ModListScreen(Screen):
     def action_download_all(self) -> None:
         filenames = []
         for filename in self.active_rows:
-            filenames.append(filename)
+            if self.mods[filename]["missing_assets"] > 0:
+                filenames.append(filename)
         self.download_missing_assets(filenames)
 
     def action_download_assets(self) -> None:
