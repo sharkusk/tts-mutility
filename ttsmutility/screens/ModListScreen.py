@@ -244,6 +244,8 @@ class ModListScreen(Screen):
         name = self.clean_name(mod["name"])
         if mod["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
+        if mod["deleted"]:
+            name = MyText(name, style="strike")
 
         table.add_row(
             name,
@@ -318,6 +320,8 @@ class ModListScreen(Screen):
         name = self.clean_name(mods[row_key]["name"])
         if mods[row_key]["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
+        if mods[row_key]["deleted"]:
+            name = MyText(name, style="strike")
 
         # We need to update both our internal asset information
         # and what is shown on the table...

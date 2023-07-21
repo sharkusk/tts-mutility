@@ -370,7 +370,10 @@ class ModList:
             )
             db.commit()
 
-    def get_mods(self, parse_only=False, force_refresh=False) -> dict:
+    def get_mods(
+        self, parse_only=False, force_refresh=False, include_deleted=False
+    ) -> dict:
+        mods_on_disk = []  # Mods that exist in the filesystem
         mod_list = []
         mods = {}
         scan_time = time.time()
@@ -418,6 +421,8 @@ class ModList:
 
                     if self.max_mods != -1 and i >= self.max_mods:
                         break
+
+                    mods_on_disk.append(f)
 
                     if (
                         os.path.getmtime(self._get_mod_path(f)) > prev_scan_time
@@ -469,6 +474,12 @@ class ModList:
                 results = cursor.fetchall()
                 for result in results:
                     filename = result[0]
+                    if filename not in mods_on_disk:
+                        if not include_deleted:
+                            continue
+                        deleted = True
+                    else:
+                        deleted = False
                     mods[filename] = {
                         "filename": result[0],
                         "name": result[1],
@@ -486,6 +497,7 @@ class ModList:
                         "min_play_time": result[13],
                         "max_play_time": result[14],
                         "bgg_id": result[15],
+                        "deleted": deleted,
                     }
                     cursor = db.execute(
                         """
