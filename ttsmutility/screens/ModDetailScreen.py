@@ -123,7 +123,6 @@ class ModDetailScreen(Screen):
         return mod_detail
 
     def get_markdown(self) -> str:
-        start = time.time()
         mod_detail = self.get_markdown_common()
 
         mod_detail_md = ""
@@ -156,13 +155,16 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["tag_list"] = "- N/A"
 
-        main_md = mod_detail_md.format(**mod_detail)
-        end = time.time()
-        self.post_message(UpdateLog(f"Time to update mod markdown: {end-start}"))
+        while True:
+            try:
+                main_md = mod_detail_md.format(**mod_detail)
+            except KeyError as missing:
+                mod_detail[missing.args[0]] = ""
+            else:
+                break
         return main_md
 
     def get_markdown_steam(self, force_update=False) -> str:
-        start = time.time()
         mod_detail = self.get_markdown_common()
 
         mod_detail_steam = ""
@@ -184,9 +186,13 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["tag_list"] = "- N/A"
 
-        steam_md = mod_detail_steam.format(**mod_detail)
-        end = time.time()
-        self.post_message(UpdateLog(f"Time to update steam markdown: {end-start}"))
+        while True:
+            try:
+                steam_md = mod_detail_steam.format(**mod_detail)
+            except KeyError as missing:
+                mod_detail[missing.args[0]] = ""
+            else:
+                break
         return steam_md
 
     def create_chart(self, results, width):
@@ -286,7 +292,6 @@ class ModDetailScreen(Screen):
         return chart
 
     def get_markdown_bgg(self, force_update=False) -> str:
-        start = time.time()
         mod_detail = self.get_markdown_common()
 
         if (bgg_id := mod_detail["bgg_id"]) is None:
@@ -324,9 +329,14 @@ class ModDetailScreen(Screen):
 
         self.bgg_detail = mod_detail
 
-        end = time.time()
-        self.post_message(UpdateLog(f"Time to update bgg markdown: {end-start}"))
-        return bgg_detail_md.format(**mod_detail)
+        while True:
+            try:
+                bgg_md = bgg_detail_md.format(**mod_detail)
+            except KeyError as missing:
+                mod_detail[missing.args[0]] = ""
+            else:
+                break
+        return bgg_md
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
         if "//localhost/" in event.href:
