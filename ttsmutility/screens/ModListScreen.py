@@ -359,6 +359,9 @@ class ModListScreen(Screen):
         self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
+        if event.column_key.value == "progress":
+            # Progress bars don't support sort operations
+            return
         if self.last_sort_key == event.column_key.value:
             self.sort_order[event.column_key.value] = not self.sort_order[
                 event.column_key.value
@@ -669,3 +672,4 @@ class ModListScreen(Screen):
                 )
 
             self.post_message(self.FileDownloadComplete(asset))
+            self.dl_queue.task_done()

@@ -50,9 +50,7 @@ class ModBackup(TTSWorker):
             mod_details = mod_list.get_mod_details(mod_filename)
 
             self.post_message(
-                UpdateLog(
-                    f"Starting backup of {mod_filename}: {mod_details['name']}."
-                )
+                UpdateLog(f"Starting backup of {mod_filename}: {mod_details['name']}.")
             )
             self.post_message(self.UpdateProgress(mod_details["size"], None))
 
@@ -125,7 +123,6 @@ class ModBackup(TTSWorker):
             if cancelled:
                 self.post_message(UpdateLog("Backup cancelled."))
                 os.remove(zip_path)
-                self.mod_filenames.task_done()
             else:
                 self.post_message(UpdateLog("Backup complete."))
                 self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
