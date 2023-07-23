@@ -277,6 +277,7 @@ class AssetList:
                 """
                 SELECT asset_filename, asset_ext, asset_path
                 FROM tts_assets
+                WHERE asset_size > 0
                 """,
             )
             results = cursor.fetchall()
