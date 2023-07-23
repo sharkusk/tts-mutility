@@ -77,35 +77,34 @@ class AssetList:
     def get_mod_infos(self) -> dict:
         return self.mod_infos
 
-    def get_sha1_info(self, filepath: str) -> None:
-        # return sha1, steam_sha1, sha1_mtime
-        path, filename = os.path.split(filepath)
-        if filename != "":
-            filename, _ = os.path.splitext(filename)
+    def get_sha1_info(self, path: str) -> list:
+        # filename, return sha1, steam_sha1, sha1_mtime
 
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
                 SELECT
-                    asset_sha1, asset_steam_sha1, asset_sha1_mtime,
-                    asset_mtime, asset_size
+                    asset_filename, asset_sha1, asset_steam_sha1,
+                    asset_sha1_mtime, asset_mtime, asset_size
                 FROM
                     tts_assets
                 WHERE
-                    asset_filename=? and asset_path=?
+                    asset_path=?
                 """,
-                (filename, path),
+                (path,),
             )
-            result = cursor.fetchone()
-            if result is not None:
-                return {
-                    "sha1": result[0],
-                    "steam_sha1": result[1],
-                    "sha1_mtime": result[2],
-                    "mtime": result[3],
-                    "fsize": result[4],
-                }
-            return None
+            results = cursor.fetchall()
+            sha1s = {}
+            if len(results) > 0:
+                for result in results:
+                    sha1s[result[0]] = {
+                        "sha1": result[1],
+                        "steam_sha1": result[2],
+                        "sha1_mtime": result[3],
+                        "mtime": result[4],
+                        "fsize": result[5],
+                    }
+            return sha1s
 
     def sha1_scan_done(
         self, filepath: str, sha1: str, steam_sha1: str, sha1_mtime: float

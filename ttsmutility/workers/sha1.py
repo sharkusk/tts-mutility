@@ -28,7 +28,6 @@ class Sha1Scanner(TTSWorker):
         return []
 
     def scan_sha1s(self) -> None:
-        asset = None
         filepath = None
         mtime = 0
         skip = False
@@ -67,6 +66,10 @@ class Sha1Scanner(TTSWorker):
                 UpdateLog(f"Computing SHA1s for {dir_name} ({len(files)}).")
             )
 
+            assets = asset_list.get_sha1_info(dir_name)
+            if len(assets) == 0:
+                continue
+
             for filename in files:
                 if worker.is_cancelled:
                     self.post_message(UpdateLog("SHA1 scan cancelled."))
@@ -80,14 +83,25 @@ class Sha1Scanner(TTSWorker):
                 filepath = str(pathlib.PurePath(os.path.join(root, filename)))
                 asset_path = pathlib.Path(dir_name) / filename
 
+                filestem = pathlib.Path(filename).stem
+
+                steam_sha1 = ""
+                if "httpcloud3steamusercontent" in filestem:
+                    hexdigest = os.path.splitext(filestem)[0][-40:]
+                    steam_sha1 = hexdigest.upper()
+
                 mtime = os.path.getmtime(filepath)
-                asset = asset_list.get_sha1_info(asset_path)
-                if asset is None:
+                if filestem not in assets:
                     # Skip this filepath since it doesn't exist in our DB
                     skip = True
-                elif asset["sha1_mtime"] == 0:
+                elif (
+                    assets[filestem]["sha1_mtime"] == 0
+                    or assets[filestem]["sha1"] is None
+                ):
                     skip = False
-                elif mtime > asset["sha1_mtime"]:
+                elif mtime > assets[filestem]["sha1_mtime"]:
+                    skip = False
+                elif steam_sha1 != "" and assets[filestem]["steam_sha1"] == "":
                     skip = False
                 else:
                     skip = True
@@ -112,11 +126,6 @@ class Sha1Scanner(TTSWorker):
                     )
 
                 sha1 = ""
-                steam_sha1 = ""
-
-                if "httpcloud3steamusercontent" in filename:
-                    hexdigest = os.path.splitext(filename)[0][-40:]
-                    steam_sha1 = hexdigest.upper()
 
                 with open(filepath, "rb") as f:
                     digest = hashlib.file_digest(f, "sha1")
