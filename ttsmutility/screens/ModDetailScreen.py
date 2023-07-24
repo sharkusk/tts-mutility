@@ -20,7 +20,6 @@ from ..parse.AssetList import AssetList
 from ..parse.BggSearch import BggSearch
 from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
-from ..utility.messages import UpdateLog
 from ..utility.util import format_time
 from .AssetListScreen import AssetListScreen
 
@@ -35,6 +34,11 @@ class ModDetailScreen(Screen):
 
     def __init__(self, filename: str, force_md_update: bool = False) -> None:
         self.filename = filename
+        self.in_workshop = True
+        if self.filename.find("Saves") == 0:
+            self.in_workshop = False
+        elif not Path(self.filename).stem.isdigit():
+            self.in_workshop = False
         self.ad_uri_prefix = "//asset_detail/"
         self.dl_image_uri_prefix = "//dl_image/"
         config = load_config()
@@ -50,6 +54,8 @@ class ModDetailScreen(Screen):
             "md_pane_bgg",
             "md_pane_assets",
         ]
+        if not self.in_workshop:
+            self.tab_names.remove("md_pane_steam")
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -57,30 +63,36 @@ class ModDetailScreen(Screen):
         yield Header()
         yield Label(id="title")
         yield Label(id="infection_warning")
-        with TabbedContent(initial=self.tab_names[0]):
-            with TabPane("Mod Details", id=self.tab_names[0]):
-                with VerticalScroll(id=self.tab_names[0].replace("pane", "scroll")):
+        i = 0
+        with TabbedContent(initial=self.tab_names[i]):
+            with TabPane("Mod Details", id=self.tab_names[i]):
+                with VerticalScroll(id=self.tab_names[i].replace("pane", "scroll")):
                     yield Markdown(
                         id="md_markdown_mod",
                     )
-            with TabPane("Steam Description", id=self.tab_names[1]):
-                with VerticalScroll(id=self.tab_names[1].replace("pane", "scroll")):
-                    yield Markdown(
-                        id="md_markdown_steam",
-                    )
-            with TabPane("BoardGameGeek", id=self.tab_names[2]):
-                with VerticalScroll(id=self.tab_names[2].replace("pane", "scroll")):
+            if self.in_workshop:
+                i = i + 1
+                with TabPane("Steam Description", id=self.tab_names[i]):
+                    with VerticalScroll(id=self.tab_names[i].replace("pane", "scroll")):
+                        yield Markdown(
+                            id="md_markdown_steam",
+                        )
+            i = i + 1
+            with TabPane("BoardGameGeek", id=self.tab_names[i]):
+                with VerticalScroll(id=self.tab_names[i].replace("pane", "scroll")):
                     yield Markdown(
                         id="md_markdown_bgg",
                     )
-            with TabPane("Asset List", id="md_pane_assets"):
+            i = i + 1
+            with TabPane("Asset List", id=self.tab_names[i]):
                 yield AssetListScreen(
                     self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
                 )
 
     def on_mount(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
-        self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
+        if self.in_workshop:
+            self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
         self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
         self.query_one("#title").update(self.mod_detail["name"])
         if self.is_infected():
@@ -95,7 +107,6 @@ class ModDetailScreen(Screen):
 
     def format_list(self, my_list):
         return "\n- ".join(my_list).join(["\n- ", "\n"])
-        # return "`\n- `".join(l).join(["\n- `", "`\n"])
 
     def get_mod_image_path(self) -> Path:
         if self.filename.find("Workshop") == 0:
@@ -115,10 +126,11 @@ class ModDetailScreen(Screen):
     def get_markdown_common(self) -> dict:
         mod_detail = self.mod_detail.copy()
 
-        mod_detail["steam_link"] = (
-            f"https://steamcommunity.com/sharedfiles/"
-            f"filedetails/?id={Path(self.filename).stem}"
-        )
+        if self.in_workshop:
+            steam_link = f"https://steamcommunity.com/sharedfiles/filedetails/?id={Path(self.filename).stem}"
+            mod_detail["steam_link"] = f"- Steam Link: [{steam_link}]({steam_link})"
+        else:
+            mod_detail["steam_link"] = ""
 
         return mod_detail
 
@@ -154,6 +166,14 @@ class ModDetailScreen(Screen):
             mod_detail["tag_list"] = self.format_list(mod_detail["tags"])
         else:
             mod_detail["tag_list"] = "- N/A"
+
+        mod_detail["filename_esc"] = (
+            mod_detail["filename"]
+            .replace("[", "\\[")
+            .replace("(", "\\(")
+            .replace("]", "\\]")
+            .replace(")", "\\)")
+        )
 
         while True:
             try:
@@ -358,9 +378,10 @@ class ModDetailScreen(Screen):
         self.query_one("#md_markdown_bgg").update(
             self.get_markdown_bgg(force_update=True)
         )
-        self.query_one("#md_markdown_steam").update(
-            self.get_markdown_steam(force_update=True)
-        )
+        if self.in_workshop:
+            self.query_one("#md_markdown_steam").update(
+                self.get_markdown_steam(force_update=True)
+            )
 
     def action_bgg_lookup_input(self, msg: str = "Please enter search string:"):
         def set_name(name: str) -> None:

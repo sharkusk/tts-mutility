@@ -1,6 +1,6 @@
 ### {title}
 
-- Steam Link: [{steam_link}]({steam_link})
+{steam_link}
 - ![Preview]({preview_url})
 
 {steam_desc}

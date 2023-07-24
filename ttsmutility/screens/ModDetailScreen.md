@@ -1,5 +1,5 @@
-- Filename: [{filename}]({uri_short})
-- Steam Link: [{steam_link}]({steam_link})
+- Filename: [{filename_esc}]({uri_short})
+{steam_link}
 {mod_image}
 
 | Mod Details | |
