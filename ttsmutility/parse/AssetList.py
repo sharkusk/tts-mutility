@@ -668,9 +668,13 @@ class AssetList:
                 refresh_mod = True
             else:
                 prev_mod_mtime = result[0]
-                mod_mtime = os.path.getmtime(mod_path)
-                if mod_mtime > prev_mod_mtime:
-                    refresh_mod = True
+                try:
+                    mod_mtime = os.path.getmtime(mod_path)
+                    if mod_mtime > prev_mod_mtime:
+                        refresh_mod = True
+                except FileNotFoundError:
+                    # Mod has been deleted from FS but not DB
+                    refresh_mod = False
 
             if refresh_mod:
                 self.update_mod_assets(mod_filename, mod_mtime)

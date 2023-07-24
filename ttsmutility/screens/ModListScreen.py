@@ -231,6 +231,7 @@ class ModListScreen(Screen):
             "complete ",
             "gf9 ",
             "epic ",
+            "v2 automated ",
         ]
         if name[0] == "[":
             # Move [] to end of name
