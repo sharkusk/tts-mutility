@@ -171,6 +171,8 @@ class ModListScreen(Screen):
 
         for id in "#ml_workshop_dt", "#ml_saves_dt":
             table = next(self.query(id).results(DataTable))
+            table.fixed_columns = 1
+            table.zebra_stripes = True
 
             # TODO: Generate column names and keys in outside module
             if id == "#ml_workshop_dt":
@@ -222,10 +224,21 @@ class ModListScreen(Screen):
         return table, mods
 
     def clean_name(self, name):
+        words_to_move = [
+            "scripted deal ",
+            "scripted ",
+            "wip ",
+            "complete ",
+            "gf9 ",
+            "epic ",
+        ]
         if name[0] == "[":
             # Move [] to end of name
             e = name.find("]")
             name = (name[e + 1 :] + " " + name[0 : e + 1]).strip()
+        for to_move in words_to_move:
+            if name.lower().find(to_move) == 0:
+                name = name[len(to_move) :] + " " + name[: len(to_move)]
         if name.find("the") == 0:
             name = name.replace("the", "The")
         if name.find("TTS-") == 0:
