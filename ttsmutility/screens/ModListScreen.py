@@ -328,8 +328,11 @@ class ModListScreen(Screen):
         asset_list = AssetList()
         self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
 
-        row_key = mod_filename
         table, mods = self.get_mod_table(mod_filename)
+
+        row_key = mod_filename
+        if row_key not in mods:
+            return
 
         name = self.clean_name(mods[row_key]["name"])
         if mods[row_key]["name"] in self.infected_mods:
