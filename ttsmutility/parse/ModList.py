@@ -1,8 +1,8 @@
 import os.path
-from glob import glob
 import sqlite3
 import time
 from datetime import datetime
+from glob import glob
 from pathlib import Path
 
 from ..data.config import load_config
@@ -466,7 +466,8 @@ class ModList:
                         mod_total_assets, mod_missing_assets, mod_epoch,
                         mod_version, mod_game_mode, mod_game_type,
                         mod_game_complexity, mod_min_players, mod_max_players,
-                        mod_min_play_time, mod_max_play_time, mod_bgg_id
+                        mod_min_play_time, mod_max_play_time, mod_bgg_id,
+                        mod_backup_time, mod_max_asset_mtime
                     FROM
                         tts_mods
                     """,
@@ -497,6 +498,8 @@ class ModList:
                         "min_play_time": result[13],
                         "max_play_time": result[14],
                         "bgg_id": result[15],
+                        "backup_time": result[16],
+                        "newest_asset": result[17],
                         "deleted": deleted,
                     }
                     cursor = db.execute(

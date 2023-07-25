@@ -1,4 +1,5 @@
 import csv
+import glob
 from dataclasses import dataclass
 from itertools import filterfalse
 from pathlib import Path
@@ -27,7 +28,7 @@ from ..parse.AssetList import AssetList
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
-from ..utility.util import format_time
+from ..utility.util import format_time, make_safe_filename
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
 
@@ -76,6 +77,7 @@ class ModListScreen(Screen):
         Binding("ctrl+a", "download_all", "Download All Missing Assets", show=False),
         Binding("ctrl+d", "download_assets", "Download Missing Assets", show=False),
         Binding("ctrl+b", "backup_mod", "Backup mod to zip", show=False),
+        Binding("ctrl+w", "backup_all", "Backup all mods", show=False),
         Binding("ctrl+r", "mod_refresh", "Refresh Mod", show=False),
         Binding("ctrl+l", "view_log", "View Log", show=False),
         Binding("ctrl+o", "open_config", "Open Config", show=False),
@@ -149,8 +151,10 @@ class ModListScreen(Screen):
             super().__init__()
 
     class BackupSelected(Message):
-        def __init__(self, mod_filename: str) -> None:
+        def __init__(self, mod_filename: str, zip_path: str, existing: list) -> None:
             self.mod_filename = mod_filename
+            self.zip_path = zip_path
+            self.existing = existing
             super().__init__()
 
     class ShowSha1(Message):
@@ -434,9 +438,17 @@ class ModListScreen(Screen):
         open_url(config_file().as_uri())
 
     def action_backup_mod(self) -> None:
+        config = load_config()
+        backup_path = config.mod_backup_dir
+
+        if not Path(backup_path).exists():
+            self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
+            return
+
         row_key = self.get_current_row_key()
         filename = row_key.value
-        self.post_message(self.BackupSelected(filename))
+        zip_path, _ = self.get_backup_name(self.mods[filename])
+        self.post_message(self.BackupSelected(filename, zip_path, []))
 
     def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
@@ -687,3 +699,55 @@ class ModListScreen(Screen):
 
             self.post_message(self.FileDownloadComplete(asset))
             self.dl_queue.task_done()
+
+    def get_backup_name(self, mod):
+        config = load_config()
+        backup_path = config.mod_backup_dir
+
+        backup_basename = Path(
+            make_safe_filename(mod["name"]) + f" [{str(Path(mod['filename']).stem)}]"
+        )
+
+        backup_filepath = Path(backup_path) / backup_basename
+
+        if mod["missing_assets"] > 0:
+            zip_path = Path(
+                str(backup_filepath) + f" (-{mod['missing_assets']})" + ".zip"
+            )
+        else:
+            zip_path = Path(str(backup_filepath) + ".zip")
+
+        return zip_path, backup_filepath
+
+    def action_backup_all(self):
+        config = load_config()
+        backup_path = config.mod_backup_dir
+
+        if not Path(backup_path).exists():
+            self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
+            return
+
+        to_backup = []
+        for mod in self.mods.values():
+            if mod["deleted"]:
+                continue
+
+            zip_path, backup_filepath = self.get_backup_name(mod)
+
+            backup = False
+            if zip_path.exists():
+                backup_mtime = zip_path.stat().st_mtime
+                if backup_mtime < mod["mtime"] or backup_mtime < mod["newest_asset"]:
+                    backup = True
+            else:
+                backup = True
+
+            if backup:
+                existing = sorted(
+                    backup_filepath.parent.glob(
+                        glob.escape(backup_filepath.name) + " (-*"
+                    )
+                )
+                to_backup.append((mod["filename"], zip_path, existing))
+
+        return to_backup

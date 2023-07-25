@@ -375,7 +375,7 @@ class TTSMutility(App):
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.BackupSelected):
         self.mods_queued_backup.append(event.mod_filename)
-        self.backup.add_mods([event.mod_filename])
+        self.backup.add_mods([(event.mod_filename, event.zip_path, event.existing), ])
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
