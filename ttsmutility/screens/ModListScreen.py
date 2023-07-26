@@ -627,19 +627,19 @@ class ModListScreen(Screen):
 
         stat = []
         if self.status[filename].download == "Queued":
-            stat.append("DL-Q")
+            stat.append("DLoad-Q")
         elif self.status[filename].download == "Running":
-            stat.append("DL'ing")
+            stat.append("DLoad")
         if self.status[filename].backup == "Queued":
-            stat.append("B-Q")
+            stat.append("Backup-Q")
         elif self.status[filename].backup == "Running":
-            stat.append("B'ing")
+            stat.append("Backup")
         if len(stat) > 0:
             stat_message = ",".join(stat)
         else:
             stat_message = ""
 
-        table.update_cell(filename, "status", stat_message)
+        table.update_cell(filename, "status", stat_message, update_width=True)
 
     def set_files_remaining(self, filename, files_remaining):
         table, _ = self.get_mod_table(filename)
