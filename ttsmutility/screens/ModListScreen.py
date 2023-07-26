@@ -260,7 +260,7 @@ class ModListScreen(Screen):
 
         name = self.clean_name(mod["name"])
         if not Path(filename).stem.isdigit():
-            name = MyText(name, style="#F0F0D0")
+            name = MyText(name, style="#F0F0A0")
         if mod["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
         if mod["deleted"]:
@@ -340,8 +340,8 @@ class ModListScreen(Screen):
             return
 
         name = self.clean_name(mods[row_key]["name"])
-        if not Path(row_key.value).stem.isdigit():
-            name = MyText(name, style="#00FF00")
+        if not Path(mod_filename).stem.isdigit():
+            name = MyText(name, style="#F0F0A0")
         if mods[row_key]["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
         if mods[row_key]["deleted"]:
