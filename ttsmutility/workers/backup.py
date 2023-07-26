@@ -6,16 +6,35 @@ from queue import Empty, Queue
 from zipfile import ZipFile
 
 from textual.app import ComposeResult
+from textual.message import Message
+from textual.widget import Widget
 from textual.worker import get_current_worker
 
 from ..data.config import load_config
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
 from ..utility.messages import UpdateLog
-from .TTSWorker import TTSWorker
 
 
-class ModBackup(TTSWorker):
+class ModBackup(Widget):
+    class UpdateProgress(Message):
+        def __init__(self, filename, update_total=None, advance_amount=None):
+            super().__init__()
+            self.filename = filename
+            self.update_total = update_total
+            self.advance_amount = advance_amount
+
+    class BackupStart(Message):
+        def __init__(self, filename, zip_path):
+            super().__init__()
+            self.filename = filename
+            self.zip_path = zip_path
+
+    class BackupComplete(Message):
+        def __init__(self, filename):
+            super().__init__()
+            self.filename = filename
+
     def __init__(self):
         super().__init__()
         self.mod_filenames = Queue()
@@ -58,7 +77,7 @@ class ModBackup(TTSWorker):
         self.post_message(
             UpdateLog(f"Starting backup of {mod_filename}: {mod['name']}.")
         )
-        self.post_message(self.UpdateProgress(mod["size"], None))
+        self.post_message(self.UpdateProgress(mod_filename, mod["size"], None))
 
         assets = asset_list.get_mod_assets(mod_filename)
 
@@ -67,11 +86,27 @@ class ModBackup(TTSWorker):
                 self.post_message(UpdateLog(f"Removing old backup: '{f_name}"))
                 os.remove(f_name)
 
-        self.post_message(self.UpdateStatus(f"Backing up to '{zip_path}'"))
         self.post_message(UpdateLog(f"Backing up to '{zip_path}'"))
+        self.post_message(self.BackupStart(mod["filename"], zip_path))
 
         cancelled = False
         with ZipFile(zip_path, "w") as modzip:
+            # Store the json and png files
+            if "Workshop" in mod["filename"]:
+                mod_path = Path(config.tts_mods_dir) / mod["filename"]
+                path_in_zip = Path("Mods") / mod["filename"]
+            else:
+                mod_path = Path(config.tts_saves_dir) / mod["filename"]
+                path_in_zip = mod["filename"]
+            modzip.write(mod_path, path_in_zip)
+
+            mod_png_path = os.path.splitext(mod_path)[0] + ".png"
+            if Path(mod_png_path).exists():
+                modzip.write(
+                    mod_png_path,
+                    os.path.splitext(path_in_zip)[0] + ".png",
+                )
+
             amount_stored = 0
             for asset in assets:
                 if worker.is_cancelled:
@@ -85,36 +120,22 @@ class ModBackup(TTSWorker):
                     )
                     amount_stored += asset["fsize"]
                     # Reduce number of messages to improve performance
-                    if amount_stored > 512 * 1024:
-                        self.post_message(self.UpdateProgress(None, amount_stored))
+                    if amount_stored > 2 * 1024 * 1024:
+                        self.post_message(
+                            self.UpdateProgress(mod_filename, None, amount_stored)
+                        )
                         amount_stored = 0
 
             # Make sure we get progress bar to 100%
-            self.post_message(self.UpdateProgress(None, amount_stored))
+            self.post_message(self.UpdateProgress(mod_filename, None, amount_stored))
             amount_stored = 0
-
-            # Store the json and png files
-            if "Workshop" in mod["filename"]:
-                mod_path = Path(config.tts_mods_dir) / mod["filename"]
-                zip_path = Path("Mods") / mod["filename"]
-            else:
-                mod_path = Path(config.tts_saves_dir) / mod["filename"]
-                zip_path = mod["filename"]
-            modzip.write(mod_path, zip_path)
-
-            mod_png_path = os.path.splitext(mod_path)[0] + ".png"
-            if Path(mod_png_path).exists():
-                modzip.write(
-                    mod_png_path,
-                    os.path.splitext(zip_path)[0] + ".png",
-                )
 
         if cancelled:
             self.post_message(UpdateLog("Backup cancelled."))
             os.remove(zip_path)
         else:
             self.post_message(UpdateLog("Backup complete."))
-            self.post_message(self.UpdateStatus(f"Backup complete: {zip_path}"))
             mod_list.set_backup_time(mod_filename, backup_time)
 
+        self.post_message(self.BackupComplete(mod_filename))
         self.mod_filenames.task_done()

@@ -8,7 +8,7 @@ from typing import NamedTuple
 from webbrowser import open as open_url
 
 from rich.markdown import Markdown
-from rich.progress import BarColumn, MofNCompleteColumn, Progress
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, DownloadColumn
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -151,10 +151,8 @@ class ModListScreen(Screen):
             super().__init__()
 
     class BackupSelected(Message):
-        def __init__(self, mod_filename: str, zip_path: str, existing: list) -> None:
-            self.mod_filename = mod_filename
-            self.zip_path = zip_path
-            self.existing = existing
+        def __init__(self, backup_list: list) -> None:
+            self.backup_list = backup_list
             super().__init__()
 
     class ShowSha1(Message):
@@ -452,7 +450,13 @@ class ModListScreen(Screen):
         row_key = self.get_current_row_key()
         filename = row_key.value
         zip_path, _ = self.get_backup_name(self.mods[filename])
-        self.post_message(self.BackupSelected(filename, zip_path, []))
+        self.post_message(
+            self.BackupSelected(
+                [
+                    (filename, zip_path, []),
+                ]
+            )
+        )
 
     def get_active_table(self) -> tuple[DataTable, int]:
         if self.query_one("TabbedContent").active == "ml_pane_workshop":
@@ -753,5 +757,44 @@ class ModListScreen(Screen):
                     )
                 )
                 to_backup.append((mod["filename"], zip_path, existing))
+                self.status[mod["filename"]].backup = "Queued"
+                self.update_status(mod["filename"])
 
-        return to_backup
+        self.post_message(self.BackupSelected(to_backup))
+
+    def set_backup_progress(self, filename, update_total, advance_amount):
+        table, _ = self.get_mod_table(filename)
+
+        if (
+            self.status[filename].backup == "Queued"
+            or self.status[filename].backup == ""
+        ):
+            self.status[filename].backup = "Running"
+            self.update_status(filename)
+
+            # This is the first update, so configure our progress bar
+            self.progress[filename] = Progress(
+                DownloadColumn(binary_units=True), BarColumn()
+            )
+
+            # This function gets called after the first file is already downloaded.
+            # Therefore we need to add 1 to our total number of files
+            self.progress_id[filename] = self.progress[filename].add_task(
+                "Bytes", total=update_total
+            )
+            table.update_cell(
+                filename, "progress", self.progress[filename], update_width=True
+            )
+        if advance_amount is not None:
+            self.progress[filename].update(
+                self.progress_id[filename], advance=advance_amount
+            )
+            table.update_cell(filename, "progress", self.progress[filename])
+
+    def set_backup_start(self, filename, zip_path):
+        table, _ = self.get_mod_table(filename)
+        table.update_cell(filename, "status", str(zip_path), update_width=True)
+
+    def set_backup_complete(self, filename):
+        self.status[filename].backup = ""
+        self.update_status(filename)

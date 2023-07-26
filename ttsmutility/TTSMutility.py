@@ -59,7 +59,6 @@ class TTSMutility(App):
         self.backup = ModBackup()
 
         self.mods_queued_dl = {}
-        self.mods_queued_backup = []
 
         if cli_args.force_refresh:
             self.force_refresh = True
@@ -374,8 +373,7 @@ class TTSMutility(App):
         )
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.BackupSelected):
-        self.mods_queued_backup.append(event.mod_filename)
-        self.backup.add_mods([(event.mod_filename, event.zip_path, event.existing), ])
+        self.backup.add_mods(event.backup_list)
 
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
@@ -421,6 +419,20 @@ class TTSMutility(App):
         self.write_log(event.status, **not_none)
         if event.flush:
             self.f_log.flush()
+
+    def on_mod_backup_update_progress(self, event: ModBackup.UpdateProgress):
+        screen = self.get_screen("mod_list")
+        screen.set_backup_progress(
+            event.filename, event.update_total, event.advance_amount
+        )
+
+    def on_mod_backup_backup_start(self, event: ModBackup.BackupStart):
+        screen = self.get_screen("mod_list")
+        screen.set_backup_start(event.filename, event.zip_path)
+
+    def on_mod_backup_backup_complete(self, event: ModBackup.BackupComplete):
+        screen = self.get_screen("mod_list")
+        screen.set_backup_complete(event.filename)
 
     def on_ttsworker_update_progress(self, event: TTSWorker.UpdateProgress):
         if event.update_total is not None:
