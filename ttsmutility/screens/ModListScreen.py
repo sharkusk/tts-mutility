@@ -236,6 +236,7 @@ class ModListScreen(Screen):
             "gf9 ",
             "epic ",
             "v2 automated ",
+            "reiner knizia's ",
         ]
         if name[0] == "[":
             # Move [] to end of name
@@ -243,7 +244,7 @@ class ModListScreen(Screen):
             name = (name[e + 1 :] + " " + name[0 : e + 1]).strip()
         for to_move in words_to_move:
             if name.lower().find(to_move) == 0:
-                name = name[len(to_move) :] + " " + name[: len(to_move)]
+                name = name[len(to_move) :] + ", " + name[: len(to_move)]
         if name.find("the") == 0:
             name = name.replace("the", "The")
         if name.find("TTS-") == 0:
