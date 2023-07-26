@@ -12,9 +12,4 @@ def format_time(mtime: float, zero_string: str = "") -> str:
 
 
 def make_safe_filename(filename):
-    return "".join(
-        [
-            c if c.isalpha() or c.isdigit() or c in " ()[]-_{}." else "-"
-            for c in filename
-        ]
-    ).rstrip()
+    return "".join([c if c not in r'<>:"/\|?*' else "-" for c in filename]).rstrip()
