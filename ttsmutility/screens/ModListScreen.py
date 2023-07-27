@@ -643,7 +643,11 @@ class ModListScreen(Screen):
         else:
             stat_message = ""
 
-        table.update_cell(filename, "status", stat_message, update_width=True)
+        try:
+            table.update_cell(filename, "status", stat_message, update_width=True)
+        except CellDoesNotExist:
+            # This cell may be currently filtered, so ignore any errors
+            pass
 
     def set_files_remaining(self, filename, files_remaining):
         table, _ = self.get_mod_table(filename)
@@ -660,12 +664,20 @@ class ModListScreen(Screen):
             self.progress_id[filename] = self.progress[filename].add_task(
                 "Files", total=files_remaining + 1
             )
-            table.update_cell(
-                filename, "progress", self.progress[filename], update_width=True
-            )
+            try:
+                table.update_cell(
+                    filename, "progress", self.progress[filename], update_width=True
+                )
+            except CellDoesNotExist:
+                # This cell may be currently filtered, so ignore any errors
+                pass
 
         self.progress[filename].update(self.progress_id[filename], advance=1)
-        table.update_cell(filename, "progress", self.progress[filename])
+        try:
+            table.update_cell(filename, "progress", self.progress[filename])
+        except CellDoesNotExist:
+            # This cell may be currently filtered, so ignore any errors
+            pass
 
         if files_remaining == 0:
             self.status[filename].download = ""
@@ -786,18 +798,30 @@ class ModListScreen(Screen):
             self.progress_id[filename] = self.progress[filename].add_task(
                 "Bytes", total=update_total
             )
-            table.update_cell(
-                filename, "progress", self.progress[filename], update_width=True
-            )
+            try:
+                table.update_cell(
+                    filename, "progress", self.progress[filename], update_width=True
+                )
+            except CellDoesNotExist:
+                # This cell may be currently filtered, so ignore any errors
+                pass
         if advance_amount is not None:
             self.progress[filename].update(
                 self.progress_id[filename], advance=advance_amount
             )
-            table.update_cell(filename, "progress", self.progress[filename])
+            try:
+                table.update_cell(filename, "progress", self.progress[filename])
+            except CellDoesNotExist:
+                # This cell may be currently filtered, so ignore any errors
+                pass
 
     def set_backup_start(self, filename, zip_path):
         table, _ = self.get_mod_table(filename)
-        table.update_cell(filename, "status", str(zip_path), update_width=True)
+        try:
+            table.update_cell(filename, "status", str(zip_path), update_width=True)
+        except CellDoesNotExist:
+            # This cell may be currently filtered, so ignore any errors
+            pass
 
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""
