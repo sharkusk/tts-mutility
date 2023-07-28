@@ -181,8 +181,8 @@ class ModListScreen(Screen):
                 table.add_column("Mod Name", width=40, key="name")
             else:
                 table.add_column("Save Name", width=40, key="name")
-            table.add_column("Created", key="created")
-            table.add_column("Modified", key="modified")
+            table.add_column("Created", key="created", width=10)
+            table.add_column("Modified", key="modified", width=10)
             table.add_column("Size(MB)", key="size")
             table.add_column("Assets", key="total_assets")
             table.add_column("Missing", key="missing_assets")

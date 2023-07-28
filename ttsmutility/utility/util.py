@@ -8,7 +8,7 @@ def format_time(mtime: float, zero_string: str = "") -> str:
         else:
             return zero_string
     else:
-        return time.strftime("%Y-%m-%d", time.localtime(mtime))
+        return time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime))
 
 
 def make_safe_filename(filename):
