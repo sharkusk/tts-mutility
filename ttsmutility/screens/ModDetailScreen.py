@@ -51,7 +51,6 @@ class ModDetailScreen(Screen):
         self.tab_names = [
             "md_pane_mod",
             "md_pane_steam",
-            "md_pane_bgg",
             "md_pane_assets",
         ]
         if not self.in_workshop:
@@ -78,22 +77,34 @@ class ModDetailScreen(Screen):
                             id="md_markdown_steam",
                         )
             i = i + 1
-            with TabPane("BoardGameGeek", id=self.tab_names[i]):
-                with VerticalScroll(id=self.tab_names[i].replace("pane", "scroll")):
-                    yield Markdown(
-                        id="md_markdown_bgg",
-                    )
-            i = i + 1
             with TabPane("Asset List", id=self.tab_names[i]):
                 yield AssetListScreen(
                     self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
                 )
 
+    def insert_bgg_tab(self):
+        i = self.tab_names.index("md_pane_assets")
+        self.tab_names.insert(i, "md_pane_bgg")
+        pane = TabPane(
+            "BoardGameGeek",
+            VerticalScroll(
+                Markdown(
+                    id="md_markdown_bgg",
+                ),
+                id=self.tab_names[i].replace("pane", "scroll"),
+            ),
+            id=self.tab_names[i],
+        )
+        tc = self.query_one(TabbedContent)
+        tc.add_pane(pane, before="md_pane_assets")
+
     def on_mount(self):
         self.query_one("#md_markdown_mod").update(self.get_markdown())
         if self.in_workshop:
             self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
-        self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
+        if self.mod_detail["bgg_id"] is not None:
+            self.insert_bgg_tab()
+            self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
         self.query_one("#title").update(self.mod_detail["name"])
         if self.is_infected():
             iw = self.query_one("#infection_warning")
@@ -375,9 +386,10 @@ class ModDetailScreen(Screen):
         asset_list.get_mod_assets(self.filename, parse_only=True, force_refresh=True)
 
         self.query_one("#md_markdown_mod").update(self.get_markdown())
-        self.query_one("#md_markdown_bgg").update(
-            self.get_markdown_bgg(force_update=True)
-        )
+        if self.mod_detail["bgg_id"] is not None:
+            self.query_one("#md_markdown_bgg").update(
+                self.get_markdown_bgg(force_update=True)
+            )
         if self.in_workshop:
             self.query_one("#md_markdown_steam").update(
                 self.get_markdown_steam(force_update=True)
@@ -400,6 +412,8 @@ class ModDetailScreen(Screen):
         if len(options) > 0:
 
             def set_id(index: int) -> None:
+                if self.mod_detail["bgg_id"] is None:
+                    self.insert_bgg_tab()
                 offset_start = options[index].rfind("[") + 1
                 offset_end = options[index].rfind("]")
                 self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
