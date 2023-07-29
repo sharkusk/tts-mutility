@@ -138,6 +138,7 @@ class FileDownload(Widget):
             "steam_sha1": self.steam_sha1,
             "dl_status": self.error,
             "content_name": self.content_name,
+            "ignore_missing": False,
         }
         return asset
 
