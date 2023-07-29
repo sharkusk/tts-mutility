@@ -3,7 +3,7 @@ import sys
 from contextlib import closing
 from pathlib import Path
 
-DB_SCHEMA_VERSION = 3
+DB_SCHEMA_VERSION = 4
 
 
 def update_db_schema(db_path: Path) -> int:
@@ -45,6 +45,17 @@ def update_db_schema(db_path: Path) -> int:
                         tts_mods
                     ADD
                         mod_max_asset_mtime TIMESTAMP DEFAULT 0
+                    """,
+                )
+                updated = True
+
+            if result[0] <= 3:
+                cursor.execute(
+                    """
+                    ALTER TABLE
+                        tts_mod_assets
+                    ADD
+                        mod_asset_ignore_missing INT2 DEFAULT 0
                     """,
                 )
                 updated = True
@@ -125,6 +136,7 @@ def create_new_db(db_path: Path) -> int:
                 asset_id_fk     INT             NOT NULL REFERENCES tts_assets (id) ON DELETE CASCADE,
                 mod_id_fk       INT             NOT NULL REFERENCES tts_mods (id) ON DELETE CASCADE,
                 mod_asset_trail VARCHAR(128)    NOT NULL,
+                mod_asset_ignore_missing INT2   DEFAULT 0,
                 UNIQUE(asset_id_fk, mod_id_fk)
                 )
             """  # noqa

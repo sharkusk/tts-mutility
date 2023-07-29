@@ -687,7 +687,7 @@ class AssetList:
                         asset_url, asset_path, asset_filename, asset_ext,
                         asset_mtime, asset_sha1, asset_steam_sha1,
                         mod_asset_trail, asset_dl_status, asset_size,
-                        asset_content_name
+                        asset_content_name, mod_asset_ignore_missing
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -716,6 +716,7 @@ class AssetList:
                             "dl_status": result[8],
                             "fsize": result[9],
                             "content_name": result[10],
+                            "ignore_missing": result[11],
                         }
                     )
 
@@ -743,5 +744,30 @@ class AssetList:
                 WHERE asset_url=?
                 """,
                 tuple(zip(content_names, urls)),
+            )
+            db.commit()
+
+    def set_ignore(self, mod_filename, url, ignore):
+        with sqlite3.connect(self.db_path) as db:
+            db.execute(
+                """
+                UPDATE tts_mod_assets
+                SET mod_asset_ignore_missing=?
+                WHERE
+                    asset_id_fk = (SELECT tts_assets.id FROM tts_assets
+                                    WHERE asset_url=?)
+                AND
+                    mod_id_fk = (SELECT tts_mods.id FROM tts_mods
+                                    WHERE mod_filename=?)
+                """,
+                (1 if ignore else 0, url, mod_filename),
+            )
+            db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_missing_assets=-1
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
             )
             db.commit()

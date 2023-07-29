@@ -183,6 +183,8 @@ class ModList:
                     mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
                     AND
                     asset_id_fk IN (SELECT id FROM tts_assets WHERE asset_mtime=?)
+                    AND
+                    mod_asset_ignore_missing=0
                 )
             """
             cursor = db.execute(query, (filename, 0))

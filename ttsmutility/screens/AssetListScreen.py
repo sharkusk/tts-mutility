@@ -13,14 +13,15 @@ from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
 from ..utility.messages import UpdateLog
-from ..utility.util import format_time, make_safe_filename
+from ..utility.util import format_time, make_safe_filename, MyText
 
 
 class AssetListScreen(Widget):
     BINDINGS = [
-        ("escape", "app.pop_screen", "OK"),
+        ("escape", "exit", "OK"),
         ("d", "download_asset", "Download Asset"),
         ("r", "missing_report", "Missing Report"),
+        ("i", "ignore_missing", "Ignore Missing"),
     ]
 
     class AssetSelected(Message):
@@ -31,6 +32,11 @@ class AssetListScreen(Widget):
     class DownloadSelected(Message):
         def __init__(self, assets: list) -> None:
             self.assets = assets
+            super().__init__()
+
+    class UpdateCounts(Message):
+        def __init__(self, mod_filename) -> None:
+            self.mod_filename = mod_filename
             super().__init__()
 
     def __init__(self, mod_filename: str, mod_name: str, al_id: str = "") -> None:
@@ -47,7 +53,14 @@ class AssetListScreen(Widget):
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
 
+        self.updated_counts = False
+
         super().__init__()
+
+    def action_exit(self):
+        if self.updated_counts:
+            self.post_message(self.UpdateCounts(self.mod_filename))
+        self.app.pop_screen()
 
     def compose(self) -> ComposeResult:
         with Center(id="al_center"):
@@ -160,6 +173,9 @@ class AssetListScreen(Widget):
             new_asset["ext"] = Path(asset["filename"]).suffix
         new_asset["url"] = self.format_long_entry(asset["url"], self.url_width)
 
+        if asset["ignore_missing"]:
+            new_asset["url"] = MyText(new_asset["url"], style="#00D000")
+
         return new_asset
 
     def update_asset(
@@ -261,6 +277,7 @@ class AssetListScreen(Widget):
             self.assets[row_key],
         ]
         self.post_message(self.DownloadSelected(assets))
+        self.updated_counts = True
 
     def action_missing_report(self):
         config = load_config()
@@ -282,3 +299,13 @@ class AssetListScreen(Widget):
                     )
 
         self.app.push_screen(InfoDialog(f"Saved missing asset report to '{outname}'."))
+
+    def action_ignore_missing(self):
+        table = next(self.query("#" + self.al_id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+
+        asset_list = AssetList()
+        self.assets[row_key]["ignore_missing"] = not self.assets[row_key]["ignore_missing"]
+        asset_list.set_ignore(self.mod_filename, row_key.value, self.assets[row_key]["ignore_missing"])
+        self.updated_counts = True
+        self.update_asset(self.assets[row_key])

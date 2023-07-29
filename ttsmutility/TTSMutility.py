@@ -313,6 +313,9 @@ class TTSMutility(App):
         screen = self.get_screen("mod_list")
         screen.dl_urls(urls, trails)
 
+    def on_asset_list_screen_update_counts(self):
+        self.refresh_mods()
+
     """
     # ██████╗  ██████╗ ██╗    ██╗███╗   ██╗██╗      ██████╗  █████╗ ██████╗ ███████╗██████╗
     # ██╔══██╗██╔═══██╗██║    ██║████╗  ██║██║     ██╔═══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗

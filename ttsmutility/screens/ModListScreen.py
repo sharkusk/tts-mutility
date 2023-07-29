@@ -9,7 +9,6 @@ from webbrowser import open as open_url
 
 from rich.markdown import Markdown
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, DownloadColumn
-from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -28,26 +27,9 @@ from ..parse.AssetList import AssetList
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
-from ..utility.util import format_time, make_safe_filename
+from ..utility.util import format_time, make_safe_filename, MyText
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
-
-
-# Remove this once Rich accepts pull request #3016
-class MyText(Text):
-    def __lt__(self, other: object) -> bool:
-        if isinstance(other, str):
-            return self.plain < other
-        elif isinstance(other, MyText):
-            return self.plain < other.plain
-        return False
-
-    def __gt__(self, other: object) -> bool:
-        if isinstance(other, str):
-            return self.plain > other
-        elif isinstance(other, MyText):
-            return self.plain > other.plain
-        return False
 
 
 class ModListScreen(Screen):
@@ -169,6 +151,7 @@ class ModListScreen(Screen):
             "missing_assets": True,
             "min_players": True,
             "max_players": True,
+            "status": True,
         }
 
         for id in "#ml_workshop_dt", "#ml_saves_dt":
