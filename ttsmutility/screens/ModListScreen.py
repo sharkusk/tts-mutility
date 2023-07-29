@@ -218,6 +218,7 @@ class ModListScreen(Screen):
             "epic ",
             "v2 automated ",
             "reiner knizia's ",
+            "- ",
         ]
         if name[0] == "[":
             # Move [] to end of name
