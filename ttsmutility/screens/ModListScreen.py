@@ -162,13 +162,13 @@ class ModListScreen(Screen):
     def on_mount(self) -> None:
         self.sort_order = {
             "name": False,
-            "created": False,
-            "modified": False,
-            "size": False,
-            "total_assets": False,
-            "missing_assets": False,
-            "min_players": False,
-            "max_players": False,
+            "created": True,
+            "modified": True,
+            "size": True,
+            "total_assets": True,
+            "missing_assets": True,
+            "min_players": True,
+            "max_players": True,
         }
 
         for id in "#ml_workshop_dt", "#ml_saves_dt":
@@ -386,17 +386,15 @@ class ModListScreen(Screen):
         if event.column_key.value == "progress":
             # Progress bars don't support sort operations
             return
-        if self.last_sort_key == event.column_key.value:
-            self.sort_order[event.column_key.value] = not self.sort_order[
-                event.column_key.value
-            ]
-        else:
-            self.sort_order[event.column_key.value] = False
+        sort_key = event.column_key.value
 
-        reverse = self.sort_order[event.column_key.value]
+        if self.last_sort_key == sort_key:
+            self.sort_order[sort_key] = not self.sort_order[sort_key]
+
+        reverse = self.sort_order[sort_key]
 
         self.last_sort_key = event.column_key.value
-        self.sort_order[self.last_sort_key] = reverse
+        self.sort_order[sort_key] = reverse
 
         event.data_table.sort(event.column_key, reverse=reverse)
 

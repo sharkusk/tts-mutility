@@ -82,11 +82,11 @@ class ModDetailScreen(Screen):
                     self.filename, self.mod_detail["name"], al_id="md_scroll_assets"
                 )
 
-    def insert_bgg_tab(self):
+    def insert_bgg_tab(self, tab_name="BoardGameGeek"):
         i = self.tab_names.index("md_pane_assets")
         self.tab_names.insert(i, "md_pane_bgg")
         pane = TabPane(
-            "BoardGameGeek",
+            tab_name,
             VerticalScroll(
                 Markdown(
                     id="md_markdown_bgg",
