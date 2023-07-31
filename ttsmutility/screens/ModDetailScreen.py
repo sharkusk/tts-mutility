@@ -344,7 +344,7 @@ class ModDetailScreen(Screen):
                 mod_detail[f"{field}_list"] = "- N/A"
 
         for poll in self.bs.BGG_POLLS:
-            if poll in mod_detail:
+            if poll in mod_detail and int(mod_detail[poll]['totalvotes']) > 0:
                 mod_detail[poll + "_chart"] = self.create_chart(mod_detail[poll], 90)
 
         for stat in self.bs.BGG_STATS_LISTS:
