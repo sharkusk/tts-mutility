@@ -12,7 +12,7 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, DownloadColum
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
-from textual.events import Key, ScreenResume
+from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
@@ -144,6 +144,7 @@ class ModListScreen(Screen):
     def on_mount(self) -> None:
         self.sort_order = {
             "name": False,
+            "type": False,
             "created": True,
             "modified": True,
             "size": True,
@@ -154,34 +155,28 @@ class ModListScreen(Screen):
             "status": True,
         }
 
-        for id in "#ml_workshop_dt", "#ml_saves_dt":
-            table = next(self.query(id).results(DataTable))
-            table.fixed_columns = 1
-            table.zebra_stripes = True
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
+        table.fixed_columns = 1
+        table.zebra_stripes = True
 
-            # TODO: Generate column names and keys in outside module
-            if id == "#ml_workshop_dt":
-                table.add_column("Mod Name", width=40, key="name")
-            else:
-                table.add_column("Save Name", width=40, key="name")
-            table.add_column("Created", key="created", width=10)
-            table.add_column("Modified", key="modified", width=10)
-            table.add_column("Size(MB)", key="size")
-            table.add_column("Assets", key="total_assets")
-            table.add_column("Missing", key="missing_assets")
-            table.add_column("MinP", key="min_players")
-            table.add_column("MaxP", key="max_players")
-            table.add_column("Status", key="status")
-            table.add_column("Progress", key="progress")
+        table.add_column("Mod Name", width=40, key="name")
+        table.add_column("Type", key="type")
+        table.add_column("Created", key="created", width=10)
+        table.add_column("Modified", key="modified", width=10)
+        table.add_column("Size(MB)", key="size")
+        table.add_column("Assets", key="total_assets")
+        table.add_column("Missing", key="missing_assets")
+        table.add_column("MinP", key="min_players")
+        table.add_column("MaxP", key="max_players")
+        table.add_column("Status", key="status")
+        table.add_column("Progress", key="progress")
 
-            table.cursor_type = "row"
-            table.sort("name", reverse=self.sort_order["name"])
-            self.last_sort_key = "name"
+        table.cursor_type = "row"
+        table.sort("name", reverse=self.sort_order["name"])
+        self.last_sort_key = "name"
 
         self.load_mods()
-
-    def on_screen_resume(self, event: ScreenResume):
-        pass
 
     def load_mods(self) -> None:
         mod_list = ModList.ModList()
@@ -197,16 +192,6 @@ class ModListScreen(Screen):
         f = self.query_one("#ml_filter")
         f.placeholder = "Filter"
         f.disabled = False
-
-    def get_mod_table(self, filename: str) -> tuple:
-        mods = self.mods
-        if filename.find("Workshop") == 0:
-            id = "#ml_workshop_dt"
-        else:
-            id = "#ml_saves_dt"
-
-        table = next(self.query(id).results(DataTable))
-        return table, mods
 
     def clean_name(self, name):
         words_to_move = [
@@ -240,11 +225,10 @@ class ModListScreen(Screen):
 
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
-        table, _ = self.get_mod_table(filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
 
         name = self.clean_name(mod["name"])
-        if not Path(filename).stem.isdigit():
-            name = MyText(name, style="#F0F0A0")
         if mod["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
         if mod["deleted"]:
@@ -252,6 +236,7 @@ class ModListScreen(Screen):
 
         table.add_row(
             name,
+            "Mod" if "Workshop" in filename else "Save",
             format_time(mod["epoch"], ""),
             format_time(mod["mtime"], "Scanning..."),
             mod["size"] / (1024 * 1024),
@@ -276,7 +261,8 @@ class ModListScreen(Screen):
                 )
             )
             for filename in filenames_to_remove:
-                table, _ = self.get_mod_table(filename)
+                id = "#ml_workshop_dt"
+                table = next(self.query(id).results(DataTable))
                 table.remove_row(filename)
                 self.filtered_rows[filename] = self.active_rows[filename]
                 self.active_rows.pop(filename)
@@ -290,8 +276,7 @@ class ModListScreen(Screen):
             )
             for filename in filenames_to_add:
                 self.filtered_rows.pop(filename)
-                _, mods = self.get_mod_table(filename)
-                self.add_mod_row(mods[filename])
+                self.add_mod_row(self.mods[filename])
                 # self.active_rows is updated in the add_mod_row function
             self.get_active_table()[0].sort(
                 self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
@@ -317,25 +302,24 @@ class ModListScreen(Screen):
         asset_list = AssetList()
         self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
 
-        table, mods = self.get_mod_table(mod_filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
 
         row_key = mod_filename
-        if row_key not in mods:
+        if row_key not in self.mods:
             return
 
-        name = self.clean_name(mods[row_key]["name"])
-        if not Path(mod_filename).stem.isdigit():
-            name = MyText(name, style="#F0F0A0")
-        if mods[row_key]["name"] in self.infected_mods:
+        name = self.clean_name(self.mods[row_key]["name"])
+        if self.mods[row_key]["name"] in self.infected_mods:
             name = MyText(name, style="#FF0000")
-        if mods[row_key]["deleted"]:
+        if self.mods[row_key]["deleted"]:
             name = MyText(name, style="strike")
 
         # We need to update both our internal asset information
         # and what is shown on the table...
-        mods[row_key]["total_assets"] = total_assets
-        mods[row_key]["missing_assets"] = missing_assets
-        mods[row_key]["size"] = size
+        self.mods[row_key]["total_assets"] = total_assets
+        self.mods[row_key]["missing_assets"] = missing_assets
+        self.mods[row_key]["size"] = size
 
         try:
             table.update_cell(row_key, "name", name)
@@ -539,8 +523,6 @@ class ModListScreen(Screen):
                     tabbed_content.active = "ml_pane_workshop"
                     id = "ml_pane_workshop"
 
-                # table = next(self.query(id).results(DataTable))
-                # table.focus()
                 tabbed_content = self.query_one(TabbedContent)
                 pane = next(self.query("#" + id).results(TabPane))
                 new_event = TabbedContent.TabActivated(tabbed_content, pane)
@@ -609,7 +591,8 @@ class ModListScreen(Screen):
         self.app.push_screen(HelpDialog())
 
     def update_status(self, filename):
-        table, _ = self.get_mod_table(filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
 
         stat = []
         if self.status[filename].download == "Queued":
@@ -632,7 +615,8 @@ class ModListScreen(Screen):
             pass
 
     def set_files_remaining(self, filename, files_remaining):
-        table, _ = self.get_mod_table(filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
 
         if self.status[filename].download == "Queued":
             self.status[filename].download = "Running"
@@ -761,7 +745,8 @@ class ModListScreen(Screen):
         self.post_message(self.BackupSelected(to_backup))
 
     def set_backup_progress(self, filename, update_total, advance_amount):
-        table, _ = self.get_mod_table(filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
 
         if (
             self.status[filename].backup == "Queued"
@@ -798,7 +783,8 @@ class ModListScreen(Screen):
                 pass
 
     def set_backup_start(self, filename, zip_path):
-        table, _ = self.get_mod_table(filename)
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
         try:
             table.update_cell(filename, "status", str(zip_path), update_width=True)
         except CellDoesNotExist:
