@@ -108,11 +108,13 @@ class ModBackup(Widget):
                 )
 
             amount_stored = 0
+            missing_csv = ""
+            invalid_urls_csv = ""
             for asset in assets:
                 if worker.is_cancelled:
                     cancelled = True
                     break
-                if asset["mtime"] > 0:
+                if asset["fsize"] > 0:
                     # self.post_message(UpdateLog(f"Adding {asset['filename']}."))
                     modzip.write(
                         Path(config.tts_mods_dir) / asset["filename"],
@@ -125,6 +127,20 @@ class ModBackup(Widget):
                             self.UpdateProgress(mod_filename, None, amount_stored)
                         )
                         amount_stored = 0
+                    if asset["dl_status"] != "":
+                        invalid_urls_csv += f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                else:
+                    missing_csv += (
+                        f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                    )
+                    invalid_urls_csv += (
+                        f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                    )
+            if missing_csv != "":
+                modzip.writestr("missing_assets.csv", missing_csv)
+
+            if invalid_urls_csv != "":
+                modzip.writestr("invalid_urls.csv", invalid_urls_csv)
 
             # Make sure we get progress bar to 100%
             self.post_message(self.UpdateProgress(mod_filename, None, amount_stored))
