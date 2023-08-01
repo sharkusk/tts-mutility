@@ -340,7 +340,7 @@ class FileDownload(Widget):
             content_disp_name = content_disposition[offset_utf:].split("=UTF-8")[1]
             extensions["content-disposition"] = os.path.splitext(
                 content_disp_name.split(";")[0]
-            )
+            )[1]
         else:
             # Use the url to extract the extension,
             # ignoring any trailing ? url parameters
