@@ -8,7 +8,7 @@ from typing import NamedTuple
 from webbrowser import open as open_url
 
 from rich.markdown import Markdown
-from rich.progress import BarColumn, MofNCompleteColumn, Progress, DownloadColumn
+from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -27,7 +27,7 @@ from ..parse.AssetList import AssetList
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
-from ..utility.util import format_time, make_safe_filename, MyText
+from ..utility.util import MyText, format_time, make_safe_filename
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
 
@@ -81,6 +81,7 @@ class ModListScreen(Screen):
         self.progress_id = {}
         self.status = {}
         self.dl_queue = Queue()
+        self.filter_timer = None
         super().__init__()
 
         config = load_config()
@@ -251,6 +252,8 @@ class ModListScreen(Screen):
         self.active_rows[filename] = mod["name"]
 
     def update_filtered_rows(self) -> None:
+        self.filter_timer = None
+
         row_key = self.get_current_row_key()
         if len(self.filter) > len(self.prev_filter):
             # Filter is getting longer, so we are going to be removing rows
@@ -260,9 +263,9 @@ class ModListScreen(Screen):
                     self.active_rows.keys(),
                 )
             )
-            for filename in filenames_to_remove:
-                id = "#ml_workshop_dt"
-                table = next(self.query(id).results(DataTable))
+            id = "#ml_workshop_dt"
+            table = next(self.query(id).results(DataTable))
+            for i, filename in enumerate(filenames_to_remove):
                 table.remove_row(filename)
                 self.filtered_rows[filename] = self.active_rows[filename]
                 self.active_rows.pop(filename)
@@ -274,7 +277,7 @@ class ModListScreen(Screen):
                     self.filtered_rows.keys(),
                 )
             )
-            for filename in filenames_to_add:
+            for i, filename in enumerate(filenames_to_add):
                 self.filtered_rows.pop(filename)
                 self.add_mod_row(self.mods[filename])
                 # self.active_rows is updated in the add_mod_row function
@@ -531,6 +534,12 @@ class ModListScreen(Screen):
 
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
+        if self.filter_timer is None:
+            self.filter_timer = self.set_timer(0.25, callback=self.update_filtered_rows)
+        else:
+            self.filter_timer.reset()
+
+    def on_timer(self):
         self.update_filtered_rows()
 
     def action_sha1_mismatches(self):
