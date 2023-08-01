@@ -327,20 +327,22 @@ class FileDownload(Widget):
             extensions["mime"] = self.DEFAULT_EXT[content_type]
 
         # Format of content disposition looks like this:
-        # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3";
-        # filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3'
         content_disposition = response.getheader("Content-Disposition", "").strip()
         offset_std = content_disposition.find('filename="')
         offset_utf = content_disposition.find("filename*=UTF-8")
         content_disp_name = ""
         if offset_std >= 0:
+            # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3";
             content_disp_name = content_disposition[offset_std:].split('"')[1]
             extensions["content-disposition"] = os.path.splitext(content_disp_name)[1]
         elif offset_utf >= 0:
+            # filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3
+            # filename*=UTF-8''653EFA7169C93BDC37E31595198855C3AD4A308F_tombstone_map-oct2018.jpg;
             content_disp_name = content_disposition[offset_utf:].split("=UTF-8")[1]
-            extensions["content-disposition"] = os.path.splitext(
-                content_disp_name.split(";")[0]
-            )[1]
+            content_disp_name = urllib.parse.unquote(content_disp_name.split("'")[2])
+            if content_disp_name[-1] == ";":
+                content_disp_name = content_disp_name[:-1]
+            extensions["content-disposition"] = os.path.splitext(content_disp_name)[1]
         else:
             # Use the url to extract the extension,
             # ignoring any trailing ? url parameters
@@ -353,7 +355,7 @@ class FileDownload(Widget):
                 extensions["url"] = os.path.splitext(self.url)[1]
 
         if content_disp_name != "":
-            if "steamusercontent" in self.url:
+            if "steamusercontent" in self.url or "steamuserimages" in self.url:
                 if self.url[-1] == "/":
                     hexdigest = os.path.splitext(self.url)[0][-41:-1]
                 else:
