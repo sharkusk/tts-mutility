@@ -73,6 +73,7 @@ class ModParser:
 
         name = ""
         nickname = ""
+        guid = ""
         for k, v in dic.items():
             if k in self.MOD_INFO_FIELDS:
                 if isinstance(v, str):
@@ -89,17 +90,17 @@ class ModParser:
                 else:
                     self.mod_info[k] = v
 
-            if name == "" and nickname == "":
+            if name == "" and nickname == "" and guid == "":
                 newtrail = trail + [k]
             else:
-                big_name = ""
+                full_name = ""
                 if name != "":
-                    big_name = name.strip()
-                    if nickname != "":
-                        big_name = big_name + f" ({nickname.strip()})"
-                elif nickname != "":
-                    big_name = nickname.strip()
-                newtrail = trail + [f'"{big_name}"', k]
+                    full_name += name.strip() + " "
+                if nickname != "":
+                    full_name += nickname.strip() + " "
+                if guid != "":
+                    full_name += f"({guid}) "
+                newtrail = trail + [f'"{full_name.strip()}"', k]
 
             if k == "AudioLibrary":
                 for elem in v:
@@ -145,6 +146,9 @@ class ModParser:
                     continue
                 done.add(recode)
                 yield (newtrail, v)
+
+            elif k.lower() == "guid":
+                guid = v
 
             elif k.lower() == "name":
                 if not v or v.lower() in self.NAMES_TO_IGNORE:
