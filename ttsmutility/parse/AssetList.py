@@ -473,7 +473,9 @@ class AssetList:
 
             db.commit()
 
-    def update_mod_assets(self, mod_filename: str, mod_mtime) -> int:
+    def update_mod_assets(
+        self, mod_filename: str, mod_mtime, force_file_check=False
+    ) -> int:
         if mod_filename.find("Workshop") == 0:
             mod_path = Path(self.mod_dir) / mod_filename
         else:
@@ -571,9 +573,42 @@ class AssetList:
                     """,
                     tuple(zip(removed_assets, [mod_filename] * len(removed_assets))),
                 )
-                if removed_asset_count != cursor.rowcount:
-                    # We didn't remove assets properly!
-                    pass
+
+                deleted_files = []
+                if force_file_check:
+                    cursor = db.execute(
+                        """
+                        SELECT
+                            asset_path, asset_filename, asset_ext
+                        FROM
+                            tts_assets
+                        WHERE asset_url IN ({0})
+                        """.format(
+                            ",".join("?" for _ in urls)
+                        ),
+                        urls,
+                    )
+                    results = cursor.fetchall()
+                    for path, filename, ext in results:
+                        if (
+                            not (Path(self.mod_dir) / path / filename)
+                            .with_suffix(ext)
+                            .exists()
+                        ):
+                            deleted_files.append(filename)
+
+                if len(deleted_files) > 0:
+                    cursor = db.execute(
+                        """
+                        UPDATE tts_assets
+                        SET asset_sha1=0, asset_mtime=0, asset_size=0,
+                            asset_dl_status="", asset_content_name=""
+                        WHERE asset_filename IN ({0})
+                        """.format(
+                            ",".join("?" for _ in deleted_files)
+                        ),
+                        deleted_files,
+                    )
 
                 if new_asset_count > 0 or removed_asset_count > 0:
                     cursor = db.execute(
@@ -677,7 +712,9 @@ class AssetList:
                     refresh_mod = False
 
             if refresh_mod:
-                self.update_mod_assets(mod_filename, mod_mtime)
+                self.update_mod_assets(
+                    mod_filename, mod_mtime, force_file_check=force_refresh
+                )
 
             if not parse_only:
                 cursor = db.execute(

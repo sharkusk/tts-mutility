@@ -81,7 +81,7 @@ class AssetListScreen(Widget):
         table.add_column("URL", width=self.url_width, key="url")
         table.add_column("Ext", key="ext")
         table.add_column("Size(KB)", key="fsize", width=9)
-        table.add_column("Modified", key="mtime", width=15)
+        table.add_column("Modified", key="mtime", width=25)
         table.add_column("Trail", key="trail")
 
         self.load_data()
@@ -173,8 +173,11 @@ class AssetListScreen(Widget):
             new_asset["ext"] = Path(asset["filename"]).suffix
         new_asset["url"] = self.format_long_entry(asset["url"], self.url_width)
 
-        if asset["ignore_missing"]:
-            new_asset["url"] = MyText(new_asset["url"], style="#00D000")
+        try:
+            if asset["ignore_missing"]:
+                new_asset["url"] = MyText(new_asset["url"], style="#00D000")
+        except KeyError:
+            pass
 
         return new_asset
 
@@ -305,7 +308,11 @@ class AssetListScreen(Widget):
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
         asset_list = AssetList()
-        self.assets[row_key]["ignore_missing"] = not self.assets[row_key]["ignore_missing"]
-        asset_list.set_ignore(self.mod_filename, row_key.value, self.assets[row_key]["ignore_missing"])
+        self.assets[row_key]["ignore_missing"] = not self.assets[row_key][
+            "ignore_missing"
+        ]
+        asset_list.set_ignore(
+            self.mod_filename, row_key.value, self.assets[row_key]["ignore_missing"]
+        )
         self.updated_counts = True
         self.update_asset(self.assets[row_key])
