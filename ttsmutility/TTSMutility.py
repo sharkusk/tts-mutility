@@ -11,6 +11,7 @@ from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Header, LoadingIndicator, Static
 from textual.worker import Worker, get_current_worker
+from textual import work
 
 from . import __version__
 from .data import load_config, save_config, config_override
@@ -34,6 +35,12 @@ class TTSMutility(App):
 
     TITLE = APPLICATION_TITLE
     SUB_TITLE = __version__
+
+    class UpdateCounts(Message):
+        def __init__(self, mod_filename, counts) -> None:
+            super().__init__()
+            self.mod_filename = mod_filename
+            self.counts = counts
 
     class InitComplete(Message):
         def __init__(self) -> None:
@@ -215,6 +222,21 @@ class TTSMutility(App):
             screen = self.get_screen("mod_details")
             screen.action_refresh_mod_details()
 
+    def on_ttsmutility_update_counts(self, event: UpdateCounts):
+        if self.is_screen_installed("mod_list"):
+            screen = self.get_screen("mod_list")
+            screen.update_counts(
+                event.mod_filename,
+                event.counts["total"],
+                event.counts["missing"],
+                event.counts["size"],
+            )
+
+        if self.is_screen_installed("mod_details"):
+            screen = self.get_screen("mod_details")
+            screen.action_refresh_mod_details()
+
+    @work(thread=True)
     def refresh_mods(self) -> None:
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
@@ -224,15 +246,7 @@ class TTSMutility(App):
             mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
             counts = mod_list.update_mod_counts(mod_filename)
 
-            if self.is_screen_installed("mod_list"):
-                screen = self.get_screen("mod_list")
-                screen.update_counts(
-                    mod_filename, counts["total"], counts["missing"], counts["size"]
-                )
-
-            if self.is_screen_installed("mod_details"):
-                screen = self.get_screen("mod_details")
-                screen.action_refresh_mod_details()
+            self.post_message(self.UpdateCounts(mod_filename, counts))
 
     def load_screen(self, new_screen: Screen, name: str):
         if self.is_screen_installed(name):
