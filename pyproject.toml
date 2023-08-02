@@ -22,7 +22,7 @@ requires-python = ">=3.11"
 dynamic = ["version"]
 license = {text = "GPLv3"}
 dependencies = [
-    "textual>=0.30.0",
+    "textual>=0.31.0",
     "xdg-base-dirs",
     "Pillow",
     "requests",

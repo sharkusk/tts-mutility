@@ -98,7 +98,7 @@ class TTSMutility(App):
         yield Header()
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
-        self.run_worker(self.initialize_database)
+        self.run_worker(self.initialize_database, thread=True)
 
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
         if self.f_log is not None:
@@ -248,7 +248,7 @@ class TTSMutility(App):
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
-        self.run_worker(self.backup.backup_daemon)
+        self.run_worker(self.backup.backup_daemon, thread=True)
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
@@ -381,7 +381,7 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        self.run_worker(self.download_selected(event.mod_filenames))
+        self.run_worker(self.download_selected(event.mod_filenames), thread=True)
 
     async def download_selected(self, mod_filenames: list[str]) -> None:
         mod_asset_list = AssetList.AssetList()
@@ -399,7 +399,7 @@ class TTSMutility(App):
             screen.dl_urls(urls, trails)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
-        self.run_worker(self.sha1.scan_sha1s, exclusive=True)
+        self.run_worker(self.sha1.scan_sha1s, exclusive=True, thread=True)
 
     def on_mod_list_screen_show_sha1(self, event: ModListScreen.ShowSha1):
         self.app.push_screen(MissingAssetScreen("sha1", "SHA1 Mismatches"))

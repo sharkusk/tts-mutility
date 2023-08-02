@@ -88,7 +88,7 @@ class ModListScreen(Screen):
 
         for i in range(int(config.num_download_threads)):
             self.run_worker(
-                self.download_daemon, group="downloaders", description=f"DL Task {i}"
+                self.download_daemon, group="downloaders", description=f"DL Task {i}", thread=True
             )
 
     def compose(self) -> ComposeResult:
