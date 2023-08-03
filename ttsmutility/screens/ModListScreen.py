@@ -82,13 +82,17 @@ class ModListScreen(Screen):
         self.status = {}
         self.dl_queue = Queue()
         self.filter_timer = None
+        self.downloads = []
         super().__init__()
 
         config = load_config()
 
         for i in range(int(config.num_download_threads)):
             self.run_worker(
-                self.download_daemon, group="downloaders", description=f"DL Task {i}", thread=True
+                self.download_daemon,
+                group="downloaders",
+                description=f"DL Task {i}",
+                thread=True,
             )
 
     def compose(self) -> ComposeResult:
@@ -660,6 +664,9 @@ class ModListScreen(Screen):
 
     def dl_urls(self, urls, trails) -> None:
         for url, trail in zip(urls, trails):
+            if url in self.downloads:
+                continue
+            self.downloads.append(url)
             if type(trail) is not list:
                 trail = trailstring_to_trail(trail)
 
