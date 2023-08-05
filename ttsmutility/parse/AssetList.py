@@ -267,7 +267,6 @@ class AssetList:
 
     def scan_cached_assets(self):
         scan_time = time.time()
-        new_count = 0
 
         with sqlite3.connect(self.db_path) as db:
             ignore_paths = ["Mods", "Workshop"]
@@ -292,6 +291,7 @@ class AssetList:
 
             assets = []
             for root, _, files in os.walk(self.mod_dir, topdown=True):
+                new_count = 0
                 path = pathlib.PurePath(root).name
 
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
@@ -345,8 +345,25 @@ class AssetList:
                                 Path(self.config.tts_mods_dir) / correct_path / filename
                             ).with_suffix(correct_ext)
                             asset_filepath = (
-                                Path(asset_paths[i]) / asset_stems[i]
+                                Path(self.config.tts_mods_dir)
+                                / asset_paths[i]
+                                / asset_stems[i]
                             ).with_suffix(asset_exts[i])
+
+                            if src.exists() and asset_filepath.exists():
+                                # We have two files with same name but different extensions.
+                                # We know this one is correct, so move the other to backup
+                                # and update the DB accordingly.
+                                self.post_message(
+                                    UpdateLog(
+                                        (
+                                            f"Found duplicate files `{asset_stems[i]}` with "
+                                            f"extensions: `{asset_stems[i]}` and `{src.suffix}`. "
+                                            f"Moving latter to backup directory."
+                                        )
+                                    )
+                                )
+                                move(asset_filepath, backup_dest)
 
                             if asset_exts[i] != filename.suffix:
                                 # Asset exists in DB but has a different extension than current file
