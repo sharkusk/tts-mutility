@@ -358,7 +358,7 @@ class AssetList:
                                     UpdateLog(
                                         (
                                             f"Found duplicate files `{asset_stems[i]}` with "
-                                            f"extensions: `{asset_stems[i]}` and `{src.suffix}`. "
+                                            f"extensions: `{asset_exts[i]}` and `{src.suffix}`. "
                                             f"Moving latter to backup directory."
                                         )
                                     )
