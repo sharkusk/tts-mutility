@@ -311,7 +311,7 @@ class AssetList:
                     if filename.suffix.upper() in FILES_TO_IGNORE:
                         continue
 
-                    if i % 1000 == 0:
+                    if i % 50 == 0:
                         yield path, new_count, old_count + i, files_in_path
 
                     filepath = Path(root) / filename
@@ -475,9 +475,6 @@ class AssetList:
                 """,
                 assets,
             )
-            if new_count != cursor.rowcount:
-                # Things that make you go hmmmm.
-                pass
 
             db.execute(
                 """

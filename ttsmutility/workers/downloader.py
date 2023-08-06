@@ -375,6 +375,9 @@ class FileDownload(Widget):
         if ext.lower() == ".txt":
             ext = ".obj"
 
+        if ext.lower() == ".jpeg":
+            ext = ".jpg"
+
         # TTS saves some file extensions as upper case
         ext = self.fix_ext_case(ext)
 
