@@ -52,6 +52,7 @@ class FileDownload(Widget):
             "application/octet-stream",
             "application/json",
             "application/x-tgif",
+            "binary/octet-stream",
             "model/obj",
         ),
         "assetbundle": (
@@ -247,8 +248,7 @@ class FileDownload(Widget):
                     continue
             break
         else:
-            self.error = "Retries exhausted"
-            return error, self.make_asset()
+            return "Retries exhausted", self.make_asset()
 
         if error is None:
             filepath = os.path.join(self.mod_dir, self.filename)
