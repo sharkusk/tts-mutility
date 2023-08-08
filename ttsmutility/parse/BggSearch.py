@@ -311,7 +311,7 @@ class BggSearch:
         ):
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = f.read()
-        
+
         if len(data) == 0:
             with urlopen(url) as f:
                 data = f.read().decode("utf-8")
