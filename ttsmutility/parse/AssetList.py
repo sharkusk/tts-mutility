@@ -290,11 +290,15 @@ class AssetList:
                 asset_filenames = set()
 
             assets = []
-            for root, _, files in os.walk(self.mod_dir, topdown=True):
+            for root, dirnames, files in os.walk(self.mod_dir, topdown=True):
                 new_count = 0
                 path = pathlib.PurePath(root).name
 
                 if path in TTS_RAW_DIRS or path == "" or path in ignore_paths:
+                    if path != "Mods":
+                        # Do not recurse into directories we are ignoring
+                        while len(dirnames) > 0:
+                            _ = dirnames.pop()
                     continue
 
                 files_in_path = len(files)
