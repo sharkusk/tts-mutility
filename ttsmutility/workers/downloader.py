@@ -178,9 +178,9 @@ class FileDownload(Widget):
             return
 
         # Some MODS do not include the 'raw' link in their pastebin urls, help them out
-        if "pastebin.com" in hostname and "raw" not in self.fetch_url:
+        if "pastebin.com" in hostname and ("/raw/" not in self.fetch_url or "/dl/" not in self.fetch_url):
             self.fetch_url = self.fetch_url.replace(
-                "pastebin.com/", "pastebin.com/raw/"
+                "pastebin.com/", "pastebin.com/dl/"
             )
 
         if "paste.ee" in hostname and "/p/" in self.fetch_url:
