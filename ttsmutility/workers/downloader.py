@@ -12,20 +12,13 @@ from textual.message import Message
 from textual.widget import Widget
 
 from ..data.config import load_config
-from ..parse.FileFinder import (
-    UPPER_EXTS,
-    get_fs_path,
-    get_fs_path_from_extension,
-    is_assetbundle,
-    is_audiolibrary,
-    is_custom_ui_asset,
-    is_from_script,
-    is_image,
-    is_model,
-    is_pdf,
-)
+from ..parse.FileFinder import (UPPER_EXTS, get_fs_path,
+                                get_fs_path_from_extension, is_assetbundle,
+                                is_audiolibrary, is_custom_ui_asset,
+                                is_from_script, is_image, is_model, is_pdf)
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
+from ..utility.util import get_steam_sha1_from_url
 
 
 class FileDownload(Widget):
@@ -360,15 +353,9 @@ class FileDownload(Widget):
             else:
                 extensions["url"] = os.path.splitext(self.url)[1]
 
-        if content_disp_name != "":
-            if "steamusercontent" in self.url or "steamuserimages" in self.url:
-                if self.url[-1] == "/":
-                    hexdigest = os.path.splitext(self.url)[0][-41:-1]
-                else:
-                    hexdigest = os.path.splitext(self.url)[0][-40:]
-                content_disp_name = content_disp_name.split(hexdigest + "_")[1]
-                self.steam_sha1 = hexdigest
-            self.content_name = content_disp_name
+        self.steam_sha1 = get_steam_sha1_from_url(self.url)
+        if self.steam_sha1 != "" and content_disp_name != "":
+            self.content_name = content_disp_name.split(self.steam_sha1 + "_")[1]
             self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
 
         ext = ""

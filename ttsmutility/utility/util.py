@@ -1,4 +1,6 @@
+import os
 import time
+
 from rich.text import Text
 
 
@@ -14,6 +16,16 @@ def format_time(mtime: float, zero_string: str = "") -> str:
 
 def make_safe_filename(filename):
     return "".join([c if c not in r'<>:"/\|?*' else "-" for c in filename]).rstrip()
+
+
+def get_steam_sha1_from_url(url):
+    hexdigest = ""
+    if "steamusercontent" in url or "steamuserimages" in url:
+        if url[-1] == "/":
+            hexdigest = os.path.splitext(url)[0][-41:-1]
+        else:
+            hexdigest = os.path.splitext(url)[0][-40:]
+    return hexdigest
 
 
 # Remove this once Rich accepts pull request #3016

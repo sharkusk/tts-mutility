@@ -1,17 +1,21 @@
-from textual.app import ComposeResult
-from textual.widgets import Footer
-from textual.widgets import Markdown
-from textual.containers import Container, VerticalScroll
-from textual.screen import ModalScreen
-
 import time
 from pathlib import Path
 from webbrowser import open as open_url
+
+from textual.app import ComposeResult
+from textual.containers import Container, VerticalScroll
+from textual.screen import ModalScreen
+from textual.widgets import Footer, Markdown
+
+from ..dialogs.InfoDialog import InfoDialog
+from ..dialogs.SelectOptionDialog import SelectOptionDialog
+from ..parse.AssetList import AssetList
 
 
 class AssetDetailScreen(ModalScreen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
+        ("f", "find", "Find Match"),
     ]
 
     def __init__(self, asset_detail: dict) -> None:
@@ -113,3 +117,21 @@ class AssetDetailScreen(ModalScreen):
             link = event.href
 
         open_url(link)
+
+    def action_find(self):
+        asset_list = AssetList(post_message=self.post_message)
+        # Look for matching SHA1, filename, content_name, JSON trail
+        matches = asset_list.find_asset(self.asset_detail["url"])
+        if len(matches) > 0:
+            options = [f"{url} ({type})" for url, type in matches]
+
+            def set_id(index: int) -> None:
+                if index >= 0:
+                    asset_list.copy_asset(
+                        options[index].split("(")[0].strip(), self.asset_detail["url"]
+                    )
+                    self.app.push_screen(
+                        InfoDialog("Copied asset. Restart to update mod.")
+                    )
+
+            self.app.push_screen(SelectOptionDialog(options), set_id)

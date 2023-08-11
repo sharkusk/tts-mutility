@@ -296,8 +296,9 @@ class AssetListScreen(Widget):
                 ):
                     f.write(
                         (
-                            f"{url}, {self.assets[url]['dl_status']}, "
-                            f"({self.assets[url]['trail']})\n"
+                            f"{url}, "
+                            f"({self.assets[url]['trail']}), "
+                            f"{self.assets[url]['dl_status']}\n"
                         )
                     )
 

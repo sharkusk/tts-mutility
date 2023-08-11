@@ -4,19 +4,19 @@ import pathlib
 import sqlite3
 import time
 from pathlib import Path
-from shutil import move
-
-from ..utility.messages import UpdateLog
+from shutil import move, copy
 
 from ..data.config import load_config
 from ..parse.FileFinder import (
     FILES_TO_IGNORE,
     TTS_RAW_DIRS,
+    get_fs_path_from_extension,
     recodeURL,
     trail_to_trailstring,
     trailstring_to_trail,
-    get_fs_path_from_extension,
 )
+from ..utility.messages import UpdateLog
+from ..utility.util import get_steam_sha1_from_url
 from .ModParser import ModParser
 
 
@@ -826,3 +826,108 @@ class AssetList:
                 (mod_filename,),
             )
             db.commit()
+
+    def copy_asset(self, src_url, dest_url):
+        if src_url == dest_url:
+            return
+
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                """
+                SELECT asset_path, asset_filename, asset_ext, asset_size
+                FROM tts_assets
+                WHERE asset_url=?
+                """,
+                (src_url,),
+            )
+            result = cursor.fetchone()
+            # No match, or our src url is not on disk
+            if result is None or result[3] == 0:
+                self.post_message(
+                    UpdateLog(
+                        f"Cannot copy `{src_url}` because the asset does not exist."
+                    )
+                )
+                return
+            src_ext = result[2]
+            src_path = (Path(self.mod_dir) / result[0] / result[1]).with_suffix(src_ext)
+
+            cursor = db.execute(
+                """
+                SELECT asset_path, asset_filename
+                FROM tts_assets
+                WHERE asset_url=?
+                """,
+                (dest_url,),
+            )
+            result = cursor.fetchone()
+            if result is None:
+                return
+            dest_path = (Path(self.mod_dir) / result[0] / result[1]).with_suffix(
+                src_ext
+            )
+
+        self.post_message(UpdateLog(f"Copying `{src_path}` to `{dest_path}`"))
+        copy(src_path, dest_path)
+
+    def find_asset(self, url, trail=None):
+        matches = []
+
+        with sqlite3.connect(self.db_path) as db:
+            filename = url.split("/")[-1]
+            if "?" in filename:
+                filename = filename.split("?")[0]
+            steam_sha1 = get_steam_sha1_from_url(url)
+
+            # Prioritize following searches:
+            # - Match sha1 (if available)
+            # - Match filename to content_name
+            # - TODO: Match trailname (if available)
+
+            if steam_sha1 != "":
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_sha1=?
+                    """,
+                    (steam_sha1,),
+                )
+                result = cursor.fetchone()
+                if result is not None:
+                    matches.append((result[0], "sha1"))
+
+            if filename != "":
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name=?
+                    """,
+                    (filename,),
+                )
+                result = cursor.fetchone()
+                if result is not None:
+                    matches.append((result[0], "content_name"))
+
+            if trail is not None and False:
+                # This is not currently supported...  Need
+                # a way to detect somewhat unique names in
+                # the trails...
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                        INNER JOIN tts_mod_assets
+                            ON tts_mod_assets.asset_id_fk=tts_assets.id
+                        INNER JOIN tts_mods
+                            ON tts_mod_assets.mod_id_fk=tts_mods.id
+                    WHERE mod_asset_trail LIKE '%?%'
+                    """,
+                    (trail,),
+                )
+                result = cursor.fetchone()
+                if len(result) > 0:
+                    matches.append((result[0], "trail"))
+
+        return matches
