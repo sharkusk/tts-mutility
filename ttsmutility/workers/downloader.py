@@ -12,10 +12,18 @@ from textual.message import Message
 from textual.widget import Widget
 
 from ..data.config import load_config
-from ..parse.FileFinder import (UPPER_EXTS, get_fs_path,
-                                get_fs_path_from_extension, is_assetbundle,
-                                is_audiolibrary, is_custom_ui_asset,
-                                is_from_script, is_image, is_model, is_pdf)
+from ..parse.FileFinder import (
+    UPPER_EXTS,
+    get_fs_path,
+    get_fs_path_from_extension,
+    is_assetbundle,
+    is_audiolibrary,
+    is_custom_ui_asset,
+    is_from_script,
+    is_image,
+    is_model,
+    is_pdf,
+)
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
 from ..utility.util import get_steam_sha1_from_url
@@ -421,12 +429,13 @@ class FileDownload(Widget):
         except FileNotFoundError as error:
             return f"Error writing object to disk: {error}"
 
-        # Don’t leave files with partial content lying around.
-        except Exception:
-            with suppress(FileNotFoundError):
-                os.remove(temp_path)
-            raise
+        except OSError as error:
+            if "[Errno 22]" in str(error):
+                return f"Filename too long ({len(str(temp_path))} chars) for Windows. "
+            else:
+                return f"Error writing object to disk: {error}"
 
+        # Don’t leave files with partial content lying around.
         except SystemExit:
             with suppress(FileNotFoundError):
                 os.remove(temp_path)
