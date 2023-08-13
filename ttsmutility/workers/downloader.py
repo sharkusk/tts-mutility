@@ -178,18 +178,6 @@ class FileDownload(Widget):
             self.error = "Invalid hostname"
             return
 
-        # Some MODS do not include the 'raw' link in their pastebin urls, help them out
-        if "pastebin.com" in hostname:
-            add_raw_path = True
-            if "/raw" in self.fetch_url:
-                add_raw_path = False
-            if "/dl" in self.fetch_url:
-                add_raw_path = False
-            if add_raw_path:
-                self.fetch_url = self.fetch_url.replace(
-                    "pastebin.com/", "pastebin.com/dl/"
-                )
-
         if "paste.ee" in hostname and "/p/" in self.fetch_url:
             self.fetch_url = self.fetch_url.replace("paste.ee/p/", "paste.ee/d/")
 
@@ -275,6 +263,20 @@ class FileDownload(Widget):
     def _download_file(self):
         headers = {"User-Agent": self.user_agent}
 
+        if "pastebin.com" in self.fetch_url:
+            # Pastebin will provide us the original filename if we use the dl link.
+            # This requires a referer from the original pastebin link, so we need
+            # to extract it.
+            pastebin_ref = ""
+            if "pastebin.com/raw.php" in self.fetch_url:
+                pastebin_ref = self.fetch_url.split("=")[-1]
+            else:
+                pastebin_ref = self.fetch_url.split("/")[-1]
+            
+            if len(pastebin_ref) > 0:
+                headers["Referer"] =  f"http://pastebin.com/{pastebin_ref}"
+                self.fetch_url = f"http://pastebin.com/dl/{pastebin_ref}"
+
         if (
             self.filename is not None
             and (existing_file := Path(self.filename).with_suffix(".tmp")).exists()
@@ -335,6 +337,8 @@ class FileDownload(Widget):
 
         # Format of content disposition looks like this:
         content_disposition = response.getheader("Content-Disposition", "").strip()
+        if content_disposition == "":
+            content_disposition = response.getheader("content-disposition", "").strip()
         offset_std = content_disposition.find('filename="')
         offset_utf = content_disposition.find("filename*=UTF-8")
         content_disp_name = ""
@@ -362,8 +366,12 @@ class FileDownload(Widget):
                 extensions["url"] = os.path.splitext(self.url)[1]
 
         self.steam_sha1 = get_steam_sha1_from_url(self.url)
-        if self.steam_sha1 != "" and content_disp_name != "":
-            self.content_name = content_disp_name.split(self.steam_sha1 + "_")[1]
+
+        if content_disp_name != "":
+            self.content_name = content_disp_name
+            if self.steam_sha1 != "":
+                # Steam context_disp_names is formatted like: SHA1_<filename>
+                self.content_name = content_disp_name.split("_", 1)[1]
             self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
 
         ext = ""

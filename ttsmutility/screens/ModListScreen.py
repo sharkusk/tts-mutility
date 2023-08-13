@@ -209,6 +209,7 @@ class ModListScreen(Screen):
             "v2 automated ",
             "reiner knizia's ",
             "- ",
+            "(remastered) ",
         ]
         if name[0] == "[":
             # Move [] to end of name

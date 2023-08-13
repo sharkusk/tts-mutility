@@ -40,10 +40,14 @@ class Sha1Scanner(TTSWorker):
         self.post_message(UpdateLog("Starting SHA1 scan."))
         self.post_message(self.UpdateProgress(100, None))
 
-        for root, _, files in os.walk(config.tts_mods_dir, topdown=True):
+        for root, dirnames, files in os.walk(config.tts_mods_dir, topdown=True):
             dir_name = pathlib.PurePath(root).name
 
             if dir_name in TTS_RAW_DIRS or dir_name == "":
+                if dir_name != "Mods":
+                    # Do not recurse into directories we are ignoring
+                    while len(dirnames) > 0:
+                        _ = dirnames.pop()
                 continue
 
             self.post_message(self.UpdateProgress(len(files), None))
