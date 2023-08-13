@@ -619,8 +619,7 @@ class AssetList:
                     cursor = db.execute(
                         """
                         UPDATE tts_assets
-                        SET asset_sha1=0, asset_mtime=0, asset_size=0,
-                            asset_dl_status="", asset_content_name=""
+                        SET asset_sha1=0, asset_mtime=0, asset_size=0
                         WHERE asset_filename IN ({0})
                         """.format(
                             ",".join("?" for _ in deleted_files)
