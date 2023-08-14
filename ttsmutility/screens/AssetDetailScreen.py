@@ -17,16 +17,19 @@ from ..parse.ModList import ModList
 class AssetDetailScreen(ModalScreen):
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
-        ("f", "find", "Find Match"),
     ]
 
     def __init__(self, url: str, mod_filename: str = "") -> None:
+        super().__init__()
         self.url = url
         self.mod_filename = mod_filename
         config = load_config()
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
-        super().__init__()
+        self.ad_uri_prefix = "//asset_detail/"
+        self.uri_copy = "//copy/"
+        self.uri_delete = "//delete/"
+        self.asset_list = AssetList(post_message=self.post_message)
 
     def compose(self) -> ComposeResult:
         with Container(id="ad_screen"):
@@ -38,8 +41,7 @@ class AssetDetailScreen(ModalScreen):
                 )
 
     def get_markdown(self) -> str:
-        asset_list = AssetList(post_message=self.post_message)
-        asset_detail = asset_list.get_asset(self.url, self.mod_filename)
+        asset_detail = self.asset_list.get_asset(self.url, self.mod_filename)
 
         asset_detail_md = ""
         ad_filepath = Path(__file__).with_name("AssetDetailScreen.md")
@@ -128,20 +130,49 @@ class AssetDetailScreen(ModalScreen):
         )
         asset_detail["url"] = asset_detail["url"].replace(" ", "%20")
 
+        asset_detail["matches"] = ""
+        asset_detail["delete"] = ""
+
+        if asset_detail["dl_status"] != "":
+            asset_detail["matches"] = "### Asset Matches\n"
+            matches = self.asset_list.find_asset(self.url)
+            if len(matches) == 0:
+                asset_detail["matches"] += "None Found\n"
+            else:
+                for match in matches:
+                    uri = f"[{match[0]}]({self.ad_uri_prefix}{match[0]})"
+                    copy_link = f"[copy]({self.uri_copy}{match[0]})"
+                    asset_detail["matches"] += f"- {uri} [{match[1]}] <-- {copy_link}\n"
+
+            if asset_detail["fsize"] > 0:
+                asset_detail["delete"] = "### Copied Asset Options\n"
+                asset_detail["delete"] += f"[delete]({self.uri_delete}{self.url})\n"
+
         return asset_detail_md.format(**asset_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
+        link = None
         if "//localhost/" in event.href:
             link = event.href.replace("//localhost/", "file:///")
+        elif self.uri_copy in event.href:
+            self.asset_list.copy_asset(event.href.split(self.uri_copy)[1], self.url)
+            self.app.push_screen(InfoDialog("Copied asset. Restart to update mod."))
+        elif self.uri_delete in event.href:
+            self.asset_list.delete_asset(self.url)
+            self.app.push_screen(InfoDialog("Deleted asset. Restart to update mod."))
+        elif self.ad_uri_prefix in event.href:
+            self.app.push_screen(
+                AssetDetailScreen(event.href.split(self.ad_uri_prefix)[1])
+            )
         else:
             link = event.href
 
-        open_url(link)
+        if link is not None:
+            open_url(link)
 
     def action_find(self):
-        asset_list = AssetList(post_message=self.post_message)
         # Look for matching SHA1, filename, content_name, JSON trail
-        matches = asset_list.find_asset(self.url)
+        matches = self.asset_list.find_asset(self.url)
         if len(matches) > 0:
             options = [f"{url} ({type})" for url, type in matches]
 
@@ -149,7 +180,7 @@ class AssetDetailScreen(ModalScreen):
                 if index >= 0:
                     self.app.push_screen(AssetDetailScreen(matches[index][0]))
                     if False:
-                        asset_list.copy_asset(
+                        self.asset_list.copy_asset(
                             # options[index].split("(")[0].strip(),
                             matches[index][0],
                             self.url,

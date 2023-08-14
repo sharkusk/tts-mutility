@@ -846,12 +846,15 @@ class AssetList:
                     )
                 )
                 return
+            src_path = result[0]
             src_ext = result[2]
-            src_path = (Path(self.mod_dir) / result[0] / result[1]).with_suffix(src_ext)
+            src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
+                src_ext
+            )
 
             cursor = db.execute(
                 """
-                SELECT asset_path, asset_filename
+                SELECT asset_filename
                 FROM tts_assets
                 WHERE asset_url=?
                 """,
@@ -860,12 +863,12 @@ class AssetList:
             result = cursor.fetchone()
             if result is None:
                 return
-            dest_path = (Path(self.mod_dir) / result[0] / result[1]).with_suffix(
+            dest_filepath = (Path(self.mod_dir) / src_path / result[0]).with_suffix(
                 src_ext
             )
 
-        self.post_message(UpdateLog(f"Copying `{src_path}` to `{dest_path}`"))
-        copy(src_path, dest_path)
+        self.post_message(UpdateLog(f"Copying `{src_filepath}` to `{dest_filepath}`"))
+        copy(src_filepath, dest_filepath)
 
     def find_asset(self, url, trail=None):
         matches = []
@@ -873,8 +876,8 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             filename = url.split("/")[-1]
             if "?" in filename:
-                if "?id=" in filename:
-                    filename = filename.split("?id=")[1]
+                if "id=" in filename:
+                    filename = filename.split("id=")[1]
                 else:
                     filename = filename.split("?")[0]
             steam_sha1 = get_steam_sha1_from_url(url)
@@ -1013,3 +1016,31 @@ class AssetList:
                     asset["trail"] = result[9]
                 return asset
         return None
+
+    def delete_asset(self, url):
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                """
+                SELECT asset_path, asset_filename, asset_ext, asset_size
+                FROM tts_assets
+                WHERE asset_url=?
+                """,
+                (url,),
+            )
+            result = cursor.fetchone()
+            # No match, or our src url is not on disk
+            if result is None or result[3] == 0:
+                self.post_message(
+                    UpdateLog(
+                        f"Cannot delete `{url}` because the asset does not exist."
+                    )
+                )
+                return
+            src_path = result[0]
+            src_ext = result[2]
+            src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
+                src_ext
+            )
+
+        self.post_message(UpdateLog(f"Deleting `{src_filepath}`"))
+        os.remove(src_filepath)

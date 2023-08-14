@@ -1,5 +1,4 @@
 import asyncio
-import time
 from pathlib import Path
 
 from textual import work
@@ -12,7 +11,6 @@ from textual.widgets import DataTable
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
-from ..utility.messages import UpdateLog
 from ..utility.util import format_time, make_safe_filename, MyText
 
 
@@ -67,7 +65,7 @@ class AssetListScreen(Widget):
         with Center(id="al_center"):
             yield DataTable(id=self.al_id)
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.sort_order = {
             "url": False,
             "ext": False,
@@ -89,7 +87,6 @@ class AssetListScreen(Widget):
 
     @work
     async def load_data(self):
-        start = time.time()
         asset_list = AssetList()
         assets = asset_list.get_mod_assets(self.mod_filename)
         self.assets = {}
@@ -118,8 +115,7 @@ class AssetListScreen(Widget):
         table.sort("trail", reverse=self.sort_order["trail"])
         self.last_sort_key = "trail"
 
-        end = time.time()
-        self.post_message(UpdateLog(f"Time to insert asset rows: {end-start}"))
+        self.check_for_matches()
 
     def format_long_entry(self, entry, width):
         if not entry or len(entry) < width:
@@ -127,6 +123,19 @@ class AssetListScreen(Widget):
 
         seg_width = int(width / 2)
         return f"{entry[:seg_width-3]}..{entry[len(entry)-seg_width-1:]}"
+
+    @work
+    async def check_for_matches(self):
+        asset_list = AssetList()
+        table = next(self.query("#" + self.al_id).results(DataTable))
+        for asset in self.assets.values():
+            await asyncio.sleep(0)
+            if asset["fsize"] == 0:
+                if len(asset_list.find_asset(asset["url"])) > 0:
+                    asset["fsize"] = -1.0
+                    table.update_cell(
+                        asset["url"], "fsize", asset["fsize"], update_width=True
+                    )
 
     def format_asset(self, asset: dict) -> dict:
         def sizeof_fmt(num, suffix="B"):
