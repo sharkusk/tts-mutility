@@ -25,8 +25,9 @@ class AssetListScreen(Widget):
     ]
 
     class AssetSelected(Message):
-        def __init__(self, asset_detail: dict) -> None:
-            self.asset_detail = asset_detail
+        def __init__(self, url: str, mod_filename: str) -> None:
+            self.url = url
+            self.mod_filename = mod_filename
             super().__init__()
 
     class DownloadSelected(Message):
@@ -239,25 +240,7 @@ class AssetListScreen(Widget):
         return trail
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        if self.assets[event.row_key.value]["filename"] is not None:
-            filepath = Path(self.mod_dir) / self.assets[event.row_key.value]["filename"]
-        else:
-            filepath = ""
-
-        asset_detail = self.assets[event.row_key.value].copy()
-        asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
-        asset_detail["filepath"] = Path(filepath) if filepath != "" else ""
-        asset_detail["mod_name"] = self.mod_name
-
-        if "Workshop" in self.mod_filename:
-            asset_detail["mod_path"] = Path(self.mod_dir) / self.mod_filename
-        else:
-            asset_detail["mod_path"] = Path(self.save_dir) / self.mod_filename
-
-        asset_list = AssetList()
-        other_mods = asset_list.get_mods_using_asset(asset_detail["url"])
-        asset_detail["other_mods"] = sorted(other_mods)
-        self.post_message(self.AssetSelected(asset_detail))
+        self.post_message(self.AssetSelected(event.row_key.value, self.mod_filename))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:

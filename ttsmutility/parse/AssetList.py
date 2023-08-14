@@ -671,7 +671,7 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
-                SELECT mod_name
+                SELECT mod_filename, mod_name
                 FROM tts_mods
                 WHERE id IN (
                     SELECT mod_id_fk
@@ -686,8 +686,6 @@ class AssetList:
                 (url,),
             )
             results = cursor.fetchall()
-            if len(results) > 0:
-                results = list(zip(*results))[0]
         return results
 
     def get_mod_assets(
@@ -875,7 +873,10 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             filename = url.split("/")[-1]
             if "?" in filename:
-                filename = filename.split("?")[0]
+                if "?id=" in filename:
+                    filename = filename.split("?id=")[1]
+                else:
+                    filename = filename.split("?")[0]
             steam_sha1 = get_steam_sha1_from_url(url)
 
             # Prioritize following searches:
@@ -893,7 +894,7 @@ class AssetList:
                     (steam_sha1,),
                 )
                 result = cursor.fetchone()
-                if result is not None:
+                if result is not None and result[0] != url:
                     matches.append((result[0], "sha1"))
 
             if filename != "":
@@ -906,8 +907,32 @@ class AssetList:
                     (filename,),
                 )
                 result = cursor.fetchone()
-                if result is not None:
-                    matches.append((result[0], "content_name"))
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Exact Name"))
+
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + recodeURL(filename) + "%",),
+                )
+                result = cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Fuzzy Recode"))
+
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + filename + "%",),
+                )
+                result = cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Fuzzy Name"))
 
             if trail is not None and False:
                 # This is not currently supported...  Need
@@ -930,3 +955,61 @@ class AssetList:
                     matches.append((result[0], "trail"))
 
         return matches
+
+    def get_asset(self, url: str, mod_filename: str = "") -> dict or None:
+        with sqlite3.connect(self.db_path) as db:
+            mods = self.get_mods_using_asset(url)
+            if len(mods) > 0 and mod_filename == "":
+                mod_filename = mods[0][0]
+            mod_names = [mod_name for _, mod_name in mods]
+            if mod_filename == "":
+                cursor = db.execute(
+                    """
+                    SELECT
+                        asset_path, asset_filename, asset_ext,
+                        asset_mtime, asset_sha1, asset_steam_sha1,
+                        asset_dl_status, asset_size, asset_content_name
+                    FROM tts_assets
+                    WHERE asset_url=?
+                    """,
+                    (url,),
+                )
+            else:
+                cursor = db.execute(
+                    """
+                    SELECT
+                        asset_path, asset_filename, asset_ext,
+                        asset_mtime, asset_sha1, asset_steam_sha1,
+                        asset_dl_status, asset_size, asset_content_name,
+                        mod_asset_trail
+                    FROM tts_assets
+                        INNER JOIN tts_mod_assets
+                            ON tts_mod_assets.asset_id_fk=tts_assets.id
+                        INNER JOIN tts_mods
+                            ON tts_mod_assets.mod_id_fk=tts_mods.id
+                    WHERE mod_filename=? AND asset_url=?
+                    """,
+                    (
+                        mod_filename,
+                        url,
+                    ),
+                )
+            result = cursor.fetchone()
+            if result is not None:
+                asset_filename = os.path.join(result[0], result[1]) + result[2]
+                asset = {
+                    "url": url,
+                    "filename": asset_filename,
+                    "mtime": int(result[3]),
+                    "sha1": result[4],
+                    "steam_sha1": result[5],
+                    "dl_status": result[6],
+                    "fsize": int(result[7]),
+                    "content_name": result[8],
+                    "mods": sorted(mod_names),
+                    "trail": "",
+                }
+                if mod_filename != "":
+                    asset["trail"] = result[9]
+                return asset
+        return None

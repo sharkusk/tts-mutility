@@ -7,9 +7,11 @@ from textual.containers import Container, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Markdown
 
+from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse.AssetList import AssetList
+from ..parse.ModList import ModList
 
 
 class AssetDetailScreen(ModalScreen):
@@ -18,8 +20,12 @@ class AssetDetailScreen(ModalScreen):
         ("f", "find", "Find Match"),
     ]
 
-    def __init__(self, asset_detail: dict) -> None:
-        self.asset_detail = asset_detail
+    def __init__(self, url: str, mod_filename: str = "") -> None:
+        self.url = url
+        self.mod_filename = mod_filename
+        config = load_config()
+        self.mod_dir = config.tts_mods_dir
+        self.save_dir = config.tts_saves_dir
         super().__init__()
 
     def compose(self) -> ComposeResult:
@@ -32,32 +38,41 @@ class AssetDetailScreen(ModalScreen):
                 )
 
     def get_markdown(self) -> str:
+        asset_list = AssetList(post_message=self.post_message)
+        asset_detail = asset_list.get_asset(self.url, self.mod_filename)
+
         asset_detail_md = ""
         ad_filepath = Path(__file__).with_name("AssetDetailScreen.md")
         with ad_filepath.open("r") as f:
             asset_detail_md = f.read()
-        if self.asset_detail["mtime"] == 0:
-            self.asset_detail["mtime"] = "File not found"
+        if asset_detail["mtime"] == 0:
+            asset_detail["mtime"] = "File not found"
         else:
-            self.asset_detail["mtime"] = time.ctime(self.asset_detail["mtime"])
-        self.asset_detail["other_mods"] = "`\n- `".join(self.asset_detail["other_mods"])
-        self.asset_detail["other_mods"] = self.asset_detail["other_mods"].join(
-            ["\n- `", "`\n"]
-        )
-        self.asset_detail["uri"] = self.asset_detail["uri"]
+            asset_detail["mtime"] = time.ctime(asset_detail["mtime"])
+        asset_detail["mods"] = "`\n- `".join(asset_detail["mods"])
+        asset_detail["mods"] = asset_detail["mods"].join(["\n- `", "`\n"])
 
-        self.asset_detail["uri_short"] = self.asset_detail["uri"].replace(
-            "file:///", "//localhost/"
-        )
+        filepath = Path(self.mod_dir) / asset_detail["filename"]
+        asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
 
-        self.asset_detail["url"] = self.asset_detail["url"].replace(" ", "%20")
+        if self.mod_filename == "":
+            asset_detail["mod_name"] = ""
+        else:
+            mod_list = ModList()
+            mod_detail = mod_list.get_mod_details(self.mod_filename)
+            asset_detail["mod_name"] = mod_detail["name"]
 
-        self.asset_detail["LuaScript"] = "N/A"
-        if "LuaScript" in self.asset_detail["trail"]:
+        asset_detail["LuaScript"] = "N/A"
+        if "LuaScript" in asset_detail["trail"]:
+            if "Workshop" in self.mod_filename:
+                mod_path = Path(self.mod_dir) / self.mod_filename
+            else:
+                mod_path = Path(self.save_dir) / self.mod_filename
+
             # Read in mod file, find string in first LUA script section,
             # find start/end of function, and extract...
             try:
-                with open(self.asset_detail["mod_path"], "r", encoding="utf-8") as f:
+                with open(mod_path, "r", encoding="utf-8") as f:
                     data = f.read()
             except FileNotFoundError:
                 # Expected for sha1 mismatches
@@ -65,7 +80,7 @@ class AssetDetailScreen(ModalScreen):
             else:
                 lines_before = 18
                 lines_after = 18
-                url_loc = data.find(self.asset_detail["url"])
+                url_loc = data.find(asset_detail["url"])
                 if url_loc == -1:
                     url_loc = data.find("tcejbo gninwapS")
                 start_lua = url_loc
@@ -79,7 +94,7 @@ class AssetDetailScreen(ModalScreen):
                         start_lua = data.find('"', start_lua) + 1
                         break
                     start_lua = new_start
-                end_lua = url_loc + len(self.asset_detail["url"])
+                end_lua = url_loc + len(asset_detail["url"])
                 for i in range(lines_after):
                     new_end = data.find(r"\n", end_lua + 1)
                     # Don't go past the end of the LuaScript section.
@@ -99,7 +114,7 @@ class AssetDetailScreen(ModalScreen):
                 if end_lua > url_loc + (lines_after * 120):
                     end_lua = url_loc + (lines_after * 120)
 
-                self.asset_detail["LuaScript"] = (
+                asset_detail["LuaScript"] = (
                     data[start_lua:end_lua]
                     .replace(r"\r", "")
                     .replace(r"\n", "\n")
@@ -108,7 +123,12 @@ class AssetDetailScreen(ModalScreen):
                     # .strip()
                 )
 
-        return asset_detail_md.format(**self.asset_detail)
+        asset_detail["uri_short"] = asset_detail["uri"].replace(
+            "file:///", "//localhost/"
+        )
+        asset_detail["url"] = asset_detail["url"].replace(" ", "%20")
+
+        return asset_detail_md.format(**asset_detail)
 
     def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
         if "//localhost/" in event.href:
@@ -121,17 +141,21 @@ class AssetDetailScreen(ModalScreen):
     def action_find(self):
         asset_list = AssetList(post_message=self.post_message)
         # Look for matching SHA1, filename, content_name, JSON trail
-        matches = asset_list.find_asset(self.asset_detail["url"])
+        matches = asset_list.find_asset(self.url)
         if len(matches) > 0:
             options = [f"{url} ({type})" for url, type in matches]
 
             def set_id(index: int) -> None:
                 if index >= 0:
-                    asset_list.copy_asset(
-                        options[index].split("(")[0].strip(), self.asset_detail["url"]
-                    )
-                    self.app.push_screen(
-                        InfoDialog("Copied asset. Restart to update mod.")
-                    )
+                    self.app.push_screen(AssetDetailScreen(matches[index][0]))
+                    if False:
+                        asset_list.copy_asset(
+                            # options[index].split("(")[0].strip(),
+                            matches[index][0],
+                            self.url,
+                        )
+                        self.app.push_screen(
+                            InfoDialog("Copied asset. Restart to update mod.")
+                        )
 
             self.app.push_screen(SelectOptionDialog(options), set_id)

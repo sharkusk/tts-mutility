@@ -26,4 +26,4 @@
 
 
 ### All TTS Mods Using Asset
-{other_mods}
+{mods}

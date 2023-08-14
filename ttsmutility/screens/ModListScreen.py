@@ -188,7 +188,8 @@ class ModListScreen(Screen):
         self.mods = mod_list.get_mods()
 
         asset_list = AssetList()
-        self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
 
         for mod_filename in self.mods.keys():
             self.add_mod_row(self.mods[mod_filename])
@@ -235,7 +236,7 @@ class ModListScreen(Screen):
         table = next(self.query(id).results(DataTable))
 
         name = self.clean_name(mod["name"])
-        if mod["name"] in self.infected_mods:
+        if mod["filename"] in self.infected_filenames:
             name = MyText(name, style="#FF0000")
         if mod["deleted"]:
             name = MyText(name, style="strike")
@@ -308,7 +309,8 @@ class ModListScreen(Screen):
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
-        self.infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
 
         id = "#ml_workshop_dt"
         table = next(self.query(id).results(DataTable))
@@ -318,7 +320,7 @@ class ModListScreen(Screen):
             return
 
         name = self.clean_name(self.mods[row_key]["name"])
-        if self.mods[row_key]["name"] in self.infected_mods:
+        if self.mods[row_key]["filename"] in self.infected_filenames:
             name = MyText(name, style="#FF0000")
         if self.mods[row_key]["deleted"]:
             name = MyText(name, style="strike")

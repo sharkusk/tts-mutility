@@ -129,7 +129,8 @@ class ModDetailScreen(Screen):
     def is_infected(self) -> bool:
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
-        if self.mod_detail["name"] in infected_mods:
+        infected_filenames = [mod_filename for mod_filename in infected_mods]
+        if self.mod_detail["filename"] in infected_filenames:
             return True
         else:
             return False
@@ -344,7 +345,7 @@ class ModDetailScreen(Screen):
                 mod_detail[f"{field}_list"] = "- N/A"
 
         for poll in self.bs.BGG_POLLS:
-            if poll in mod_detail and int(mod_detail[poll]['totalvotes']) > 0:
+            if poll in mod_detail and int(mod_detail[poll]["totalvotes"]) > 0:
                 mod_detail[poll + "_chart"] = self.create_chart(mod_detail[poll], 90)
 
         for stat in self.bs.BGG_STATS_LISTS:
