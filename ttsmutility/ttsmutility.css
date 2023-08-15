@@ -52,6 +52,10 @@ DataTable {
     height: 1fr;
 }
 
+AssetListScreen {
+    height: 1fr;
+}
+
 MarkdownH1
 {
     padding: 1;
@@ -208,7 +212,12 @@ MarkdownFence {
     background: $primary;
     padding: 1;
     text-align: center;
+}
 
+#title.aa_label {
+    margin-bottom: 1;
+    text-align: center;
+    width: 100%;
 }
 
 #infection_warning {

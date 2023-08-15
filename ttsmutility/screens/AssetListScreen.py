@@ -3,11 +3,10 @@ from pathlib import Path
 
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Center
 from textual.message import Message
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Footer
+from textual.widgets import DataTable, Header, Label
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -22,6 +21,12 @@ class AllAssetScreen(Screen):
         self.mod_name = mod_name
 
     def compose(self) -> ComposeResult:
+        yield Header()
+        yield Label(
+            f"{self.mod_name} - All Nodes - Press ESC to Exit",
+            id="title",
+            classes="aa_label",
+        )
         yield AssetListScreen(self.filename, self.mod_name, all_nodes=True)
 
 
@@ -78,8 +83,7 @@ class AssetListScreen(Widget):
         self.app.pop_screen()
 
     def compose(self) -> ComposeResult:
-        with Center(id="al_center"):
-            yield DataTable(id=self.al_id)
+        yield DataTable(id=self.al_id)
 
     async def on_mount(self) -> None:
         self.sort_order = {
