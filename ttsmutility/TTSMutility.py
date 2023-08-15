@@ -313,7 +313,7 @@ class TTSMutility(App):
     """  # noqa
 
     def on_asset_list_screen_asset_selected(self, event: AssetListScreen.AssetSelected):
-        self.push_screen(AssetDetailScreen(event.url, event.mod_filename))
+        self.push_screen(AssetDetailScreen(event.url, event.mod_filename, event.trail))
 
     def on_asset_list_screen_download_selected(
         self, event: AssetListScreen.DownloadSelected

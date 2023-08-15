@@ -5,13 +5,24 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.message import Message
+from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Footer
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
-from ..utility.util import format_time, make_safe_filename, MyText
+from ..utility.util import MyText, format_time, make_safe_filename
+
+
+class AllAssetScreen(Screen):
+    def __init__(self, filename, mod_name):
+        super().__init__()
+        self.filename = filename
+        self.mod_name = mod_name
+
+    def compose(self) -> ComposeResult:
+        yield AssetListScreen(self.filename, self.mod_name, all_nodes=True)
 
 
 class AssetListScreen(Widget):
@@ -20,12 +31,14 @@ class AssetListScreen(Widget):
         ("d", "download_asset", "Download Asset"),
         ("r", "missing_report", "Missing Report"),
         ("i", "ignore_missing", "Ignore Missing"),
+        ("a", "all_nodes", "Show All Nodes"),
     ]
 
     class AssetSelected(Message):
-        def __init__(self, url: str, mod_filename: str) -> None:
+        def __init__(self, url: str, mod_filename: str, trail: str = "") -> None:
             self.url = url
             self.mod_filename = mod_filename
+            self.trail = trail
             super().__init__()
 
     class DownloadSelected(Message):
@@ -38,9 +51,12 @@ class AssetListScreen(Widget):
             self.mod_filename = mod_filename
             super().__init__()
 
-    def __init__(self, mod_filename: str, mod_name: str, al_id: str = "") -> None:
+    def __init__(
+        self, mod_filename: str, mod_name: str, al_id: str = "", all_nodes=False
+    ) -> None:
         self.mod_filename = mod_filename
         self.mod_name = mod_name
+        self.all_nodes = all_nodes
         self.current_row = 0
         self.url_width = 40
         if al_id == "":
@@ -88,34 +104,46 @@ class AssetListScreen(Widget):
     @work
     async def load_data(self):
         asset_list = AssetList()
-        assets = asset_list.get_mod_assets(self.mod_filename)
+        assets = asset_list.get_mod_assets(self.mod_filename, all_nodes=self.all_nodes)
         self.assets = {}
 
         table = next(self.query("#" + self.al_id).results(DataTable))
 
         for i, asset in enumerate(assets):
-            if asset["url"] in self.assets:
-                # When showing sha1 mismatches we can sometimes have multiple
-                # matches with the same URL being used by multiple mods.
-                # Ignore the dups as we only need a single match.
-                continue
-            self.assets[asset["url"]] = asset
+            if not self.all_nodes:
+                trails = [asset["trail"]]
+            else:
+                trails = asset["trail"]
+
             readable_asset = self.format_asset(asset)
-            table.add_row(
-                readable_asset["url"],
-                readable_asset["ext"],
-                readable_asset["fsize"],
-                readable_asset["mtime"],
-                self.trail_reformat(readable_asset["trail"]),
-                key=asset["url"],  # Use original url for our key
-            )
+
+            for i, trail in enumerate(trails):
+                if asset["url"] in self.assets and not self.all_nodes:
+                    # When showing sha1 mismatches we can sometimes have multiple
+                    # matches with the same URL being used by multiple mods.
+                    # Ignore the dups as we only need a single match.
+                    continue
+                if self.all_nodes:
+                    row_key = asset["url"] + f"#{i}"
+                else:
+                    row_key = asset["url"]
+                self.assets[row_key] = asset
+                table.add_row(
+                    readable_asset["url"],
+                    readable_asset["ext"],
+                    readable_asset["fsize"],
+                    readable_asset["mtime"],
+                    self.trail_reformat(trail),
+                    key=row_key,  # Use original url for our key
+                )
             if i % 100 == 0:
                 await asyncio.sleep(0)
         table.cursor_type = "row"
         table.sort("trail", reverse=self.sort_order["trail"])
         self.last_sort_key = "trail"
 
-        self.check_for_matches()
+        if not self.all_nodes:
+            self.check_for_matches()
 
     def format_long_entry(self, entry, width):
         if not entry or len(entry) < width:
@@ -136,6 +164,24 @@ class AssetListScreen(Widget):
                     table.update_cell(
                         asset["url"], "fsize", asset["fsize"], update_width=True
                     )
+
+    def format_url(self, url: str) -> str:
+        if url[-1] == "/":
+            url_end = url[:-1].rsplit("/", 1)[-1]
+        else:
+            url_end = url.rsplit("/", 1)[-1]
+
+        if len(url) < 19:
+            start_length = len(url)
+        else:
+            start_length = 19
+
+        if len(url_end) < 19:
+            end_length = len(url_end)
+        else:
+            end_length = 19
+
+        return f"{url[:start_length-1]}..{url_end[len(url_end)-end_length:]}"
 
     def format_asset(self, asset: dict) -> dict:
         def sizeof_fmt(num, suffix="B"):
@@ -158,25 +204,8 @@ class AssetListScreen(Widget):
         new_asset["mtime"] = readable_time
 
         new_asset["fsize"] = new_asset["fsize"] / 1024
+        new_asset["url"] = self.format_url(asset["url"])
 
-        if asset["url"][-1] == "/":
-            url_end = asset["url"][:-1].rsplit("/", 1)[-1]
-        else:
-            url_end = asset["url"].rsplit("/", 1)[-1]
-
-        if len(asset["url"]) < 19:
-            start_length = len(asset["url"])
-        else:
-            start_length = 19
-
-        if len(url_end) < 19:
-            end_length = len(url_end)
-        else:
-            end_length = 19
-
-        new_asset[
-            "url"
-        ] = f"{asset['url'][:start_length-1]}..{url_end[len(url_end)-end_length:]}"
         if asset["filename"] is None:
             new_asset["ext"] = None
         else:
@@ -249,7 +278,13 @@ class AssetListScreen(Widget):
         return trail
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        self.post_message(self.AssetSelected(event.row_key.value, self.mod_filename))
+        if self.all_nodes and "#" in event.row_key.value:
+            url, i = event.row_key.value.split("#")
+            trail = self.assets[event.row_key.value]["trail"][int(i)]
+        else:
+            url = event.row_key.value
+            trail = ""
+        self.post_message(self.AssetSelected(url, self.mod_filename, trail))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:
@@ -265,6 +300,9 @@ class AssetListScreen(Widget):
         event.data_table.sort(event.column_key, reverse=reverse)
 
     def action_download_asset(self):
+        if self.all_nodes:
+            return
+
         table = next(self.query("#" + self.al_id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
@@ -275,6 +313,9 @@ class AssetListScreen(Widget):
         self.updated_counts = True
 
     def action_missing_report(self):
+        if self.all_nodes:
+            return
+
         config = load_config()
 
         outname = (
@@ -297,6 +338,9 @@ class AssetListScreen(Widget):
         self.app.push_screen(InfoDialog(f"Saved missing asset report to '{outname}'."))
 
     def action_ignore_missing(self):
+        if self.all_nodes:
+            return
+
         table = next(self.query("#" + self.al_id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
@@ -309,3 +353,9 @@ class AssetListScreen(Widget):
         )
         self.updated_counts = True
         self.update_asset(self.assets[row_key])
+
+    def action_all_nodes(self):
+        if self.all_nodes:
+            return
+
+        self.app.push_screen(AllAssetScreen(self.mod_filename, self.mod_name))

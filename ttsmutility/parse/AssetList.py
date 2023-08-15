@@ -689,7 +689,7 @@ class AssetList:
         return results
 
     def get_mod_assets(
-        self, mod_filename: str, parse_only=False, force_refresh=False
+        self, mod_filename: str, parse_only=False, force_refresh=False, all_nodes=False
     ) -> list:
         assets = []
         if mod_filename == "sha1":
@@ -732,6 +732,23 @@ class AssetList:
                 )
 
             if not parse_only:
+                if all_nodes:
+                    mod_parser = ModParser(mod_path)
+                    all_assets = [
+                        (url, trail) for trail, url in mod_parser.urls_from_mod(True)
+                    ]
+
+                    trails = {}
+
+                    for url, trail in all_assets:
+                        trail = trail_to_trailstring(trail)
+                        if url in trails:
+                            trails[url].append(trail)
+                        else:
+                            trails[url] = [
+                                trail,
+                            ]
+
                 cursor = db.execute(
                     (
                         """
@@ -755,7 +772,10 @@ class AssetList:
                     path = result[1]
                     filename = result[2]
                     ext = result[3]
-
+                    if all_nodes:
+                        trail = trails[result[0]]
+                    else:
+                        trail = result[7]
                     asset_filename = os.path.join(path, filename) + ext
                     assets.append(
                         {
@@ -764,7 +784,7 @@ class AssetList:
                             "mtime": result[4],
                             "sha1": result[5],
                             "steam_sha1": result[6],
-                            "trail": result[7],
+                            "trail": trail,
                             "dl_status": result[8],
                             "fsize": result[9],
                             "content_name": result[10],

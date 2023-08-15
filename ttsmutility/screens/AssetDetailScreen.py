@@ -19,10 +19,11 @@ class AssetDetailScreen(ModalScreen):
         ("escape", "app.pop_screen", "OK"),
     ]
 
-    def __init__(self, url: str, mod_filename: str = "") -> None:
+    def __init__(self, url: str, mod_filename: str = "", trail: str = "") -> None:
         super().__init__()
         self.url = url
         self.mod_filename = mod_filename
+        self.trail = trail
         config = load_config()
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
@@ -64,8 +65,11 @@ class AssetDetailScreen(ModalScreen):
             mod_detail = mod_list.get_mod_details(self.mod_filename)
             asset_detail["mod_name"] = mod_detail["name"]
 
+        if self.trail != "":
+            asset_detail["trail"] = self.trail
+
         asset_detail["LuaScript"] = "N/A"
-        if "LuaScript" in asset_detail["trail"]:
+        if "LuaScript" in asset_detail["trail"] and self.mod_filename != "":
             if "Workshop" in self.mod_filename:
                 mod_path = Path(self.mod_dir) / self.mod_filename
             else:

@@ -51,7 +51,7 @@ class ModParser:
     def get_mod_info(self) -> dict:
         return self.mod_info
 
-    def urls_from_mod(self):
+    def urls_from_mod(self, all_nodes=False):
         with open(self.modpath, "r", encoding="utf-8") as infile:
             try:
                 save = json.load(infile, strict=False)
@@ -61,9 +61,9 @@ class ModParser:
         if not isinstance(save, dict):
             raise IllegalSavegameException
 
-        return self.seekURL(save)
+        return self.seekURL(save, all_nodes=all_nodes)
 
-    def seekURL(self, dic, trail=[], done=None):
+    def seekURL(self, dic, trail=[], all_nodes=False, done=None):
         """Recursively search through the save game structure and return URLs
         and the paths to them.
 
@@ -111,7 +111,7 @@ class ModParser:
                             # “Item1” → URL, “Item2” → audio title.
                             url = elem["Item1"]
                             recode = recodeURL(url)
-                            if recode in done:
+                            if recode in done and not all_nodes:
                                 continue
                             done.add(recode)
                             yield (newtrail, url)
@@ -121,13 +121,17 @@ class ModParser:
                             )
 
             elif isinstance(v, dict):
-                yield from self.seekURL(v, newtrail, done)
+                yield from self.seekURL(
+                    v, trail=newtrail, all_nodes=all_nodes, done=done
+                )
 
             elif isinstance(v, list):
                 for elem in v:
                     if not isinstance(elem, dict):
                         continue
-                    yield from self.seekURL(elem, newtrail, done)
+                    yield from self.seekURL(
+                        elem, trail=newtrail, all_nodes=all_nodes, done=done
+                    )
 
             elif k.lower().endswith("url"):
                 # We don’t want tablet URLs.
@@ -142,7 +146,7 @@ class ModParser:
                 # (yikes).
                 v = re.sub(r"{.*}", "", v)
                 recode = recodeURL(v)
-                if recode in done:
+                if recode in done and not all_nodes:
                     continue
                 done.add(recode)
                 yield (newtrail, v)
@@ -204,7 +208,7 @@ class ModParser:
 
                     if valid_url:
                         recode = recodeURL(url)
-                        if recode in done:
+                        if recode in done and not all_nodes:
                             continue
                         done.add(recode)
                         yield (newtrail, url)

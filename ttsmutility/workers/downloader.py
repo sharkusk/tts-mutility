@@ -272,9 +272,9 @@ class FileDownload(Widget):
                 pastebin_ref = self.fetch_url.split("=")[-1]
             else:
                 pastebin_ref = self.fetch_url.split("/")[-1]
-            
+
             if len(pastebin_ref) > 0:
-                headers["Referer"] =  f"http://pastebin.com/{pastebin_ref}"
+                headers["Referer"] = f"http://pastebin.com/{pastebin_ref}"
                 self.fetch_url = f"http://pastebin.com/dl/{pastebin_ref}"
 
         if (
@@ -369,7 +369,7 @@ class FileDownload(Widget):
 
         if content_disp_name != "":
             self.content_name = content_disp_name
-            if self.steam_sha1 != "":
+            if self.steam_sha1 != "" and self.steam_sha1 in content_disp_name:
                 # Steam context_disp_names is formatted like: SHA1_<filename>
                 self.content_name = content_disp_name.split("_", 1)[1]
             self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
