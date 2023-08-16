@@ -814,7 +814,12 @@ class AssetList:
                 """
                 SELECT asset_url
                 FROM tts_assets
-                WHERE asset_content_name == "" AND asset_url IS NOT NULL
+                WHERE
+                    asset_content_name == ""
+                    AND
+                    asset_url IS NOT NULL
+                    AND
+                    asset_dl_status == ""
                 """,
             )
             results = cursor.fetchall()
