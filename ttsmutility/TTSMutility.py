@@ -28,6 +28,7 @@ from .workers.backup import ModBackup
 from .workers.downloader import FileDownload
 from .workers.sha1 import Sha1Scanner
 from .workers.TTSWorker import TTSWorker
+from .workers.names import NameScanner
 
 
 class TTSMutility(App):
@@ -64,6 +65,7 @@ class TTSMutility(App):
         self.start_time = time.time()
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
+        self.name_scanner = NameScanner()
 
         self.mods_queued_dl = {}
 
@@ -259,6 +261,7 @@ class TTSMutility(App):
         if name == "mod_list":
             screen.mount(self.sha1)
             screen.mount(self.backup)
+            screen.mount(self.name_scanner)
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
@@ -417,6 +420,9 @@ class TTSMutility(App):
 
     def on_mod_list_screen_show_sha1(self, event: ModListScreen.ShowSha1):
         self.app.push_screen(MissingAssetScreen("sha1", "SHA1 Mismatches"))
+
+    def on_mod_list_screen_scan_names(self, event: ModListScreen.ScanNames):
+        self.run_worker(self.name_scanner.scan_names, exclusive=True, thread=True)
 
     """
     # ████████╗████████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗

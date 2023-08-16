@@ -807,6 +807,19 @@ class AssetList:
             results = cursor.fetchall()
             return list(zip(*results))
 
+    def get_blank_content_names(self) -> list:
+        with sqlite3.connect(self.db_path) as db:
+            # Check if we have this mod in our DB
+            cursor = db.execute(
+                """
+                SELECT asset_url
+                FROM tts_assets
+                WHERE asset_content_name == "" AND asset_url IS NOT NULL
+                """,
+            )
+            results = cursor.fetchall()
+            return list(zip(*results))[0]
+
     def set_content_names(self, urls, content_names) -> None:
         with sqlite3.connect(self.db_path) as db:
             db.executemany(

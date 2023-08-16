@@ -67,6 +67,7 @@ class ModListScreen(Screen):
         Binding("ctrl+p", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
         Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
         Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
+        Binding("y", "scan_names", "Scan Names", show=True),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -130,6 +131,10 @@ class ModListScreen(Screen):
         def __init__(self, mod_dir: str, save_dir: str) -> None:
             self.mod_dir = mod_dir
             self.save_dir = save_dir
+            super().__init__()
+
+    class ScanNames(Message):
+        def __init__(self) -> None:
             super().__init__()
 
     class DownloadSelected(Message):
@@ -381,6 +386,9 @@ class ModListScreen(Screen):
 
     def action_scan_sha1(self) -> None:
         self.post_message(self.Sha1Selected(self.mod_dir, self.save_dir))
+
+    def action_scan_names(self) -> None:
+        self.post_message(self.ScanNames())
 
     def action_download_all(self) -> None:
         filenames = []
