@@ -16,7 +16,7 @@ from ..parse.FileFinder import (
     trailstring_to_trail,
 )
 from ..utility.messages import UpdateLog
-from ..utility.util import get_steam_sha1_from_url
+from ..utility.util import get_steam_sha1_from_url, get_content_name
 from .ModParser import ModParser
 
 
@@ -894,18 +894,8 @@ class AssetList:
         matches = []
 
         with sqlite3.connect(self.db_path) as db:
-            filename = url.split("/")[-1]
-            if "?" in filename:
-                if "id=" in filename:
-                    filename = filename.split("id=")[1]
-                else:
-                    filename = filename.split("?")[0]
+            content_name = get_content_name(url)
             steam_sha1 = get_steam_sha1_from_url(url)
-
-            # Prioritize following searches:
-            # - Match sha1 (if available)
-            # - Match filename to content_name
-            # - TODO: Match trailname (if available)
 
             if steam_sha1 != "":
                 cursor = db.execute(
@@ -920,26 +910,28 @@ class AssetList:
                 if result is not None and result[0] != url:
                     matches.append((result[0], "sha1"))
 
-            if filename != "":
+            if content_name != "":
                 cursor = db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
                     WHERE asset_content_name=?
                     """,
-                    (filename,),
+                    (content_name,),
                 )
                 result = cursor.fetchone()
                 if result is not None and result[0] != url:
                     matches.append((result[0], "Exact Name"))
 
+                # Ignore the extension for the fuuzzy searches
+                content_name = os.path.splitext(content_name)[0]
                 cursor = db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
                     WHERE asset_content_name LIKE ?
                     """,
-                    ("%" + recodeURL(filename) + "%",),
+                    ("%" + recodeURL(content_name) + "%",),
                 )
                 result = cursor.fetchone()
                 if result is not None and result[0] != url:
@@ -951,7 +943,7 @@ class AssetList:
                     FROM tts_assets
                     WHERE asset_content_name LIKE ?
                     """,
-                    ("%" + filename + "%",),
+                    ("%" + content_name + "%",),
                 )
                 result = cursor.fetchone()
                 if result is not None and result[0] != url:

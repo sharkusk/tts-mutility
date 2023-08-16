@@ -11,7 +11,7 @@ PDFPATH = "PDF"
 TXTPATH = "Text"
 
 AUDIO_EXTS = [".mp3", ".wav", ".ogv", ".ogg"]
-IMG_EXTS = [".png", ".jpg", ".mp4", ".m4v", ".webm", ".mov", ".unity3d"]
+IMG_EXTS = [".png", ".jpg", ".jpeg", ".mp4", ".m4v", ".webm", ".mov", ".unity3d"]
 OBJ_EXTS = [".obj", ".txt"]
 BUNDLE_EXTS = [".unity3d"]
 PDF_EXTS = [".pdf"]

@@ -26,7 +26,7 @@ from ..parse.FileFinder import (
 )
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
-from ..utility.util import get_steam_sha1_from_url
+from ..utility.util import get_steam_sha1_from_url, get_content_name
 
 
 class FileDownload(Widget):
@@ -332,6 +332,8 @@ class FileDownload(Widget):
             # Google drive sends html error page when file is removed/missing
             return f"Wrong context type ({content_type})"
 
+        self.steam_sha1 = get_steam_sha1_from_url(self.url)
+
         if content_type in self.DEFAULT_EXT:
             extensions["mime"] = self.DEFAULT_EXT[content_type]
 
@@ -339,40 +341,19 @@ class FileDownload(Widget):
         content_disposition = response.getheader("Content-Disposition", "").strip()
         if content_disposition == "":
             content_disposition = response.getheader("content-disposition", "").strip()
-        offset_std = content_disposition.find('filename="')
-        offset_utf = content_disposition.find("filename*=UTF-8")
-        content_disp_name = ""
-        if offset_std >= 0:
-            # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3";
-            content_disp_name = content_disposition[offset_std:].split('"')[1]
-            extensions["content-disposition"] = os.path.splitext(content_disp_name)[1]
-        elif offset_utf >= 0:
-            # filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3
-            # filename*=UTF-8''653EFA7169C93BDC37E31595198855C3AD4A308F_tombstone_map-oct2018.jpg;
-            content_disp_name = content_disposition[offset_utf:].split("=UTF-8")[1]
-            content_disp_name = urllib.parse.unquote(content_disp_name.split("'")[2])
-            if content_disp_name[-1] == ";":
-                content_disp_name = content_disp_name[:-1]
-            extensions["content-disposition"] = os.path.splitext(content_disp_name)[1]
-        else:
-            # Use the url to extract the extension,
-            # ignoring any trailing ? url parameters
-            offset = self.url.rfind("?")
-            if offset > 0:
-                extensions["url"] = os.path.splitext(self.url[0 : self.url.rfind("?")])[
-                    1
-                ]
-            else:
-                extensions["url"] = os.path.splitext(self.url)[1]
+        self.content_name = get_content_name(self.url, content_disposition)
 
-        self.steam_sha1 = get_steam_sha1_from_url(self.url)
-
-        if content_disp_name != "":
-            self.content_name = content_disp_name
-            if self.steam_sha1 != "" and self.steam_sha1 in content_disp_name:
-                # Steam context_disp_names is formatted like: SHA1_<filename>
-                self.content_name = content_disp_name.split("_", 1)[1]
+        if self.content_name != "":
             self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
+            extensions["content-disposition"] = os.path.splitext(self.content_name)[1]
+
+        # Use the url to extract the extension,
+        # ignoring any trailing ? url parameters
+        offset = self.url.rfind("?")
+        if offset > 0:
+            extensions["url"] = os.path.splitext(self.url[0 : self.url.rfind("?")])[1]
+        else:
+            extensions["url"] = os.path.splitext(self.url)[1]
 
         ext = ""
         for key in extensions.keys():
