@@ -85,7 +85,7 @@ class AssetListScreen(Widget):
     def compose(self) -> ComposeResult:
         yield DataTable(id=self.al_id)
 
-    async def on_mount(self) -> None:
+    def on_mount(self) -> None:
         self.sort_order = {
             "url": False,
             "ext": False,
@@ -105,7 +105,7 @@ class AssetListScreen(Widget):
 
         self.load_data()
 
-    @work
+    @work(exclusive=True)
     async def load_data(self):
         asset_list = AssetList()
         assets = asset_list.get_mod_assets(self.mod_filename, all_nodes=self.all_nodes)
@@ -156,7 +156,7 @@ class AssetListScreen(Widget):
         seg_width = int(width / 2)
         return f"{entry[:seg_width-3]}..{entry[len(entry)-seg_width-1:]}"
 
-    @work
+    @work(exclusive=True)
     async def check_for_matches(self):
         asset_list = AssetList()
         table = next(self.query("#" + self.al_id).results(DataTable))

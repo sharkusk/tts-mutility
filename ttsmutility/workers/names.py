@@ -1,5 +1,4 @@
 from urllib.parse import urlparse
-import urllib
 from time import sleep
 
 import requests
@@ -61,19 +60,20 @@ class NameScanner(TTSWorker):
                     )
                     break
 
-                if i % 25 == 0:
-                    self.post_message(self.UpdateProgress(advance_amount=i - advanced))
-                    advanced = i
-                    self.post_message(
-                        self.UpdateStatus(
-                            f"R {retry_num}: Scanning {i}/{len(urls)} missing names. {len(url_retry)} to retry."
-                        )
-                    )
-
                 if (content_name := get_content_name(url)) != "":
                     updated_urls.append(url)
                     updated_names.append(content_name)
                     url_name_count += 1
+
+                    if i % 25 == 0:
+                        self.post_message(self.UpdateProgress(advance_amount=i - advanced))
+                        advanced = i
+                        self.post_message(
+                            self.UpdateStatus(
+                                f"R {retry_num}: Scanning {i}/{len(urls)} missing names. {len(url_retry)} to retry."
+                            )
+                        )
+
                     continue
 
                 domain = ".".join(urlparse(url).netloc.split(".")[-2:])
@@ -122,6 +122,18 @@ class NameScanner(TTSWorker):
                     updated_urls.append(url)
                     updated_names.append(content_name)
                     cd_name_count += 1
+
+                    self.post_message(
+                        self.UpdateStatus(
+                            f"R {retry_num}: Scanning {i}/{len(urls)} missing names. {len(url_retry)} to retry.\n{url} -> {content_name}"
+                        )
+                    )
+
+                if len(updated_names) > 100:
+                    asset_list.set_content_names(updated_urls, updated_names)
+                    updated_urls = []
+                    updated_names = []
+
             if len(url_retry) > 0:
                 urls = url_retry
             else:
