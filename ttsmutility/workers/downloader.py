@@ -374,7 +374,7 @@ class FileDownload(Widget):
         if self.filename is None:
             self.filename = get_fs_path_from_extension(self.url, ext)
             if self.filename is None:
-                return f"Cannot detect filename ({ext})"
+                return f"Invalid filename ({ext})"
 
         self.filename = Path(self.filename).with_suffix(ext)
         filepath = Path(self.mod_dir) / self.filename
