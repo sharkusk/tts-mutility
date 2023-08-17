@@ -33,6 +33,11 @@ Sha1Scanner {
     visibility: hidden;
 }
 
+NameScanner {
+    height: 0;
+    visibility: hidden;
+}
+
 TabbedContent {
     height: 1fr;
 }
@@ -56,8 +61,7 @@ AssetListScreen {
     height: 1fr;
 }
 
-MarkdownH1
-{
+MarkdownH1 {
     padding: 1;
     border-top: none;
     height: auto;

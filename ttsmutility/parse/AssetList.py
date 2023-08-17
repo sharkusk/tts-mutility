@@ -837,6 +837,18 @@ class AssetList:
             )
             db.commit()
 
+    def set_dl_status(self, url, dl_status) -> None:
+        with sqlite3.connect(self.db_path) as db:
+            db.execute(
+                """
+                UPDATE tts_assets
+                SET asset_dl_status=?
+                WHERE asset_url=?
+                """,
+                (dl_status, url)
+            )
+            db.commit()
+
     def set_ignore(self, mod_filename, url, ignore):
         with sqlite3.connect(self.db_path) as db:
             db.execute(

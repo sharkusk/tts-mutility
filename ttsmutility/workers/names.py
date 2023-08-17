@@ -41,14 +41,16 @@ class NameScanner(TTSWorker):
         updated_urls = []
         updated_names = []
 
-        advanced = 0
         url_name_count = 0
         cd_name_count = 0
 
         self.post_message(
             UpdateLog(f"R {len(urls)} missing names to be scanned.")
         )
+        self.post_message(self.UpdateProgress(advance_amount=1))
         for i, url in enumerate(urls):
+            self.post_message(self.UpdateProgress(advance_amount=1))
+
             if worker.is_cancelled:
                 asset_list.set_content_names(updated_urls, updated_names)
                 self.post_message(
@@ -63,14 +65,11 @@ class NameScanner(TTSWorker):
                 updated_names.append(content_name)
                 url_name_count += 1
 
-                if i % 25 == 0:
-                    self.post_message(self.UpdateProgress(advance_amount=i - advanced))
-                    advanced = i
-                    self.post_message(
-                        self.UpdateStatus(
-                            f"Scanning {i}/{len(urls)} missing names."
-                        )
+                self.post_message(
+                    self.UpdateStatus(
+                        f'Scanning {i}/{len(urls)} missing names.\n{url} -> "{content_name}"'
                     )
+                )
                 continue
 
             domain = urlparse(url).netloc
@@ -89,6 +88,18 @@ class NameScanner(TTSWorker):
                     headers["Referer"] = f"http://pastebin.com/{pastebin_ref}"
                     fetch_url = f"http://pastebin.com/dl/{pastebin_ref}"
                 else:
+                    self.post_message(
+                        self.UpdateStatus(
+                            f'Scanning {i}/{len(urls)} missing names.\n{url} -> (Unable to detect pastebin hash)'
+                        )
+                    )
+                    continue
+            elif "paste.ee" in domain:
+                    self.post_message(
+                        self.UpdateStatus(
+                            f'Scanning {i}/{len(urls)} missing names.\n{url} -> (paste.ee tell no names)'
+                        )
+                    )
                     continue
             else:
                 fetch_url = url
@@ -97,20 +108,21 @@ class NameScanner(TTSWorker):
             if not urlparse(fetch_url).scheme:
                 fetch_url = "http://" + fetch_url
 
-            self.post_message(self.UpdateProgress(advance_amount=i - advanced))
-            advanced = i
-
             try:
                 with requests.get(
                     url=fetch_url, headers=headers, allow_redirects=True, stream=True
                 ) as response:
                     if response.status_code != 200:
-                        # Steam sometimes returns 404 on HEAD requests, retry again later
+                        dl_status = f"HTTPError {response.status_code} ({response.reason}) [namescan]"
                         self.post_message(
                             self.UpdateStatus(
-                                f"Scanning {i}/{len(urls)} missing names.\n{url} -> <{response.status_code}: {response.reason}>"
+                                f"Scanning {i}/{len(urls)} missing names.\n{url} -> <{dl_status}>"
                             )
                         )
+                        # In most cases, 404 does mean the asset doesn't exist. This error will get
+                        # returned by steamusercontent if the HEAD method is used for some cases.
+                        if response.status_code == 404:
+                            asset_list.set_dl_status(url, dl_status)
                         continue
                     if "Content-Disposition" in response.headers:
                         content_disposition = response.headers[
@@ -121,8 +133,13 @@ class NameScanner(TTSWorker):
                             "content-disposition"
                         ].strip()
                     else:
+                        self.post_message(
+                            self.UpdateStatus(
+                                f'Scanning {i}/{len(urls)} missing names.\n{url} -> (No Content-Disposition)'
+                            )
+                        )
                         continue
-            except ConnectionError as error:
+            except Exception as error:
                 # Can be caused by local file urls or embedded <dlc>
                 self.post_message(
                     self.UpdateStatus(
@@ -141,15 +158,19 @@ class NameScanner(TTSWorker):
                         f'Scanning {i}/{len(urls)} missing names.\n{url} -> "{content_name}"'
                     )
                 )
+            else:
+                self.post_message(
+                    self.UpdateStatus(
+                        f'Scanning {i}/{len(urls)} missing names.\n{url} -> (No Name Found)'
+                    )
+                )
 
-            if len(updated_names) > 100:
+            if len(updated_names) > 50:
                 asset_list.set_content_names(updated_urls, updated_names)
                 updated_urls = []
                 updated_names = []
 
         asset_list.set_content_names(updated_urls, updated_names)
-
-        self.post_message(self.UpdateProgress(advance_amount=1 + i - advanced))
 
         self.post_message(UpdateLog("Content Name detection complete."))
         self.post_message(

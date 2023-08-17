@@ -32,7 +32,7 @@ def get_steam_sha1_from_url(url):
 
 
 def get_content_name(url: str, content_disposition: str = "") -> str:
-    domain = ".".join(urlparse(url).netloc.split(".")[-2:])
+    domain = urlparse(url).netloc
 
     content_name = ""
     if content_disposition != "":
@@ -56,15 +56,19 @@ def get_content_name(url: str, content_disposition: str = "") -> str:
         content_name = unquote(content_name)
     else:
         # Attempt to get content name from URL
-        content_name = url.split("/")[-1]
+        content_name = unquote(url.split("/")[-1])
         if "?" in content_name:
             content_name = content_name.split("?")[0]
+        
+        name, ext = os.path.splitext(content_name)
+        if len(ext) > 4:
+            ext = ext[0:4]
+            content_name = name + ext
 
         if "." not in content_name:
             content_name = ""
-        elif os.path.splitext(content_name)[1].lower() not in ALL_VALID_EXTS:
+        elif ext.lower() not in ALL_VALID_EXTS:
             content_name = ""
-        content_name = unquote(content_name)
 
     if content_name != "":
         steam_sha1 = get_steam_sha1_from_url(url)
