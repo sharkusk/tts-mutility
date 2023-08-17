@@ -40,11 +40,11 @@ TTS_RAW_DIRS = {"Images Raw": ".rawt", "Models Raw": ".rawm", ".": ""}
 
 
 def trailstring_to_trail(trailstring: str) -> list:
-    return trailstring.split("->")
+    return trailstring.split(" -> ")
 
 
 def trail_to_trailstring(trail: list) -> str:
-    return "->".join(["%s"] * len(trail)) % tuple(trail)
+    return " -> ".join(["%s"] * len(trail)) % tuple(trail)
 
 
 def is_model(trail):
