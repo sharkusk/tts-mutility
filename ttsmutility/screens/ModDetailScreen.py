@@ -409,18 +409,22 @@ class ModDetailScreen(Screen):
         bgg_matches = self.bs.search(mod_name)
 
         options = [f"{name} ({year}) [{id}]" for name, id, year in bgg_matches]
+        options.append("No BGG Entry")
 
-        if len(options) > 0:
-
+        if len(options) > 1:
             def set_id(index: int) -> None:
-                if self.mod_detail["bgg_id"] is None:
-                    self.insert_bgg_tab()
-                offset_start = options[index].rfind("[") + 1
-                offset_end = options[index].rfind("]")
-                self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
-                md = self.query_one("#md_markdown_bgg")
-                self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
-                md.update(self.get_markdown_bgg())
+                if index == len(options)-1:
+                    self.mod_list.set_bgg_id(self.filename, None)
+                    # TODO: remove bgg tab if it exists
+                else:
+                    if self.mod_detail["bgg_id"] is None:
+                        self.insert_bgg_tab()
+                    offset_start = options[index].rfind("[") + 1
+                    offset_end = options[index].rfind("]")
+                    self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
+                    md = self.query_one("#md_markdown_bgg")
+                    self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
+                    md.update(self.get_markdown_bgg())
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
         else:
