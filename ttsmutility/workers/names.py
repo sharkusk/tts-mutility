@@ -45,67 +45,72 @@ class NameScanner(TTSWorker):
         url_name_count = 0
         cd_name_count = 0
 
-        for retry_num in range(5):
-            self.post_message(
-                UpdateLog(f"R {retry_num}: {len(urls)} missing names to be scanned.")
-            )
-            url_retry = []
-            for i, url in enumerate(urls):
-                if worker.is_cancelled:
-                    asset_list.set_content_names(updated_urls, updated_names)
+        self.post_message(
+            UpdateLog(f"R {len(urls)} missing names to be scanned.")
+        )
+        for i, url in enumerate(urls):
+            if worker.is_cancelled:
+                asset_list.set_content_names(updated_urls, updated_names)
+                self.post_message(
+                    UpdateLog(
+                        f"Name detection cancelled at {i}/{len(urls)}.", flush=True
+                    )
+                )
+                return
+
+            if (content_name := get_content_name(url)) != "":
+                updated_urls.append(url)
+                updated_names.append(content_name)
+                url_name_count += 1
+
+                if i % 25 == 0:
+                    self.post_message(self.UpdateProgress(advance_amount=i - advanced))
+                    advanced = i
                     self.post_message(
-                        UpdateLog(
-                            f"Name detection cancelled at {i}/{len(urls)}.", flush=True
+                        self.UpdateStatus(
+                            f"Scanning {i}/{len(urls)} missing names."
                         )
                     )
-                    break
+                continue
 
-                if (content_name := get_content_name(url)) != "":
-                    updated_urls.append(url)
-                    updated_names.append(content_name)
-                    url_name_count += 1
+            domain = urlparse(url).netloc
+            headers = {"User-Agent": USER_AGENT}
+            if "pastebin.com" in domain:
+                # Pastebin will provide us the original filename if we use the dl link.
+                # This requires a referer from the original pastebin link, so we need
+                # to extract it.
+                pastebin_ref = ""
+                if "pastebin.com/raw.php" in url:
+                    pastebin_ref = url.split("=")[-1]
+                else:
+                    pastebin_ref = url.split("/")[-1]
 
-                    if i % 25 == 0:
-                        self.post_message(self.UpdateProgress(advance_amount=i - advanced))
-                        advanced = i
-                        self.post_message(
-                            self.UpdateStatus(
-                                f"R {retry_num}: Scanning {i}/{len(urls)} missing names. {len(url_retry)} to retry."
-                            )
-                        )
-
-                    continue
-
-                domain = ".".join(urlparse(url).netloc.split(".")[-2:])
-                headers = {"User-Agent": USER_AGENT}
-                if domain == "steamusercontent.com":
-                    pass
-                elif domain == "pastebin.com":
-                    # Pastebin will provide us the original filename if we use the dl link.
-                    # This requires a referer from the original pastebin link, so we need
-                    # to extract it.
-                    pastebin_ref = ""
-                    if "pastebin.com/raw.php" in url:
-                        pastebin_ref = url.split("=")[-1]
-                    else:
-                        pastebin_ref = url.split("/")[-1]
-
-                    if len(pastebin_ref) > 0:
-                        headers["Referer"] = f"http://pastebin.com/{pastebin_ref}"
-                        url = f"http://pastebin.com/dl/{pastebin_ref}"
+                if len(pastebin_ref) > 0:
+                    headers["Referer"] = f"http://pastebin.com/{pastebin_ref}"
+                    fetch_url = f"http://pastebin.com/dl/{pastebin_ref}"
                 else:
                     continue
+            else:
+                fetch_url = url
 
-                self.post_message(self.UpdateProgress(advance_amount=i - advanced))
-                advanced = i
+            # Some links are missing the http:// portion of the address
+            if not urlparse(fetch_url).scheme:
+                fetch_url = "http://" + fetch_url
 
+            self.post_message(self.UpdateProgress(advance_amount=i - advanced))
+            advanced = i
+
+            try:
                 with requests.get(
-                    url=url, headers=headers, allow_redirects=True, stream=True
+                    url=fetch_url, headers=headers, allow_redirects=True, stream=True
                 ) as response:
                     if response.status_code != 200:
                         # Steam sometimes returns 404 on HEAD requests, retry again later
-                        url_retry.append(url)
-                        sleep(0.1)
+                        self.post_message(
+                            self.UpdateStatus(
+                                f"Scanning {i}/{len(urls)} missing names.\n{url} -> <{response.status_code}: {response.reason}>"
+                            )
+                        )
                         continue
                     if "Content-Disposition" in response.headers:
                         content_disposition = response.headers[
@@ -117,27 +122,30 @@ class NameScanner(TTSWorker):
                         ].strip()
                     else:
                         continue
-
-                if (content_name := get_content_name(url, content_disposition)) != "":
-                    updated_urls.append(url)
-                    updated_names.append(content_name)
-                    cd_name_count += 1
-
-                    self.post_message(
-                        self.UpdateStatus(
-                            f"R {retry_num}: Scanning {i}/{len(urls)} missing names. {len(url_retry)} to retry.\n{url} -> {content_name}"
-                        )
+            except ConnectionError as error:
+                # Can be caused by local file urls or embedded <dlc>
+                self.post_message(
+                    self.UpdateStatus(
+                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> {error}"
                     )
+                )
+                continue
 
-                if len(updated_names) > 100:
-                    asset_list.set_content_names(updated_urls, updated_names)
-                    updated_urls = []
-                    updated_names = []
+            if (content_name := get_content_name(url, content_disposition)) != "":
+                updated_urls.append(url)
+                updated_names.append(content_name)
+                cd_name_count += 1
 
-            if len(url_retry) > 0:
-                urls = url_retry
-            else:
-                break
+                self.post_message(
+                    self.UpdateStatus(
+                        f'Scanning {i}/{len(urls)} missing names.\n{url} -> "{content_name}"'
+                    )
+                )
+
+            if len(updated_names) > 100:
+                asset_list.set_content_names(updated_urls, updated_names)
+                updated_urls = []
+                updated_names = []
 
         asset_list.set_content_names(updated_urls, updated_names)
 

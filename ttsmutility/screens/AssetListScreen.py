@@ -99,6 +99,7 @@ class AssetListScreen(Widget):
 
         table.add_column("URL", width=self.url_width, key="url")
         table.add_column("Ext", key="ext")
+        table.add_column("Content Name", key="name", width=25)
         table.add_column("Size(KB)", key="fsize", width=9)
         table.add_column("Modified", key="mtime", width=25)
         table.add_column("Trail", key="trail")
@@ -135,6 +136,7 @@ class AssetListScreen(Widget):
                 table.add_row(
                     readable_asset["url"],
                     readable_asset["ext"],
+                    readable_asset["content_name"],
                     readable_asset["fsize"],
                     readable_asset["mtime"],
                     self.trail_reformat(trail),
