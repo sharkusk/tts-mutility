@@ -1004,7 +1004,7 @@ class AssetList:
     def get_asset(self, url: str, mod_filename: str = "") -> dict or None:
         with sqlite3.connect(self.db_path) as db:
             mods = self.get_mods_using_asset(url)
-            if len(mods) > 0 and mod_filename == "":
+            if len(mods) > 0 and (mod_filename == "" or mod_filename=="sha1"):
                 mod_filename = mods[0][0]
             mod_names = [mod_name for _, mod_name in mods]
             if mod_filename == "":

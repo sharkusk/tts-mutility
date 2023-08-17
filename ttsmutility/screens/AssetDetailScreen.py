@@ -58,7 +58,7 @@ class AssetDetailScreen(ModalScreen):
         filepath = Path(self.mod_dir) / asset_detail["filename"]
         asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
 
-        if self.mod_filename == "":
+        if self.mod_filename == "" or self.mod_filename == "sha1":
             asset_detail["mod_name"] = ""
         else:
             mod_list = ModList()
