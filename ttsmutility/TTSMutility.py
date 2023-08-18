@@ -107,7 +107,7 @@ class TTSMutility(App):
         yield Header()
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
-        self.run_worker(self.initialize_database, thread=True)
+        self.run_worker(self.initialize_database, thread=True, exclusive=True)
 
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
         if self.f_log is not None:
@@ -238,7 +238,7 @@ class TTSMutility(App):
             screen = self.get_screen("mod_details")
             screen.action_refresh_mod_details()
 
-    @work(thread=True)
+    @work(thread=True, exclusive=True)
     def refresh_mods(self) -> None:
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
@@ -265,7 +265,7 @@ class TTSMutility(App):
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
-        self.run_worker(self.backup.backup_daemon, thread=True)
+        self.run_worker(self.backup.backup_daemon, thread=True, exclusive=True)
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
@@ -398,7 +398,9 @@ class TTSMutility(App):
     def on_mod_list_screen_download_selected(
         self, event: ModListScreen.DownloadSelected
     ):
-        self.run_worker(self.download_selected(event.mod_filenames), thread=True)
+        self.run_worker(
+            self.download_selected(event.mod_filenames), thread=True, exclusive=True
+        )
 
     async def download_selected(self, mod_filenames: list[str]) -> None:
         mod_asset_list = AssetList.AssetList()
@@ -423,6 +425,11 @@ class TTSMutility(App):
 
     def on_mod_list_screen_scan_names(self, event: ModListScreen.ScanNames):
         self.run_worker(self.name_scanner.scan_names, exclusive=True, thread=True)
+
+    def on_mod_detail_screen_bgg_id_updated(self, event: ModDetailScreen.BggIdUpdated):
+        if self.is_screen_installed("mod_list"):
+            screen = self.get_screen("mod_list")
+            screen.update_bgg(event.mod_filename, event.bgg_id)
 
     """
     # ████████╗████████╗███████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗

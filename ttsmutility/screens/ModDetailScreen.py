@@ -9,6 +9,7 @@ from PIL import Image
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.events import Key
+from textual.message import Message
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, Markdown, TabbedContent, TabPane
 
@@ -26,11 +27,26 @@ from .AssetListScreen import AssetListScreen
 
 class ModDetailScreen(Screen):
     BINDINGS = [
-        ("escape", "app.pop_screen", "OK"),
+        ("escape", "exit", "OK"),
         ("b", "bgg_lookup", "BGG Lookup"),
         ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
         ("ctrl+r", "refresh_mod_details", "Reload BGG/Steam"),
     ]
+
+    class BggIdUpdated(Message):
+        def __init__(self, mod_filename: str, bgg_id: str) -> None:
+            super().__init__()
+            self.mod_filename = mod_filename
+            self.bgg_id = bgg_id
+
+    def action_exit(self):
+        self.post_message(AssetListScreen.UpdateCounts(self.filename))
+        # We may have some background workers refreshing the asset list.
+        # Cancel them so we don't hurt our performance
+        al = self.query_one(AssetListScreen)
+        self.app.workers.cancel_node(al)
+        self.app.workers.cancel_node(self)
+        self.app.pop_screen()
 
     def __init__(self, filename: str, force_md_update: bool = False) -> None:
         self.filename = filename
@@ -412,19 +428,27 @@ class ModDetailScreen(Screen):
         options.append("No BGG Entry")
 
         if len(options) > 1:
+
             def set_id(index: int) -> None:
-                if index == len(options)-1:
-                    self.mod_list.set_bgg_id(self.filename, None)
+                if index == len(options) - 1:
+                    if self.mod_detail["bgg_id"] != None:
+                        self.mod_list.set_bgg_id(self.filename, None)
                     # TODO: remove bgg tab if it exists
                 else:
                     if self.mod_detail["bgg_id"] is None:
                         self.insert_bgg_tab()
                     offset_start = options[index].rfind("[") + 1
                     offset_end = options[index].rfind("]")
-                    self.mod_detail["bgg_id"] = options[index][offset_start:offset_end]
-                    md = self.query_one("#md_markdown_bgg")
-                    self.mod_list.set_bgg_id(self.filename, self.mod_detail["bgg_id"])
-                    md.update(self.get_markdown_bgg())
+
+                    bgg_id = options[index][offset_start:offset_end]
+                    if bgg_id != self.mod_detail["bgg_id"]:
+                        self.mod_detail["bgg_id"] = bgg_id
+                        md = self.query_one("#md_markdown_bgg")
+                        self.mod_list.set_bgg_id(self.filename, bgg_id)
+                        md.update(self.get_markdown_bgg())
+                        self.post_message(
+                            self.BggIdUpdated(self.mod_detail["filename"], bgg_id)
+                        )
 
             self.app.push_screen(SelectOptionDialog(options), set_id)
         else:

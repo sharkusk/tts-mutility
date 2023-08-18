@@ -32,7 +32,6 @@ class AllAssetScreen(Screen):
 
 class AssetListScreen(Widget):
     BINDINGS = [
-        ("escape", "exit", "OK"),
         ("d", "download_asset", "Download Asset"),
         ("r", "missing_report", "Missing Report"),
         ("i", "ignore_missing", "Ignore Missing"),
@@ -76,11 +75,6 @@ class AssetListScreen(Widget):
         self.updated_counts = False
 
         super().__init__()
-
-    def action_exit(self):
-        if self.updated_counts:
-            self.post_message(self.UpdateCounts(self.mod_filename))
-        self.app.pop_screen()
 
     def compose(self) -> ComposeResult:
         yield DataTable(id=self.al_id)
@@ -247,7 +241,7 @@ class AssetListScreen(Widget):
 
         readable_asset = self.format_asset(asset)
         table = next(self.query("#" + self.al_id).results(DataTable))
-        col_keys = ["url", "mtime", "fsize", "trail", "ext"]
+        col_keys = ["url", "mtime", "fsize", "trail", "ext", "name"]
         table.update_cell(
             row_key, col_keys[0], readable_asset["url"], update_width=True
         )
@@ -260,6 +254,9 @@ class AssetListScreen(Widget):
         # Skip Trail....  It doesn't change anyhow.
         table.update_cell(
             row_key, col_keys[4], readable_asset["ext"], update_width=True
+        )
+        table.update_cell(
+            row_key, col_keys[5], readable_asset["content_name"], update_width=False
         )
 
     def url_reformat(self, url):

@@ -162,6 +162,7 @@ class ModListScreen(Screen):
             "missing_assets": True,
             "min_players": True,
             "max_players": True,
+            "bgg": False,
             "status": True,
         }
 
@@ -179,6 +180,7 @@ class ModListScreen(Screen):
         table.add_column("Missing", key="missing_assets")
         table.add_column("MinP", key="min_players")
         table.add_column("MaxP", key="max_players")
+        table.add_column("BGG", key="bgg")
         table.add_column("Status", key="status")
         table.add_column("Progress", key="progress")
 
@@ -256,6 +258,7 @@ class ModListScreen(Screen):
             mod["missing_assets"],
             mod["min_players"],
             mod["max_players"],
+            "Yes" if mod["bgg_id"] is not None else "",
             "",  # No status to start...
             "",  # No progress to start...
             key=filename,
@@ -821,3 +824,11 @@ class ModListScreen(Screen):
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""
         self.update_status(filename)
+
+    def update_bgg(self, mod_filename, bgg_id):
+        self.mods[mod_filename]["bgg_id"] = bgg_id
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
+        table.update_cell(
+            mod_filename, "bgg", "Yes" if bgg_id is not None else "", update_width=False
+        )
