@@ -55,15 +55,22 @@ def get_content_name(url: str, content_disposition: str = "") -> str:
         content_name = content_name.split("/")[-1]
         content_name = unquote(content_name)
     else:
+        # imgur.com can have garbage appended after extension
+        if "imgur.com" in domain:
+            if url[-1] == "/":
+                url = url[0:-1]
+
         # Attempt to get content name from URL
         content_name = unquote(url.split("/")[-1])
         if "?" in content_name:
             content_name = content_name.split("?")[0]
-        
+
         name, ext = os.path.splitext(content_name)
-        if len(ext) > 4:
-            ext = ext[0:4]
-            content_name = name + ext
+        # imgur.com can have garbage appended after extension
+        if "imgur.com" in domain:
+            if len(ext) > 4:
+                ext = ext[0:4]
+                content_name = name + ext
 
         if "." not in content_name:
             content_name = ""

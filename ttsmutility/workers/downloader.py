@@ -60,6 +60,7 @@ class FileDownload(Widget):
             "text/plain",
             "application/binary",
             "application/octet-stream",
+            "application/vnd.unity",
         ),
         "image": (
             "image/jpeg",
@@ -86,6 +87,7 @@ class FileDownload(Widget):
             "application/octet-stream",
             "application/json",
             "application/x-tgif",
+            "application/vnd.unity",
             "image/jpeg",
             "image/jpg",
             "image/png",
