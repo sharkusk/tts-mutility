@@ -881,7 +881,7 @@ class AssetList:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
-                SELECT asset_path, asset_filename, asset_ext, asset_size
+                SELECT asset_path, asset_filename, asset_ext, asset_size, asset_content_name
                 FROM tts_assets
                 WHERE asset_url=?
                 """,
@@ -901,10 +901,11 @@ class AssetList:
             src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
                 src_ext
             )
+            content_name = result[4]
 
             cursor = db.execute(
                 """
-                SELECT asset_filename
+                SELECT asset_filename, asset_content_name
                 FROM tts_assets
                 WHERE asset_url=?
                 """,
@@ -916,6 +917,18 @@ class AssetList:
             dest_filepath = (Path(self.mod_dir) / src_path / result[0]).with_suffix(
                 src_ext
             )
+            dest_content_name = result[1]
+
+            if content_name != "" and dest_content_name == "":
+                db.execute(
+                    """
+                    UPDATE tts_assets
+                    SET asset_content_name=?
+                    WHERE asset_url=?
+                    """,
+                    (content_name, dest_url),
+                )
+                db.commit()
 
         self.post_message(UpdateLog(f"Copying `{src_filepath}` to `{dest_filepath}`"))
         copy(src_filepath, dest_filepath)
