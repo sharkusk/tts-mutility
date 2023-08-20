@@ -819,7 +819,7 @@ class AssetList:
                     AND
                     asset_url IS NOT NULL
                     AND
-                    asset_dl_status == ""
+                    asset_size > 0
                 """,
             )
             results = cursor.fetchall()
@@ -845,7 +845,7 @@ class AssetList:
                 SET asset_dl_status=?
                 WHERE asset_url=?
                 """,
-                (dl_status, url)
+                (dl_status, url),
             )
             db.commit()
 
@@ -1004,7 +1004,7 @@ class AssetList:
     def get_asset(self, url: str, mod_filename: str = "") -> dict or None:
         with sqlite3.connect(self.db_path) as db:
             mods = self.get_mods_using_asset(url)
-            if len(mods) > 0 and (mod_filename == "" or mod_filename=="sha1"):
+            if len(mods) > 0 and (mod_filename == "" or mod_filename == "sha1"):
                 mod_filename = mods[0][0]
             mod_names = [mod_name for _, mod_name in mods]
             if mod_filename == "":
