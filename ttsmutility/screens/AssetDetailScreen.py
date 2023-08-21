@@ -9,7 +9,6 @@ from textual.widgets import Footer, Markdown
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
-from ..dialogs.SelectOptionDialog import SelectOptionDialog
 from ..parse.AssetList import AssetList
 from ..parse.ModList import ModList
 
@@ -173,24 +172,3 @@ class AssetDetailScreen(ModalScreen):
 
         if link is not None:
             open_url(link)
-
-    def action_find(self):
-        # Look for matching SHA1, filename, content_name, JSON trail
-        matches = self.asset_list.find_asset(self.url)
-        if len(matches) > 0:
-            options = [f"{url} ({type})" for url, type in matches]
-
-            def set_id(index: int) -> None:
-                if index >= 0:
-                    self.app.push_screen(AssetDetailScreen(matches[index][0]))
-                    if False:
-                        self.asset_list.copy_asset(
-                            # options[index].split("(")[0].strip(),
-                            matches[index][0],
-                            self.url,
-                        )
-                        self.app.push_screen(
-                            InfoDialog("Copied asset. Restart to update mod.")
-                        )
-
-            self.app.push_screen(SelectOptionDialog(options), set_id)
