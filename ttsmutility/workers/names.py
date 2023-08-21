@@ -1,5 +1,4 @@
 from urllib.parse import urlparse
-from time import sleep
 
 import requests
 from textual.app import ComposeResult
@@ -44,9 +43,7 @@ class NameScanner(TTSWorker):
         url_name_count = 0
         cd_name_count = 0
 
-        self.post_message(
-            UpdateLog(f"R {len(urls)} missing names to be scanned.")
-        )
+        self.post_message(UpdateLog(f"R {len(urls)} missing names to be scanned."))
         self.post_message(self.UpdateProgress(advance_amount=1))
         for i, url in enumerate(urls):
             self.post_message(self.UpdateProgress(advance_amount=1))
@@ -90,17 +87,17 @@ class NameScanner(TTSWorker):
                 else:
                     self.post_message(
                         self.UpdateStatus(
-                            f'Scanning {i}/{len(urls)} missing names.\n{url} -> (Unable to detect pastebin hash)'
+                            f"Scanning {i}/{len(urls)} missing names.\n{url} -> (Unable to detect pastebin hash)"
                         )
                     )
                     continue
             elif "paste.ee" in domain:
-                    self.post_message(
-                        self.UpdateStatus(
-                            f'Scanning {i}/{len(urls)} missing names.\n{url} -> (paste.ee tell no names)'
-                        )
+                self.post_message(
+                    self.UpdateStatus(
+                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> (paste.ee tell no names)"
                     )
-                    continue
+                )
+                continue
             else:
                 fetch_url = url
 
@@ -135,7 +132,7 @@ class NameScanner(TTSWorker):
                     else:
                         self.post_message(
                             self.UpdateStatus(
-                                f'Scanning {i}/{len(urls)} missing names.\n{url} -> (No Content-Disposition)'
+                                f"Scanning {i}/{len(urls)} missing names.\n{url} -> (No Content-Disposition)"
                             )
                         )
                         continue
@@ -161,7 +158,7 @@ class NameScanner(TTSWorker):
             else:
                 self.post_message(
                     self.UpdateStatus(
-                        f'Scanning {i}/{len(urls)} missing names.\n{url} -> (No Name Found)'
+                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> (No Name Found)"
                     )
                 )
 

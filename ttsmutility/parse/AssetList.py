@@ -822,7 +822,20 @@ class AssetList:
                     asset_size > 0
                 """,
             )
+            if False:
+                # This was used to cleanup existing names when the
+                # latin-1 to utf-8 conversion wasn't being done properly.
+                # ("å",),
+                cursor = db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%Ã%",),
+                )
             results = cursor.fetchall()
+
             return list(zip(*results))[0]
 
     def set_content_names(self, urls, content_names) -> None:

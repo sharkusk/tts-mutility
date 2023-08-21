@@ -41,6 +41,9 @@ def get_content_name(url: str, content_disposition: str = "") -> str:
         if offset_std >= 0:
             # 'attachment; filename="03_Die nostrische Hochzeit (Instrumental).mp3";
             content_name = content_disposition[offset_std:].split('"')[1]
+            # We need to convert the default latin-1 string to python's UTF-8 format
+            content_name = bytes(content_name, "latin-1")
+            content_name = content_name.decode("utf-8")
         elif offset_utf >= 0:
             # filename*=UTF-8\'\'03_Die%20nostrische%20Hochzeit%20%28Instrumental%29.mp3
             # filename*=UTF-8''653EFA7169C93BDC37E31595198855C3AD4A308F_tombstone_map-oct2018.jpg;
