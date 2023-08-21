@@ -431,7 +431,7 @@ class ModDetailScreen(Screen):
 
             def set_id(index: int) -> None:
                 if index == len(options) - 1:
-                    if self.mod_detail["bgg_id"] != None:
+                    if self.mod_detail["bgg_id"] is not None:
                         self.mod_list.set_bgg_id(self.filename, None)
                     # TODO: remove bgg tab if it exists
                 else:
