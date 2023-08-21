@@ -938,6 +938,19 @@ class AssetList:
 
         with sqlite3.connect(self.db_path) as db:
             content_name = get_content_name(url)
+            if content_name == "":
+                cursor = db.execute(
+                    """
+                    SELECT asset_content_name
+                    FROM tts_assets
+                    WHERE asset_url=?
+                    """,
+                    (url,),
+                )
+                result = cursor.fetchone()
+                if result is not None:
+                    content_name = result[0]
+
             steam_sha1 = get_steam_sha1_from_url(url)
 
             if steam_sha1 != "":
