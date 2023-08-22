@@ -92,9 +92,33 @@ class NameScanner(TTSWorker):
                     )
                     continue
             elif "paste.ee" in domain:
+                if "/p/" in url:
+                    fetch_url = url.replace("paste.ee/p/", "paste.ee/d/")
+                else:
+                    fetch_url = url
+                with requests.get(
+                    url=fetch_url, headers=headers, allow_redirects=True, stream=True
+                ) as response:
+                    content_name = "(paste.ee tell no names)"
+                    to_search = "obj file: '"
+                    lines = response.iter_lines()
+                    for i, line in enumerate(lines):
+                        line = line.decode("utf-8")
+                        if (start_offset := line.lower().find(to_search)) != -1:
+                            start_offset += len(to_search)
+                            end_offset = line.find("'", start_offset)
+                            if start_offset != end_offset:
+                                content_name = line[start_offset:end_offset]
+                                updated_urls.append(url)
+                                updated_names.append(content_name)
+                                cd_name_count += 1
+                            break
+                        # Only search the first few lines
+                        if i >= 3:
+                            break
                 self.post_message(
                     self.UpdateStatus(
-                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> (paste.ee tell no names)"
+                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> {content_name}"
                     )
                 )
                 continue
