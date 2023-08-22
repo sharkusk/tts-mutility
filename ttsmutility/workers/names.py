@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+from pathlib import Path
 
 import requests
 from textual.app import ComposeResult
@@ -100,21 +101,27 @@ class NameScanner(TTSWorker):
                     url=fetch_url, headers=headers, allow_redirects=True, stream=True
                 ) as response:
                     content_name = "(paste.ee tell no names)"
-                    to_search = "obj file: '"
+                    to_search = ["obj file: '", "mtllib "]
                     lines = response.iter_lines()
                     for i, line in enumerate(lines):
                         line = line.decode("utf-8")
-                        if (start_offset := line.lower().find(to_search)) != -1:
-                            start_offset += len(to_search)
+                        start_offset = 0
+                        end_offset = 0
+                        if (start_offset := line.lower().find(to_search[0])) != -1:
+                            start_offset += len(to_search[0])
                             end_offset = line.find("'", start_offset)
-                            if start_offset != end_offset:
-                                content_name = line[start_offset:end_offset]
-                                updated_urls.append(url)
-                                updated_names.append(content_name)
-                                cd_name_count += 1
+                        elif (start_offset := line.lower().find(to_search[1])) != -1:
+                            start_offset += len(to_search[1])
+                            end_offset = len(line)
+                        if start_offset != -1 and start_offset != end_offset:
+                            content_name = line[start_offset:end_offset].strip()
+                            content_name = str(Path(content_name).with_suffix(".obj"))
+                            updated_urls.append(url)
+                            updated_names.append(content_name)
+                            cd_name_count += 1
                             break
                         # Only search the first few lines
-                        if i >= 3:
+                        if i >= 5:
                             break
                 self.post_message(
                     self.UpdateStatus(
