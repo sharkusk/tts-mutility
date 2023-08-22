@@ -16,28 +16,8 @@ from ..parse.FileFinder import (
     trailstring_to_trail,
 )
 from ..utility.messages import UpdateLog
-from ..utility.util import get_steam_sha1_from_url, get_content_name
+from ..utility.util import get_steam_sha1_from_url, get_content_name, detect_file_type
 from .ModParser import ModParser
-
-
-def detect_file_type(filepath):
-    FILE_TYPES = {
-        ".unity3d": b"\x55\x6e\x69\x74\x79\x46\x53",  # UnityFS
-        ".OGG": b"\x47\x67\x67\x53",
-        ".WAV": b"\x52\x49\x46\x46",  # RIFF
-        ".MP3": b"\x49\x44\x33",  # ID3
-        ".png": b"\x89\x50\x4E\x47",  # ?PNG
-        ".jpg": b"\xFF\xD8",  # ??
-        ".obj": b"\x23\x20",  # "# "
-        ".PDF": b"\x25\x50\x44\x46",  # %PDF
-    }
-    with open(filepath, "rb") as f:
-        f_data = f.read(10)
-        for ext, pattern in FILE_TYPES.items():
-            if pattern in f_data[0 : len(pattern)]:
-                return ext
-        else:
-            return ""
 
 
 class IllegalSavegameException(ValueError):

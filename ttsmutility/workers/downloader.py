@@ -13,6 +13,7 @@ from textual.widget import Widget
 
 from ..data.config import load_config
 from ..parse.FileFinder import (
+    ALL_VALID_EXTS,
     UPPER_EXTS,
     get_fs_path,
     get_fs_path_from_extension,
@@ -26,7 +27,7 @@ from ..parse.FileFinder import (
 )
 from ..utility.advertising import USER_AGENT
 from ..utility.messages import UpdateLog
-from ..utility.util import get_steam_sha1_from_url, get_content_name
+from ..utility.util import get_steam_sha1_from_url, get_content_name, detect_file_type
 
 
 class FileDownload(Widget):
@@ -359,7 +360,7 @@ class FileDownload(Widget):
 
         ext = ""
         for key in extensions.keys():
-            if extensions[key] != "":
+            if extensions[key] != "" and extensions[key] in ALL_VALID_EXTS:
                 ext = extensions[key]
                 break
 
@@ -447,6 +448,11 @@ class FileDownload(Widget):
         if filepath.exists():
             # There may be an old file around, delete it.
             os.remove(filepath)
+
+        file_ext = detect_file_type(temp_path)
+        if file_ext != "":
+            filepath = filepath.with_suffix(file_ext)
+            self.filename = self.filename.with_suffix(file_ext)
 
         os.rename(temp_path, filepath)
 
