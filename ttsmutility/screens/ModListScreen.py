@@ -15,7 +15,7 @@ from textual.containers import Center
 from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Header, Input, TabbedContent, TabPane
+from textual.widgets import DataTable, Footer, Header, Input
 from textual.widgets.data_table import CellDoesNotExist, RowKey
 from textual.worker import get_current_worker
 
@@ -106,11 +106,7 @@ class ModListScreen(Screen):
                 disabled=True,
                 id="ml_filter",
             )
-        with TabbedContent(initial="ml_pane_workshop"):
-            with TabPane("Workshop", id="ml_pane_workshop"):
-                yield DataTable(id="ml_workshop_dt")
-            with TabPane("Saves", id="ml_pane_saves"):
-                yield DataTable(id="ml_saves_dt")
+        yield DataTable(id="ml_workshop_dt")
 
     class ModRefresh(Message):
         def __init__(self, mod_filename: str) -> None:
@@ -189,6 +185,9 @@ class ModListScreen(Screen):
         self.last_sort_key = "name"
 
         self.load_mods()
+
+        table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
+        table.focus()
 
     def load_mods(self) -> None:
         mod_list = ModList.ModList()
@@ -349,20 +348,6 @@ class ModListScreen(Screen):
             # asset is shared with a filtered one that isn't being displayed.
             pass
 
-    def action_show_tab(self, tab: str) -> None:
-        self.get_child_by_type(TabbedContent).active = tab
-
-    def on_tabbed_content_tab_activated(
-        self, event: TabbedContent.TabActivated
-    ) -> None:
-        if event.tab.id == "ml_pane_workshop":
-            id = "#ml_workshop_dt"
-        else:
-            id = "#ml_saves_dt"
-        table = next(self.query(id).results(DataTable))
-        table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
-        table.focus()
-
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if self.prev_selected is not None and event.row_key == self.prev_selected:
             self.post_message(self.ModSelected(event.row_key.value))
@@ -450,18 +435,11 @@ class ModListScreen(Screen):
         )
 
     def get_active_table(self) -> tuple[DataTable, int]:
-        if self.query_one("TabbedContent").active == "ml_pane_workshop":
-            table_id = "#ml_workshop_dt"
-        else:
-            table_id = "#ml_saves_dt"
+        table_id = "#ml_workshop_dt"
         return next(self.query(table_id).results(DataTable)), table_id[1:]
 
     def get_current_row_key(self) -> RowKey:
-        tabbed = self.query_one(TabbedContent)
-        if tabbed.active == "ml_pane_workshop":
-            id = "ml_workshop_dt"
-        else:
-            id = "ml_saves_dt"
+        id = "ml_workshop_dt"
         table = next(self.query("#" + id).results(DataTable))
         if table.is_valid_coordinate(table.cursor_coordinate):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
@@ -534,22 +512,6 @@ class ModListScreen(Screen):
             self.on_data_table_row_selected(row_sel_event)
             event.stop()
 
-        elif event.key == "tab":
-            if not filter_open:
-                tabbed_content = self.query_one(TabbedContent)
-                if tabbed_content.active == "ml_pane_workshop":
-                    tabbed_content.active = "ml_pane_saves"
-                    id = "ml_pane_saves"
-                else:
-                    tabbed_content.active = "ml_pane_workshop"
-                    id = "ml_pane_workshop"
-
-                tabbed_content = self.query_one(TabbedContent)
-                pane = next(self.query("#" + id).results(TabPane))
-                new_event = TabbedContent.TabActivated(tabbed_content, pane)
-                self.post_message(new_event)
-                event.stop()
-
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
         if self.filter_timer is None:
@@ -564,11 +526,7 @@ class ModListScreen(Screen):
         self.post_message(self.ShowSha1())
 
     def action_mod_refresh(self):
-        tabbed = self.query_one(TabbedContent)
-        if tabbed.active == "ml_pane_workshop":
-            id = "ml_workshop_dt"
-        else:
-            id = "ml_saves_dt"
+        id = "ml_workshop_dt"
         table = next(self.query("#" + id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         self.post_message(self.ModRefresh(row_key.value))
