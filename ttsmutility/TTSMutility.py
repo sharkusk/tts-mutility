@@ -265,7 +265,12 @@ class TTSMutility(App):
         screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
-        self.run_worker(self.backup.backup_daemon, thread=True, exclusive=True)
+        self.run_worker(
+            self.backup.backup_daemon,
+            thread=True,
+            group="backup",
+            description="Backup Task",
+        )
         config = load_config()
         self.load_screen(
             ModListScreen(config.tts_mods_dir, config.tts_saves_dir), "mod_list"
