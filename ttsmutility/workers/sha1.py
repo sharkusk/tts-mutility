@@ -61,9 +61,9 @@ class Sha1Scanner(TTSWorker):
             else:
                 update_amount = int(len(files) / 100)
             if update_amount > 10:
-                update_amount = 10
+                update_amount = 1
 
-            skip_update_amount = update_amount * 100
+            skip_update_amount = 1000
 
             i = 0
             if len(files) > 0:
