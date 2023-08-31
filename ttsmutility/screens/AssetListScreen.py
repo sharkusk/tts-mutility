@@ -288,17 +288,18 @@ class AssetListScreen(Widget):
             self.post_message(self.AssetSelected(url, self.mod_filename, trail))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
-        if self.last_sort_key == event.column_key.value:
-            self.sort_order[event.column_key.value] = not self.sort_order[
-                event.column_key.value
-            ]
-        else:
-            self.sort_order[event.column_key.value] = False
+        if event.column_key.value is not None:
+            if self.last_sort_key == event.column_key.value:
+                self.sort_order[event.column_key.value] = not self.sort_order[
+                    event.column_key.value
+                ]
+            else:
+                self.sort_order[event.column_key.value] = False
 
-        reverse = self.sort_order[event.column_key.value]
-        self.last_sort_key = event.column_key.value
+            reverse = self.sort_order[event.column_key.value]
+            self.last_sort_key = event.column_key.value
 
-        event.data_table.sort(event.column_key, reverse=reverse)
+            event.data_table.sort(event.column_key, reverse=reverse)
 
     def action_download_asset(self):
         if self.all_nodes:

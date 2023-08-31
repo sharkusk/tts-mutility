@@ -1,4 +1,3 @@
-from textual import events
 from textual.app import ComposeResult
 from textual.widgets import Footer
 from textual.widgets import Markdown
@@ -24,5 +23,5 @@ class InfoScreen(ModalScreen):
                 )
 
     def on_mount(self) -> None:
-        md = self.query_one("#info_markdown")
+        md = self.query_one("#info_markdown", expect_type=Markdown)
         md.update(self.message)
