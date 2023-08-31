@@ -27,6 +27,7 @@ dependencies = [
     "Pillow",
     "requests",
     "markdownify",
+    "aiopath==0.6.11",
 ]
 
 [project.urls]

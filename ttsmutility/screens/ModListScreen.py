@@ -1,5 +1,6 @@
 import csv
 import glob
+from aiopath import AsyncPath
 from dataclasses import dataclass
 from itertools import filterfalse
 from pathlib import Path
@@ -9,6 +10,7 @@ from webbrowser import open as open_url
 
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
+from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -81,6 +83,7 @@ class ModListScreen(Screen):
         self.progress = {}
         self.progress_id = {}
         self.status = {}
+        self.backup_status = {}
         self.dl_queue = Queue()
         self.filter_timer = None
         self.downloads = []
@@ -158,6 +161,7 @@ class ModListScreen(Screen):
             "missing_assets": True,
             "min_players": True,
             "max_players": True,
+            "backup": False,
             "bgg": False,
             "status": True,
         }
@@ -177,6 +181,7 @@ class ModListScreen(Screen):
         table.add_column("MinP", key="min_players")
         table.add_column("MaxP", key="max_players")
         table.add_column("BGG", key="bgg")
+        table.add_column("BUp", key="backup")
         table.add_column("Status", key="status")
         table.add_column("Progress", key="progress")
 
@@ -188,6 +193,8 @@ class ModListScreen(Screen):
 
         table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
         table.focus()
+
+        self.update_backup_status()
 
     def load_mods(self) -> None:
         mod_list = ModList.ModList()
@@ -236,6 +243,40 @@ class ModListScreen(Screen):
 
         return name
 
+    @work(exclusive=True)
+    async def update_backup_status(self):
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
+
+        for mod_filename in self.mods.keys():
+            mod = self.mods[mod_filename]
+            backup_path, backup_filepath = self.get_backup_name(mod)
+            backup_path = AsyncPath(backup_path)
+            if not await backup_path.exists():
+                backup_filepath = AsyncPath(backup_filepath)
+                existing = None
+                async for existing in backup_filepath.parent.glob(
+                    glob.escape(backup_filepath.name) + "*"
+                ):
+                    break
+                backup_path = existing
+
+            if backup_path is not None:
+                stat = await backup_path.stat()
+                if stat.st_mtime > mod["epoch"]:
+                    b = "✓"
+                else:
+                    b = "!"
+            else:
+                b = "X"
+
+            self.backup_status[mod_filename] = b
+            try:
+                table.update_cell(mod_filename, "backup", b)
+            except CellDoesNotExist:
+                # This cell may be currently filtered, so ignore any errors
+                pass
+
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
         id = "#ml_workshop_dt"
@@ -246,6 +287,11 @@ class ModListScreen(Screen):
             name = MyText(name, style="#FF0000")
         if mod["deleted"]:
             name = MyText(name, style="strike")
+
+        if filename in self.backup_status:
+            b = self.backup_status[filename]
+        else:
+            b = "?"
 
         table.add_row(
             name,
@@ -258,11 +304,13 @@ class ModListScreen(Screen):
             mod["min_players"],
             mod["max_players"],
             "Yes" if mod["bgg_id"] is not None else "",
-            "",  # No status to start...
+            b,  # No backup status
+            "",  # Update status in func below
             "",  # No progress to start...
             key=filename,
         )
         self.active_rows[filename] = mod["name"]
+        self.update_status(filename)
 
     def update_filtered_rows(self) -> None:
         self.filter_timer = None
@@ -576,6 +624,9 @@ class ModListScreen(Screen):
         self.app.push_screen(HelpDialog())
 
     def update_status(self, filename):
+        if filename not in self.status:
+            return
+
         id = "#ml_workshop_dt"
         table = next(self.query(id).results(DataTable))
 
