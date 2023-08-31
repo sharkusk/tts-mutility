@@ -100,8 +100,7 @@ class AssetListScreen(Widget):
 
         self.load_data()
 
-    @work(exclusive=True)
-    async def load_data(self):
+    def load_data(self):
         asset_list = AssetList()
         assets = asset_list.get_mod_assets(self.mod_filename, all_nodes=self.all_nodes)
         self.assets = {}
@@ -136,8 +135,6 @@ class AssetListScreen(Widget):
                     self.trail_reformat(trail),
                     key=row_key,  # Use original url for our key
                 )
-            if i % 100 == 0:
-                await asyncio.sleep(0)
         table.cursor_type = "row"
         table.sort("trail", reverse=self.sort_order["trail"])
         self.last_sort_key = "trail"

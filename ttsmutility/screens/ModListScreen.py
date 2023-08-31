@@ -41,7 +41,7 @@ class DataTableFilter(DataTable):
         self._unfiltered_data = None
         self._unfiltered_rows = None
 
-    def filter(self, column: str, f) -> Self:
+    def filter(self, column: str, f: str) -> Self:
         if f == "":
             if self._unfiltered_data is not None:
                 self._data = self._unfiltered_data
