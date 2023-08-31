@@ -10,7 +10,6 @@ from webbrowser import open as open_url
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
 from textual import work
-from textual._two_way_dict import TwoWayDict
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -20,7 +19,6 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input
 from textual.widgets.data_table import CellDoesNotExist, RowKey
 from textual.worker import get_current_worker
-from typing_extensions import Self
 
 from ..data.config import config_file, load_config
 from ..dialogs.HelpDialog import HelpDialog
@@ -259,11 +257,12 @@ class ModListScreen(Screen):
             stat = await bf.stat()
             name = bf.name
             s = name.rfind("[")
-            # TODO: check if name contains [] embedded
-            # Hack work around for specific case
-            if name[s - 1] == "[":
-                s = s - 1
             e = name.rfind("]")
+            # Handle embedded []'s in name
+            t = name.rfind("]", 0, e)
+            while t > s:
+                s = name.rfind("[", 0, s)
+                t = name.rfind("]", 0, t)
             mod_filename = name[s + 1 : e] + ".json"
             backup_times[mod_filename] = stat.st_mtime
 
