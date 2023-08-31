@@ -254,22 +254,23 @@ class ModListScreen(Screen):
         if not Path(config.mod_backup_dir).exists():
             return
 
-        for mod_filename in self.mods.keys():
-            mod = self.mods[mod_filename]
-            backup_path, backup_filepath = self.get_backup_name(mod)
-            backup_path = AsyncPath(backup_path)
-            if not await backup_path.exists():
-                backup_filepath = AsyncPath(backup_filepath)
-                existing = None
-                async for existing in backup_filepath.parent.glob(
-                    glob.escape(backup_filepath.name) + "*"
-                ):
-                    break
-                backup_path = existing
+        backup_times = {}
+        async for bf in AsyncPath(config.mod_backup_dir).glob("*.zip"):
+            stat = await bf.stat()
+            name = bf.name
+            s = name.rfind("[")
+            # TODO: check if name contains [] embedded
+            # Hack work around for specific case
+            if name[s - 1] == "[":
+                s = s - 1
+            e = name.rfind("]")
+            mod_filename = name[s + 1 : e] + ".json"
+            backup_times[mod_filename] = stat.st_mtime
 
-            if backup_path is not None:
-                stat = await backup_path.stat()
-                if stat.st_mtime > mod["epoch"]:
+        for mod_filename in self.mods.keys():
+            name = mod_filename[mod_filename.find("\\") + 1 :]
+            if name in backup_times:
+                if backup_times[name] > self.mods[mod_filename]["epoch"]:
                     b = " ✓ "
                 else:
                     b = " ! "
@@ -548,10 +549,15 @@ class ModListScreen(Screen):
 
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
-        if self.filter_timer is None:
-            self.filter_timer = self.set_timer(0.25, callback=self.update_filtered_rows)
+        if False:
+            if self.filter_timer is None:
+                self.filter_timer = self.set_timer(
+                    0.25, callback=self.update_filtered_rows
+                )
+            else:
+                self.filter_timer.reset()
         else:
-            self.filter_timer.reset()
+            self.update_filtered_rows()
 
     def on_timer(self):
         self.update_filtered_rows()
