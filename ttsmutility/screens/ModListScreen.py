@@ -289,6 +289,10 @@ class ModListScreen(Screen):
         id = "#ml_workshop_dt"
         table = next(self.query(id).results(DataTable))
 
+        config = load_config()
+        if not Path(config.mod_backup_dir).exists():
+            return
+
         for mod_filename in self.mods.keys():
             mod = self.mods[mod_filename]
             backup_path, backup_filepath = self.get_backup_name(mod)
@@ -305,11 +309,11 @@ class ModListScreen(Screen):
             if backup_path is not None:
                 stat = await backup_path.stat()
                 if stat.st_mtime > mod["epoch"]:
-                    b = "✓"
+                    b = " ✓ "
                 else:
-                    b = "!"
+                    b = " ! "
             else:
-                b = "X"
+                b = " X "
 
             self.backup_status[mod_filename] = b
             try:
@@ -332,7 +336,7 @@ class ModListScreen(Screen):
         if filename in self.backup_status:
             b = self.backup_status[filename]
         else:
-            b = "?"
+            b = ""
 
         table.add_row(
             name,
@@ -344,7 +348,7 @@ class ModListScreen(Screen):
             mod["missing_assets"],
             mod["min_players"],
             mod["max_players"],
-            "Yes" if mod["bgg_id"] is not None else "",
+            " ✓ " if mod["bgg_id"] is not None else "",
             b,  # No backup status
             "",  # Update status in func below
             "",  # No progress to start...
@@ -667,6 +671,7 @@ class ModListScreen(Screen):
 
         try:
             table.update_cell(filename, "status", stat_message, update_width=True)
+            table.update_cell(filename, "backup", self.backup_status[filename])
         except CellDoesNotExist:
             # This cell may be currently filtered, so ignore any errors
             pass
@@ -853,6 +858,7 @@ class ModListScreen(Screen):
 
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""
+        self.backup_status[filename] = " ✓ "
         self.update_status(filename)
 
     def update_bgg(self, mod_filename, bgg_id):
@@ -860,5 +866,5 @@ class ModListScreen(Screen):
         id = "#ml_workshop_dt"
         table = next(self.query(id).results(DataTable))
         table.update_cell(
-            mod_filename, "bgg", "Yes" if bgg_id is not None else "", update_width=False
+            mod_filename, "bgg", " ✓ " if bgg_id is not None else "", update_width=False
         )
