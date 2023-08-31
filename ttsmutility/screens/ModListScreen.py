@@ -268,7 +268,7 @@ class ModListScreen(Screen):
             backup_times[mod_filename] = stat.st_mtime
 
         for mod_filename in self.mods.keys():
-            name = mod_filename[mod_filename.find("\\") + 1 :]
+            name = Path(mod_filename).name
             if name in backup_times:
                 if backup_times[name] > self.mods[mod_filename]["epoch"]:
                     b = " ✓ "
