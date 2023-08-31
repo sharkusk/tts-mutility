@@ -31,48 +31,9 @@ from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import MyText, format_time, make_safe_filename
+from ..widgets.DataTableFilter import DataTableFilter
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
-
-
-class DataTableFilter(DataTable):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._unfiltered_data = None
-        self._unfiltered_rows = None
-
-    def filter(self, column: str, f: str) -> Self:
-        if f == "":
-            if self._unfiltered_data is not None:
-                self._data = self._unfiltered_data
-                self._unfiltered_data = None
-
-                self.rows = self._unfiltered_rows
-                self._unfiltered_rows = None
-        else:
-            if self._unfiltered_data is None:
-                self._unfiltered_data = self._data
-                self._unfiltered_rows = self.rows
-
-            self._data = dict(
-                filter(
-                    lambda x: True if f.lower() in str(x[1][column]).lower() else False,
-                    self._unfiltered_data.items(),
-                )
-            )
-            self.rows = dict(
-                [
-                    (row_key, self._unfiltered_rows[row_key])
-                    for row_key in self._data.keys()
-                ]
-            )
-
-        self._row_locations = TwoWayDict(
-            {key: new_index for new_index, (key, _) in enumerate(self._data.items())}
-        )
-        self._update_count += 1
-        self.refresh()
-        return self
 
 
 class ModListScreen(Screen):
@@ -672,7 +633,7 @@ class ModListScreen(Screen):
         try:
             table.update_cell(filename, "status", stat_message, update_width=True)
             table.update_cell(filename, "backup", self.backup_status[filename])
-        except CellDoesNotExist:
+        except (CellDoesNotExist, KeyError):
             # This cell may be currently filtered, so ignore any errors
             pass
 
