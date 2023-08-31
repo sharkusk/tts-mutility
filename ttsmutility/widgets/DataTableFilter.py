@@ -16,8 +16,8 @@ from typing_extensions import Self
 class DataTableFilter(DataTable):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._unfiltered_data = None
-        self._unfiltered_rows = None
+        self._unfiltered_data: None | dict[RowKey, dict[ColumnKey, CellType]] = None
+        self._unfiltered_rows: None | dict[RowKey, Row] = None
 
     def filter(self, column: str, f: str) -> Self:
         if f == "":
@@ -60,20 +60,6 @@ class DataTableFilter(DataTable):
         *,
         update_width: bool = False,
     ) -> None:
-        """Update the cell identified by the specified row key and column key.
-
-        Args:
-            row_key: The key identifying the row.
-            column_key: The key identifying the column.
-            value: The new value to put inside the cell.
-            update_width: Whether to resize the column width to accommodate
-                for the new cell content.
-
-        Raises:
-            CellDoesNotExist: When the supplied `row_key` and `column_key`
-                cannot be found in the table.
-        """
-
         if self._unfiltered_data is not None:
             try:
                 self._unfiltered_data[row_key][column_key] = value
