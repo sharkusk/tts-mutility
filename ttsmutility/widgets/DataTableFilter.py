@@ -24,12 +24,13 @@ class DataTableFilter(DataTable):
             if self._unfiltered_data is not None:
                 self._data = self._unfiltered_data
                 self._unfiltered_data = None
-
+            if self._unfiltered_rows is not None:
                 self.rows = self._unfiltered_rows
                 self._unfiltered_rows = None
         else:
             if self._unfiltered_data is None:
                 self._unfiltered_data = self._data
+            if self._unfiltered_rows is None:
                 self._unfiltered_rows = self.rows
 
             self._data = dict(
@@ -87,7 +88,7 @@ class DataTableFilter(DataTable):
     ) -> ColumnKey:
         column_key = super().add_column(label, width=width, key=key, default=default)
 
-        if self._unfiltered_data is not None:
+        if self._unfiltered_data is not None and self._unfiltered_rows is not None:
             # Update pre-existing rows to account for the new column.
             for row_key in self._unfiltered_rows.keys():
                 self._unfiltered_data[row_key][column_key] = default
@@ -103,7 +104,7 @@ class DataTableFilter(DataTable):
     ) -> RowKey:
         row_key = super().add_row(*cells, height=height, key=key, label=label)
 
-        if self._unfiltered_data is not None:
+        if self._unfiltered_data is not None and self._unfiltered_rows is not None:
             self._unfiltered_data[row_key] = {
                 column.key: cell
                 for column, cell in zip_longest(self.ordered_columns, cells)
@@ -116,12 +117,13 @@ class DataTableFilter(DataTable):
     def remove_row(self, row_key: RowKey | str) -> None:
         super().remove_row(row_key)
         if self._unfiltered_data is not None:
+            del self._unfiltered_data[row_key]
+        if self._unfiltered_rows is not None:
             del self._unfiltered_rows[row_key]
-            del self.__unfiltered_data[row_key]
 
     def remove_column(self, column_key: ColumnKey | str) -> None:
         super().remove_column(column_key)
 
-        if self._unfiltered_data is not None:
+        if self._unfiltered_data is not None and self._unfiltered_rows is not None:
             for row in self._unfiltered_data:
                 del self._unfiltered_data[row][column_key]

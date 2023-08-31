@@ -1,7 +1,7 @@
 import time
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import quote
 from webbrowser import open as open_url
 
 import requests
@@ -55,7 +55,6 @@ class ModDetailScreen(Screen):
             self.in_workshop = False
         elif not Path(self.filename).stem.isdigit():
             self.in_workshop = False
-        self.ad_uri_prefix = "//asset_detail/"
         self.dl_image_uri_prefix = "//dl_image/"
         config = load_config()
         self.mod_dir = Path(config.tts_mods_dir)
@@ -115,15 +114,15 @@ class ModDetailScreen(Screen):
         tc.add_pane(pane, before="md_pane_assets")
 
     def on_mount(self):
-        self.query_one("#md_markdown_mod").update(self.get_markdown())
+        self.query_one("#md_markdown_mod", expect_type=Markdown).update(self.get_markdown())
         if self.in_workshop:
-            self.query_one("#md_markdown_steam").update(self.get_markdown_steam())
+            self.query_one("#md_markdown_steam", expect_type=Markdown).update(self.get_markdown_steam())
         if self.mod_detail["bgg_id"] is not None:
             self.insert_bgg_tab()
-            self.query_one("#md_markdown_bgg").update(self.get_markdown_bgg())
-        self.query_one("#title").update(self.mod_detail["name"])
+            self.query_one("#md_markdown_bgg", expect_type=Markdown).update(self.get_markdown_bgg())
+        self.query_one("#title", expect_type=Label).update(self.mod_detail["name"])
         if self.is_infected():
-            iw = self.query_one("#infection_warning")
+            iw = self.query_one("#infection_warning", expect_type=Label)
             iw.update(
                 (
                     "WARNING!  A TTS viral infection has been detected in this mod. "
@@ -178,7 +177,6 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["mod_image"] = ""
 
-        mod_detail["asset_detail_url"] = quote(f"{self.ad_uri_prefix}{self.filename}")
         mod_detail["size"] = mod_detail["size"] / (1024)
         mod_detail["mtime"] = time.ctime(mod_detail["mtime"])
         mod_detail["epoch"] = time.ctime(mod_detail["epoch"])
@@ -390,9 +388,6 @@ class ModDetailScreen(Screen):
         if "//localhost/" in event.href:
             link = event.href.replace("//localhost/", "file:///")
             open_url(link)
-        elif self.ad_uri_prefix in event.href:
-            filename = unquote(urlparse(event.href[len(self.ad_uri_prefix) :]).path)
-            self.post_message(self.AssetsSelected(filename, self.mod_detail["name"]))
         elif self.dl_image_uri_prefix in event.href:
             self.action_set_tts_thumb()
         else:
@@ -402,13 +397,13 @@ class ModDetailScreen(Screen):
         asset_list = AssetList()
         asset_list.get_mod_assets(self.filename, parse_only=True, force_refresh=True)
 
-        self.query_one("#md_markdown_mod").update(self.get_markdown())
+        self.query_one("#md_markdown_mod", expect_type=Markdown).update(self.get_markdown())
         if self.mod_detail["bgg_id"] is not None:
-            self.query_one("#md_markdown_bgg").update(
+            self.query_one("#md_markdown_bgg", expect_type=Markdown).update(
                 self.get_markdown_bgg(force_update=True)
             )
         if self.in_workshop:
-            self.query_one("#md_markdown_steam").update(
+            self.query_one("#md_markdown_steam", expect_type=Markdown).update(
                 self.get_markdown_steam(force_update=True)
             )
 
@@ -432,7 +427,7 @@ class ModDetailScreen(Screen):
             def set_id(index: int) -> None:
                 if index == len(options) - 1:
                     if self.mod_detail["bgg_id"] is not None:
-                        self.mod_list.set_bgg_id(self.filename, None)
+                        self.mod_list.set_bgg_id(self.filename, "")
                     # TODO: remove bgg tab if it exists
                 else:
                     if self.mod_detail["bgg_id"] is None:
@@ -443,7 +438,7 @@ class ModDetailScreen(Screen):
                     bgg_id = options[index][offset_start:offset_end]
                     if bgg_id != self.mod_detail["bgg_id"]:
                         self.mod_detail["bgg_id"] = bgg_id
-                        md = self.query_one("#md_markdown_bgg")
+                        md = self.query_one("#md_markdown_bgg", expect_type=Markdown)
                         self.mod_list.set_bgg_id(self.filename, bgg_id)
                         md.update(self.get_markdown_bgg())
                         self.post_message(
@@ -477,9 +472,10 @@ class ModDetailScreen(Screen):
     def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        scroll_id = event.tab.id.replace("pane", "scroll")
-        pane = self.query_one("#" + scroll_id)
-        pane.focus()
+        if event.tab.id is not None:
+            scroll_id = event.tab.id.replace("pane", "scroll")
+            pane = self.query_one("#" + scroll_id)
+            pane.focus()
 
     def on_key(self, event: Key):
         if event.key == "tab" or event.key == "shift+tab":

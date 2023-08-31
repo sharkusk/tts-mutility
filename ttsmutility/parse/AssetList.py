@@ -48,7 +48,7 @@ class AssetList:
         else:
             self.post_message = post_message
 
-    def get_mod_info(self, mod_filename: Path) -> dict or None:
+    def get_mod_info(self, mod_filename: Path) -> dict | None:
         if mod_filename in self.mod_infos:
             return self.mod_infos[mod_filename]
         else:
@@ -57,7 +57,7 @@ class AssetList:
     def get_mod_infos(self) -> dict:
         return self.mod_infos
 
-    def get_sha1_info(self, path: str) -> list:
+    def get_sha1_info(self, path: str) -> dict:
         # filename, return sha1, steam_sha1, sha1_mtime
 
         with sqlite3.connect(self.db_path) as db:
@@ -163,6 +163,7 @@ class AssetList:
                     ),
                 )
             else:
+                ext = ""
                 path, filename = os.path.split(asset["filename"])
                 if filename != "":
                     filename, ext = os.path.splitext(filename)
@@ -247,6 +248,7 @@ class AssetList:
 
     def scan_cached_assets(self):
         scan_time = time.time()
+        new_count = 0
 
         with sqlite3.connect(self.db_path) as db:
             ignore_paths = ["Mods", "Workshop"]
@@ -321,6 +323,10 @@ class AssetList:
                             cf = get_fs_path_from_extension(
                                 "", correct_ext, filename.stem
                             )
+                            if cf is None:
+                                # TODO: This shouldn't happen.  Throw error?
+                                continue
+
                             correct_path = pathlib.PurePath(cf).parent
 
                             src = Path(root) / filename
@@ -479,7 +485,7 @@ class AssetList:
         else:
             mod_path = Path(self.save_dir) / mod_filename
 
-        mod_parser = ModParser(mod_path)
+        mod_parser = ModParser(str(mod_path))
 
         mod_assets = [
             (recodeURL(url), url, trail) for trail, url in mod_parser.urls_from_mod()
@@ -712,13 +718,12 @@ class AssetList:
                 )
 
             if not parse_only:
+                trails = {}
                 if all_nodes:
                     mod_parser = ModParser(mod_path)
                     all_assets = [
                         (url, trail) for trail, url in mod_parser.urls_from_mod(True)
                     ]
-
-                    trails = {}
 
                     for url, trail in all_assets:
                         trail = trail_to_trailstring(trail)
@@ -1020,7 +1025,7 @@ class AssetList:
 
         return matches
 
-    def get_asset(self, url: str, mod_filename: str = "") -> dict or None:
+    def get_asset(self, url: str, mod_filename: str = "") -> dict | None:
         with sqlite3.connect(self.db_path) as db:
             mods = self.get_mods_using_asset(url)
             if len(mods) > 0 and (mod_filename == "" or mod_filename == "sha1"):

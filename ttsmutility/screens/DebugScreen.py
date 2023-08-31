@@ -1,7 +1,8 @@
+from rich.markdown import Markdown
 from textual.app import ComposeResult
-from textual.widgets import Static
 from textual.containers import Container, VerticalScroll
 from textual.screen import ModalScreen
+from textual.widgets import Static
 
 
 class DebugScreen(ModalScreen):
@@ -9,7 +10,7 @@ class DebugScreen(ModalScreen):
         ("escape", "app.pop_screen", "OK"),
     ]
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str | Markdown) -> None:
         super().__init__()
         self.message = message
 

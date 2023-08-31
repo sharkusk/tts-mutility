@@ -126,7 +126,7 @@ class BggSearch:
                     games.append((name, id, year))
         return games
 
-    def search(self, name: str) -> dict:
+    def search(self, name: str) -> list:
         name = name.lower()
         for d in self.DELETE_AFTER:
             offset = name.find(d)
@@ -278,7 +278,7 @@ class BggSearch:
             ):
                 return self._parse_game_element(e)
         else:
-            return None
+            return {}
 
     def update_metadata(self, path: Path) -> bool:
         mtime = path.stat().st_mtime
@@ -418,7 +418,7 @@ class BggSearch:
                     with open(cache_path, "w", encoding="utf-8") as f:
                         f.write(data)
                 else:
-                    return ""
+                    return {}
             data_j = json.loads(data)
             try:
                 details = data_j["response"]["publishedfiledetails"][0]

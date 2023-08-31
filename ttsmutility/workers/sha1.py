@@ -138,7 +138,7 @@ class Sha1Scanner(TTSWorker):
                 hexdigest = digest.hexdigest()
                 sha1 = hexdigest.upper()
 
-                asset_list.sha1_scan_done(asset_path, sha1, steam_sha1, mtime)
+                asset_list.sha1_scan_done(str(asset_path), sha1, steam_sha1, mtime)
 
         self.post_message(UpdateLog("SHA1 scan complete."))
         self.post_message(self.UpdateStatus("SHA1 scan complete."))

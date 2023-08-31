@@ -12,6 +12,7 @@ from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progres
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.coordinate import Coordinate
 from textual.containers import Center
 from textual.events import Key
 from textual.message import Message
@@ -42,10 +43,10 @@ class ModListScreen(Screen):
         ) -> None:
             super().__init__()
             self.asset = asset
-
+    
     class DownloadEntry(NamedTuple):
         url: str
-        trail: str
+        trail: list
 
     @dataclass
     class WorkerStatus:
@@ -208,7 +209,7 @@ class ModListScreen(Screen):
             self.add_mod_row(self.mods[mod_filename])
             self.status[mod_filename] = self.WorkerStatus("", "")
 
-        f = self.query_one("#ml_filter")
+        f = self.query_one("#ml_filter", expect_type=Input)
         f.placeholder = "Filter"
         f.disabled = False
 
@@ -291,7 +292,7 @@ class ModListScreen(Screen):
         name = self.clean_name(mod["name"])
         if mod["filename"] in self.infected_filenames:
             name = MyText(name, style="#FF0000")
-        if mod["deleted"]:
+        elif mod["deleted"]:
             name = MyText(name, style="strike")
 
         if filename in self.backup_status:
@@ -324,7 +325,7 @@ class ModListScreen(Screen):
         row_key = self.get_current_row_key()
 
         id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = next(self.query(id).results(DataTableFilter))
         if self.filter != self.prev_filter:
             table.filter("name", self.filter)
 
@@ -337,16 +338,13 @@ class ModListScreen(Screen):
         self.prev_filter = self.filter
 
     def jump_to_row_key(self, row_key):
-        (
-            table,
-            _,
-        ) = self.get_active_table()
+        table = self.get_active_table()
         # TODO: Remove internal API calls once Textual #2876 is published
         row_index = table._row_locations.get(row_key)
         if row_index is not None and table.is_valid_row_index(row_index):
-            table.cursor_coordinate = (row_index, 0)
+            table.cursor_coordinate = Coordinate(row_index, 0)
         else:
-            table.cursor_coordinate = (0, 0)
+            table.cursor_coordinate = Coordinate(0, 0)
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
@@ -363,7 +361,7 @@ class ModListScreen(Screen):
         name = self.clean_name(self.mods[row_key]["name"])
         if self.mods[row_key]["filename"] in self.infected_filenames:
             name = MyText(name, style="#FF0000")
-        if self.mods[row_key]["deleted"]:
+        elif self.mods[row_key]["deleted"]:
             name = MyText(name, style="strike")
 
         # We need to update both our internal asset information
@@ -383,25 +381,25 @@ class ModListScreen(Screen):
             pass
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        if self.prev_selected is not None and event.row_key == self.prev_selected:
-            self.post_message(self.ModSelected(event.row_key.value))
-        self.prev_selected = event.row_key
+        if event.row_key.value is not None:
+            if self.prev_selected is not None and event.row_key == self.prev_selected:
+                self.post_message(self.ModSelected(event.row_key.value))
+            self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if event.column_key.value == "progress":
             # Progress bars don't support sort operations
             return
+
         sort_key = event.column_key.value
-
-        if self.last_sort_key == sort_key:
-            self.sort_order[sort_key] = not self.sort_order[sort_key]
-
-        reverse = self.sort_order[sort_key]
-
-        self.last_sort_key = event.column_key.value
-        self.sort_order[sort_key] = reverse
-
-        event.data_table.sort(event.column_key, reverse=reverse)
+        if sort_key is not None:
+            if self.last_sort_key == sort_key:
+                self.sort_order[sort_key] = not self.sort_order[sort_key]
+            reverse = self.sort_order[sort_key]
+            if event.column_key.value is not None:
+                self.last_sort_key = event.column_key.value
+            self.sort_order[sort_key] = reverse
+            event.data_table.sort(event.column_key, reverse=reverse)
 
     def on_mod_list_screen_mod_loaded(self, event: ModLoaded) -> None:
         self.add_mod_row(event.mod)
@@ -436,7 +434,7 @@ class ModListScreen(Screen):
         if "unhide" in f.classes:
             self.query_one("#ml_filter").focus()
         else:
-            self.get_active_table()[0].focus()
+            self.get_active_table().focus()
 
     def action_view_log(self) -> None:
         # TODO: This requires loading log twice, need to flush log before this
@@ -468,9 +466,9 @@ class ModListScreen(Screen):
             )
         )
 
-    def get_active_table(self) -> tuple[DataTable, int]:
+    def get_active_table(self) -> DataTable:
         table_id = "#ml_workshop_dt"
-        return next(self.query(table_id).results(DataTable)), table_id[1:]
+        return next(self.query(table_id).results(DataTable))
 
     def get_current_row_key(self) -> RowKey:
         id = "ml_workshop_dt"
@@ -478,7 +476,7 @@ class ModListScreen(Screen):
         if table.is_valid_coordinate(table.cursor_coordinate):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         else:
-            row_key = ""
+            row_key = RowKey("")
         return row_key
 
     def on_key(self, event: Key):
@@ -491,11 +489,11 @@ class ModListScreen(Screen):
 
         if event.key == "escape":
             if filter_open:
-                f = self.query_one("#ml_filter")
+                f = self.query_one("#ml_filter", expect_type=Input)
                 if "focus-within" in fc.pseudo_classes:
                     fc.remove_class("unhide")
                     f.value = ""
-                    table, _ = self.get_active_table()
+                    table = self.get_active_table()
                     table.focus()
                 else:
                     fc.remove_class("unhide")
@@ -506,31 +504,31 @@ class ModListScreen(Screen):
 
         elif event.key == "up":
             if filter_open:
-                table, _ = self.get_active_table()
+                table = self.get_active_table()
                 row, col = table.cursor_coordinate
                 if row > 0:
-                    table.cursor_coordinate = (row - 1, col)
+                    table.cursor_coordinate = Coordinate(row - 1, col)
                     event.stop()
 
         elif event.key == "down":
             if filter_open:
-                table, _ = self.get_active_table()
+                table = self.get_active_table()
                 row, col = table.cursor_coordinate
                 if row < table.row_count - 1:
-                    table.cursor_coordinate = (row + 1, col)
+                    table.cursor_coordinate = Coordinate(row + 1, col)
                     event.stop()
 
         elif event.key == "enter":
             # Select requires two activations (to simulate double click with mouse)
             # However, we want single enter to select a row.  Also, we want enter to
             # auto-select row if filter is enabled.
-            table, _ = self.get_active_table()
+            table = self.get_active_table()
             f = self.query_one("#ml_filter_center")
             if "focus-within" in f.pseudo_classes:
                 if self.filter == "":
                     table.focus()
                     f.toggle_class("unhide")
-            row_key, _ = table.coordinate_to_cell_key((table.cursor_row, 0))
+            row_key, _ = table.coordinate_to_cell_key(Coordinate(table.cursor_row, 0))
             # The row selected event will run after this, normally the first
             # row selected event will be ignored (so that single mouse clicks
             # do not jump immediately into the asset screen).  However, when
@@ -568,7 +566,8 @@ class ModListScreen(Screen):
         id = "ml_workshop_dt"
         table = next(self.query("#" + id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        self.post_message(self.ModRefresh(row_key.value))
+        if row_key.value is not None:
+            self.post_message(self.ModRefresh(row_key.value))
 
     def action_content_name_report(self):
         config = load_config()

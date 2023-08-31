@@ -278,13 +278,14 @@ class AssetListScreen(Widget):
         return trail
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
-        if self.all_nodes and "#" in event.row_key.value:
-            url, i = event.row_key.value.split("#")
-            trail = self.assets[event.row_key.value]["trail"][int(i)]
-        else:
-            url = event.row_key.value
-            trail = ""
-        self.post_message(self.AssetSelected(url, self.mod_filename, trail))
+        if event.row_key.value is not None:
+            if self.all_nodes and "#" in event.row_key.value:
+                url, i = event.row_key.value.split("#")
+                trail = self.assets[event.row_key.value]["trail"][int(i)]
+            else:
+                url = event.row_key.value
+                trail = ""
+            self.post_message(self.AssetSelected(url, self.mod_filename, trail))
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
         if self.last_sort_key == event.column_key.value:

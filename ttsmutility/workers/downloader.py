@@ -249,7 +249,7 @@ class FileDownload(Widget):
             return "Retries exhausted", self.make_asset()
 
         if error is None:
-            filepath = os.path.join(self.mod_dir, self.filename)
+            filepath = os.path.join(self.mod_dir, str(self.filename))
             self.filesize = os.path.getsize(filepath)
             self.mtime = os.path.getmtime(filepath)
             self.post_message(

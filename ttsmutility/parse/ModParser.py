@@ -1,6 +1,5 @@
 import json
 import re
-from pathlib import Path
 
 from ..parse.FileFinder import (
     ALL_VALID_EXTS,
@@ -42,7 +41,7 @@ class ModParser:
         "Tags",
     ]
 
-    def __init__(self, modpath: Path) -> None:
+    def __init__(self, modpath: str) -> None:
         self.modpath = modpath
         self.mod_info = {}
         for field in self.MOD_INFO_FIELDS:
@@ -105,7 +104,7 @@ class ModParser:
             if k == "AudioLibrary":
                 for elem in v:
                     # Found mod that has an empty audio library, skip it
-                    if len(elem) > 0:
+                    if isinstance(elem, dict):
                         try:
                             # It appears that AudioLibrary items are mappings of form
                             # “Item1” → URL, “Item2” → audio title.
