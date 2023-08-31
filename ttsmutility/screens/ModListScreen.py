@@ -2,7 +2,6 @@ import csv
 import glob
 from aiopath import AsyncPath
 from dataclasses import dataclass
-from itertools import filterfalse
 from pathlib import Path
 from queue import Empty, Queue
 from typing import NamedTuple
@@ -11,6 +10,7 @@ from webbrowser import open as open_url
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
 from textual import work
+from textual._two_way_dict import TwoWayDict
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -20,6 +20,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input
 from textual.widgets.data_table import CellDoesNotExist, RowKey
 from textual.worker import get_current_worker
+from typing_extensions import Self
 
 from ..data.config import config_file, load_config
 from ..dialogs.HelpDialog import HelpDialog
@@ -32,6 +33,46 @@ from ..utility.messages import UpdateLog
 from ..utility.util import MyText, format_time, make_safe_filename
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
+
+
+class DataTableFilter(DataTable):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._unfiltered_data = None
+        self._unfiltered_rows = None
+
+    def filter(self, column: str, f) -> Self:
+        if f == "":
+            if self._unfiltered_data is not None:
+                self._data = self._unfiltered_data
+                self._unfiltered_data = None
+
+                self.rows = self._unfiltered_rows
+                self._unfiltered_rows = None
+        else:
+            if self._unfiltered_data is None:
+                self._unfiltered_data = self._data
+                self._unfiltered_rows = self.rows
+
+            self._data = dict(
+                filter(
+                    lambda x: True if f.lower() in str(x[1][column]).lower() else False,
+                    self._unfiltered_data.items(),
+                )
+            )
+            self.rows = dict(
+                [
+                    (row_key, self._unfiltered_rows[row_key])
+                    for row_key in self._data.keys()
+                ]
+            )
+
+        self._row_locations = TwoWayDict(
+            {key: new_index for new_index, (key, _) in enumerate(self._data.items())}
+        )
+        self._update_count += 1
+        self.refresh()
+        return self
 
 
 class ModListScreen(Screen):
@@ -109,7 +150,7 @@ class ModListScreen(Screen):
                 disabled=True,
                 id="ml_filter",
             )
-        yield DataTable(id="ml_workshop_dt")
+        yield DataTableFilter(id="ml_workshop_dt")
 
     class ModRefresh(Message):
         def __init__(self, mod_filename: str) -> None:
@@ -316,35 +357,13 @@ class ModListScreen(Screen):
         self.filter_timer = None
 
         row_key = self.get_current_row_key()
-        if len(self.filter) > len(self.prev_filter):
-            # Filter is getting longer, so we are going to be removing rows
-            filenames_to_remove = list(
-                filterfalse(
-                    lambda x: self.filter.lower() in self.active_rows[x].lower(),
-                    self.active_rows.keys(),
-                )
-            )
-            id = "#ml_workshop_dt"
-            table = next(self.query(id).results(DataTable))
-            for i, filename in enumerate(filenames_to_remove):
-                table.remove_row(filename)
-                self.filtered_rows[filename] = self.active_rows[filename]
-                self.active_rows.pop(filename)
-        else:
-            # Filter is getting shorter, so we may be adding rows (if any now match)
-            filenames_to_add = list(
-                filter(
-                    lambda x: self.filter.lower() in self.filtered_rows[x].lower(),
-                    self.filtered_rows.keys(),
-                )
-            )
-            for i, filename in enumerate(filenames_to_add):
-                self.filtered_rows.pop(filename)
-                self.add_mod_row(self.mods[filename])
-                # self.active_rows is updated in the add_mod_row function
-            self.get_active_table()[0].sort(
-                self.last_sort_key, reverse=self.sort_order[self.last_sort_key]
-            )
+
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
+        if self.filter != self.prev_filter:
+            table.filter("name", self.filter)
+
+        table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
 
         # Now jump to the previously selected row
         if row_key != "":
@@ -361,6 +380,8 @@ class ModListScreen(Screen):
         row_index = table._row_locations.get(row_key)
         if row_index is not None and table.is_valid_row_index(row_index):
             table.cursor_coordinate = (row_index, 0)
+        else:
+            table.cursor_coordinate = (0, 0)
 
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
