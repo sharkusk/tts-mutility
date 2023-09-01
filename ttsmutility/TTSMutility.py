@@ -361,11 +361,11 @@ class TTSMutility(App):
         # TODO: This isn't working since we can't bubble messages outside the DOM
         pass
 
-    def on_mod_list_screen_file_download_complete(
+    async def on_mod_list_screen_file_download_complete(
         self, event: ModListScreen.FileDownloadComplete
     ):
         asset_list = AssetList.AssetList()
-        asset_list.download_done(event.asset)
+        await asset_list.download_done(event.asset)
         # Find the mods being downloaded that contain this URL so we can update the status
         for mod_filename in self.mods_queued_dl:
             if event.asset["url"] in self.mods_queued_dl[mod_filename]:

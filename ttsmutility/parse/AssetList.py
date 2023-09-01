@@ -146,11 +146,11 @@ class AssetList:
                 )
         return assets
 
-    def download_done(self, asset: dict) -> None:
+    async def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
-        with sqlite3.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path) as db:
             if asset["filename"] is None or asset["filename"] == "":
-                db.execute(
+                await db.execute(
                     """
                     UPDATE tts_assets
                     SET
@@ -169,7 +169,7 @@ class AssetList:
                 if filename != "":
                     filename, ext = os.path.splitext(filename)
 
-                db.execute(
+                await db.execute(
                     """
                     UPDATE tts_assets
                     SET
@@ -195,7 +195,7 @@ class AssetList:
             if asset["dl_status"] == "":
                 # Set mod asset counts containing this asset to -1
                 # to represent an update to the system
-                db.execute(
+                await db.execute(
                     """
                     UPDATE tts_mods
                     SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
@@ -210,7 +210,7 @@ class AssetList:
                     """,
                     (asset["url"],),
                 )
-            db.commit()
+            await db.commit()
 
     def get_missing_assets(self, mod_filename: str) -> list:
         with sqlite3.connect(self.db_path) as db:
