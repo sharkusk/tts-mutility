@@ -212,6 +212,22 @@ MarkdownFence {
     padding: 0;
 }
 
+#al_filter_center {
+    visibility: hidden;
+    height: 0;
+}
+
+#al_filter_center.unhide {
+    visibility: visible;
+    height: auto;
+    padding: 0;
+}
+
+#al_filter {
+    border: round $accent;
+    background: $surface;
+}
+
 #asset-list {
     width: 100%;
     padding-left: 1;

@@ -327,7 +327,7 @@ class ModListScreen(Screen):
         id = "#ml_workshop_dt"
         table = next(self.query(id).results(DataTableFilter))
         if self.filter != self.prev_filter:
-            table.filter("name", self.filter)
+            table.filter(self.filter, "name")
 
         table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
 

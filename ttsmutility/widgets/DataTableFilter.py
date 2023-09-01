@@ -19,7 +19,7 @@ class DataTableFilter(DataTable):
         self._unfiltered_data: None | dict[RowKey, dict[ColumnKey, CellType]] = None
         self._unfiltered_rows: None | dict[RowKey, Row] = None
 
-    def filter(self, column: str, f: str) -> Self:
+    def filter(self, f: str, *columns: str) -> Self:
         if f == "":
             if self._unfiltered_data is not None:
                 self._data = self._unfiltered_data
@@ -33,9 +33,15 @@ class DataTableFilter(DataTable):
             if self._unfiltered_rows is None:
                 self._unfiltered_rows = self.rows
 
+            def multi_col_filter(x):
+                for col in columns:
+                    if f.lower() in str(x[1][col]).lower():
+                        return True
+                return False
+
             self._data = dict(
                 filter(
-                    lambda x: True if f.lower() in str(x[1][column]).lower() else False,
+                    multi_col_filter,
                     self._unfiltered_data.items(),
                 )
             )

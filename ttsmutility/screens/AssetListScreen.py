@@ -1,20 +1,28 @@
-import asyncio
 from pathlib import Path
 
 from textual import work
 from textual.app import ComposeResult
+from textual.containers import Center
+from textual.coordinate import Coordinate
+from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Header, Label
+from textual.widgets import DataTable, Header, Input, Label
+from textual.widgets.data_table import RowKey
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
 from ..utility.util import MyText, format_time, make_safe_filename
+from ..widgets.DataTableFilter import DataTableFilter
 
 
-class AllAssetScreen(Screen):
+class AllAssets(Screen):
+    BINDINGS = [
+        ("escape", "app.pop_screen", "OK"),
+    ]
+
     def __init__(self, filename, mod_name):
         super().__init__()
         self.filename = filename
@@ -32,6 +40,7 @@ class AllAssetScreen(Screen):
 
 class AssetListScreen(Widget):
     BINDINGS = [
+        ("/", "filter", "Filter"),
         ("d", "download_asset", "Download Asset"),
         ("r", "missing_report", "Missing Report"),
         ("i", "ignore_missing", "Ignore Missing"),
@@ -72,17 +81,26 @@ class AssetListScreen(Widget):
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
 
+        self.filter = ""
+        self.prev_filter = ""
         self.updated_counts = False
 
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        yield DataTable(id=self.al_id)
+        with Center(id="al_filter_center"):
+            yield Input(
+                placeholder="Loading. Please wait...",
+                disabled=True,
+                id="al_filter",
+            )
+        yield DataTableFilter(id=self.al_id)
 
     def on_mount(self) -> None:
         self.sort_order = {
             "url": False,
             "ext": False,
+            "name": False,
             "mtime": False,
             "trail": False,
             "fsize": False,
@@ -139,8 +157,14 @@ class AssetListScreen(Widget):
         table.sort("trail", reverse=self.sort_order["trail"])
         self.last_sort_key = "trail"
 
+        f = self.query_one("#al_filter", expect_type=Input)
+        f.placeholder = "Filter"
+        f.disabled = False
+
         if not self.all_nodes:
             self.check_for_matches()
+
+        table.focus()
 
     def format_long_entry(self, entry, width):
         if not entry or len(entry) < width:
@@ -359,4 +383,93 @@ class AssetListScreen(Widget):
         if self.all_nodes:
             return
 
-        self.app.push_screen(AllAssetScreen(self.mod_filename, self.mod_name))
+        self.app.push_screen(AllAssets(self.mod_filename, self.mod_name))
+
+    def action_filter(self) -> None:
+        f = self.query_one("#al_filter_center")
+        if self.filter == "":
+            f.toggle_class("unhide")
+        if "unhide" in f.classes:
+            self.query_one("#al_filter").focus()
+        else:
+            self.get_active_table().focus()
+
+    def on_key(self, event: Key):
+        fc = self.query_one("#al_filter_center")
+        # Check if our filter window is open...
+        if "unhide" in fc.classes:
+            filter_open = True
+        else:
+            filter_open = False
+
+        if event.key == "escape":
+            if filter_open:
+                f = self.query_one("#al_filter", expect_type=Input)
+                if "focus-within" in fc.pseudo_classes:
+                    fc.remove_class("unhide")
+                    f.value = ""
+                    table = self.get_active_table()
+                    table.focus()
+                else:
+                    fc.remove_class("unhide")
+                    # Focus is elsewhere, clear the filter
+                    # alue and close the filter window
+                    f.value = ""
+                event.stop()
+
+        elif event.key == "up":
+            if filter_open:
+                table = self.get_active_table()
+                row, col = table.cursor_coordinate
+                if row > 0:
+                    table.cursor_coordinate = Coordinate(row - 1, col)
+                    event.stop()
+
+        elif event.key == "down":
+            if filter_open:
+                table = self.get_active_table()
+                row, col = table.cursor_coordinate
+                if row < table.row_count - 1:
+                    table.cursor_coordinate = Coordinate(row + 1, col)
+                    event.stop()
+
+    def on_input_changed(self, event: Input.Changed):
+        self.filter = event.input.value
+        self.update_filtered_rows()
+
+    def update_filtered_rows(self) -> None:
+        self.filter_timer = None
+
+        row_key = self.get_current_row_key()
+
+        table = self.get_active_table()
+        if self.filter != self.prev_filter:
+            table.filter(self.filter, "name", "trail", "url")
+
+        table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
+
+        # Now jump to the previously selected row
+        if row_key != "":
+            self.call_after_refresh(self.jump_to_row_key, row_key)
+
+        self.prev_filter = self.filter
+
+    def get_current_row_key(self) -> RowKey:
+        table = self.get_active_table()
+        if table.is_valid_coordinate(table.cursor_coordinate):
+            row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        else:
+            row_key = RowKey("")
+        return row_key
+
+    def jump_to_row_key(self, row_key):
+        table = self.get_active_table()
+        # TODO: Remove internal API calls once Textual #2876 is published
+        row_index = table._row_locations.get(row_key)
+        if row_index is not None and table.is_valid_row_index(row_index):
+            table.cursor_coordinate = Coordinate(row_index, 0)
+        else:
+            table.cursor_coordinate = Coordinate(0, 0)
+
+    def get_active_table(self) -> DataTable:
+        return next(self.query("#" + self.al_id).results(DataTable))

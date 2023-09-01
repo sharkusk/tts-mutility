@@ -886,6 +886,8 @@ class AssetList:
                     asset_url IS NOT NULL
                     AND
                     asset_size > 0
+                    AND
+                    asset_dl_status == ""
                 """,
             )
             if False:
