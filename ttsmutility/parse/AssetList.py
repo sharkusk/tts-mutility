@@ -1106,6 +1106,80 @@ class AssetList:
 
         return matches
 
+    async def find_asset_a(self, url, trail=None):
+        matches = []
+
+        async with aiosqlite.connect(self.db_path) as db:
+            content_name = get_content_name(url)
+            if content_name == "":
+                async with db.execute(
+                    """
+                    SELECT asset_content_name
+                    FROM tts_assets
+                    WHERE asset_url=?
+                    """,
+                    (url,),
+                ) as cursor:
+                    result = await cursor.fetchone()
+                if result is not None:
+                    content_name = result[0]
+
+            steam_sha1 = get_steam_sha1_from_url(url)
+
+            if steam_sha1 != "":
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_sha1=?
+                    """,
+                    (steam_sha1,),
+                ) as cursor:
+                    result = await cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "sha1"))
+
+            if content_name != "":
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name=?
+                    """,
+                    (content_name,),
+                ) as cursor:
+                    result = await cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Exact Name"))
+
+                # Ignore the extension for the fuuzzy searches
+                content_name = os.path.splitext(content_name)[0]
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + recodeURL(content_name) + "%",),
+                ) as cursor:
+                    result = await cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Fuzzy Recode"))
+
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + content_name + "%",),
+                ) as cursor:
+                    result = await cursor.fetchone()
+                if result is not None and result[0] != url:
+                    matches.append((result[0], "Fuzzy Name"))
+
+        return matches
+
     def get_asset(self, url: str, mod_filename: str = "") -> dict | None:
         with sqlite3.connect(self.db_path) as db:
             mods = self.get_mods_using_asset(url)

@@ -154,9 +154,8 @@ class AssetListScreen(Widget):
         asset_list = AssetList()
         table = next(self.query("#" + self.al_id).results(DataTable))
         for asset in self.assets.values():
-            await asyncio.sleep(0)
             if asset["fsize"] == 0:
-                if len(asset_list.find_asset(asset["url"])) > 0:
+                if len(await asset_list.find_asset_a(asset["url"])) > 0:
                     asset["fsize"] = -1.0
                     table.update_cell(
                         asset["url"], "fsize", asset["fsize"], update_width=True
