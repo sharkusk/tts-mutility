@@ -1,3 +1,4 @@
+import aiosqlite
 import os
 import os.path
 import pathlib
@@ -674,6 +675,28 @@ class AssetList:
             results = cursor.fetchall()
         return results
 
+    async def get_mods_using_asset_a(self, url: str) -> list:
+        results = []
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT mod_filename, mod_name
+                FROM tts_mods
+                WHERE id IN (
+                    SELECT mod_id_fk
+                    FROM tts_mod_assets
+                    WHERE asset_id_fk = (
+                        SELECT id
+                        FROM tts_assets
+                        WHERE asset_url=?
+                    )
+                )
+                """,
+                (url,),
+            ) as cursor:
+                results = await cursor.fetchall()
+        return results
+
     def get_mod_assets(
         self, mod_filename: str, parse_only=False, force_refresh=False, all_nodes=False
     ) -> list:
@@ -761,6 +784,64 @@ class AssetList:
                         trail = trails[result[0]]
                     else:
                         trail = result[7]
+                    asset_filename = os.path.join(path, filename) + ext
+                    assets.append(
+                        {
+                            "url": result[0],
+                            "filename": asset_filename,
+                            "mtime": result[4],
+                            "sha1": result[5],
+                            "steam_sha1": result[6],
+                            "trail": trail,
+                            "dl_status": result[8],
+                            "fsize": result[9],
+                            "content_name": result[10],
+                            "ignore_missing": result[11],
+                        }
+                    )
+
+        return assets
+
+    async def get_mod_assets_a(self, mod_filename: str) -> list:
+        assets = []
+        if mod_filename == "sha1":
+            return self.get_sha1_mismatches()
+
+        async with aiosqlite.connect(self.db_path) as db:
+            # Check if we have this mod in our DB
+            async with db.execute(
+                """
+                SELECT mod_mtime
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            ) as cursor:
+                result = await cursor.fetchone()
+
+            async with db.execute(
+                (
+                    """
+                SELECT
+                    asset_url, asset_path, asset_filename, asset_ext,
+                    asset_mtime, asset_sha1, asset_steam_sha1,
+                    mod_asset_trail, asset_dl_status, asset_size,
+                    asset_content_name, mod_asset_ignore_missing
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
+                WHERE mod_filename=?
+                """
+                ),
+                (mod_filename,),
+            ) as cursor:
+                async for result in cursor:
+                    path = result[1]
+                    filename = result[2]
+                    ext = result[3]
+                    trail = result[7]
                     asset_filename = os.path.join(path, filename) + ext
                     assets.append(
                         {

@@ -224,29 +224,29 @@ class TTSMutility(App):
             screen = self.get_screen("mod_details")
             screen.action_refresh_mod_details()
 
-    def on_ttsmutility_update_counts(self, event: UpdateCounts):
+    async def on_ttsmutility_update_counts(self, event: UpdateCounts):
         if self.is_screen_installed("mod_list"):
             screen = self.get_screen("mod_list")
-            screen.update_counts(
+            await screen.update_counts_a(
                 event.mod_filename,
                 event.counts["total"],
                 event.counts["missing"],
                 event.counts["size"],
             )
+        if False:
+            if self.is_screen_installed("mod_details"):
+                screen = self.get_screen("mod_details")
+                screen.action_refresh_mod_details()
 
-        if self.is_screen_installed("mod_details"):
-            screen = self.get_screen("mod_details")
-            screen.action_refresh_mod_details()
-
-    @work(thread=True, exclusive=True)
-    def refresh_mods(self) -> None:
+    @work(exclusive=True)
+    async def refresh_mods(self) -> None:
         mod_list = ModList.ModList()
         mod_asset_list = AssetList.AssetList()
 
-        mods = mod_list.get_mods_needing_asset_refresh()
+        mods = await mod_list.get_mods_needing_asset_refresh_a()
         for mod_filename in mods:
-            mod_asset_list.get_mod_assets(mod_filename, parse_only=True)
-            counts = mod_list.update_mod_counts(mod_filename)
+            await mod_asset_list.get_mod_assets_a(mod_filename)
+            counts = await mod_list.update_mod_counts_a(mod_filename)
 
             self.post_message(self.UpdateCounts(mod_filename, counts))
 

@@ -1,5 +1,6 @@
 import os.path
 import sqlite3
+import aiosqlite
 import time
 from datetime import datetime
 from glob import glob
@@ -92,6 +93,64 @@ class ModList:
 
         return sorted(combined)
 
+    async def get_mods_needing_asset_refresh_a(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT mod_filename
+                FROM tts_mods
+                WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1)""",
+            ) as cursor:
+                result = await cursor.fetchall()
+            # Results are returned as a list of tuples, unzip to a list of mod_filenames
+            if len(result) > 0:
+                part1 = list(list(zip(*result))[0])
+            else:
+                part1 = []
+
+            async with db.execute(
+                """
+                SELECT mod_filename
+                FROM tts_mods
+                WHERE id IN (
+                    SELECT mod_id_fk
+                    FROM tts_mod_assets
+                    WHERE asset_id_fk IN (
+                        SELECT id
+                        FROM tts_assets
+                        WHERE asset_new=1
+                    )
+                )
+                """,
+            ) as cursor:
+                result = await cursor.fetchall()
+            if len(result) > 0:
+                part2 = list(list(zip(*result))[0])
+            else:
+                part2 = []
+
+            await db.executemany(
+                """
+                UPDATE tts_mods
+                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                WHERE mod_filename=?
+                """,
+                result,
+            )
+
+            combined = list(set(part1 + part2))
+
+            await db.execute(
+                """
+                UPDATE tts_assets
+                SET asset_new=0
+                """,
+            )
+
+            await db.commit()
+
+        return sorted(combined)
+
     def update_mod_counts(self, mod_filename):
         counts = {}
         with sqlite3.connect(self.db_path) as db:
@@ -116,6 +175,33 @@ class ModList:
             counts["missing"] = self._count_missing_assets(mod_filename)
         if counts["size"] == -1:
             counts["size"] = self._calc_asset_size(mod_filename)
+
+        return counts
+
+    async def update_mod_counts_a(self, mod_filename):
+        counts = {}
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+                SELECT mod_total_assets, mod_missing_assets, mod_size
+                FROM tts_mods
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            ) as cursor:
+                result = await cursor.fetchone()
+                if result is None:
+                    return
+                counts["total"] = result[0]
+                counts["missing"] = result[1]
+                counts["size"] = result[2]
+
+        if counts["total"] == -1:
+            counts["total"] = await self._count_total_assets_a(mod_filename)
+        if counts["missing"] == -1:
+            counts["missing"] = await self._count_missing_assets_a(mod_filename)
+        if counts["size"] == -1:
+            counts["size"] = await self._calc_asset_size_a(mod_filename)
 
         return counts
 
@@ -152,6 +238,39 @@ class ModList:
             db.commit()
         return mod_size
 
+    async def _calc_asset_size_a(self, filename: str) -> int:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+            SELECT SUM(asset_size)
+            FROM tts_assets
+            WHERE id IN (
+                SELECT asset_id_fk
+                FROM tts_mod_assets
+                WHERE mod_id_fk IN (
+                    SELECT id FROM tts_mods
+                    WHERE mod_filename=?
+                )
+            )
+            """,
+                (filename,),
+            ) as cursor:
+                result = await cursor.fetchone()
+            if result[0] is None:
+                mod_size = 0
+            else:
+                mod_size = result[0]
+            await db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_size=?
+                WHERE mod_filename=?
+                """,
+                (mod_size, filename),
+            )
+            await db.commit()
+        return mod_size
+
     def _count_total_assets(self, filename: str) -> int:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
@@ -172,6 +291,28 @@ class ModList:
                 (result[0], filename),
             )
             db.commit()
+        return result[0]
+
+    async def _count_total_assets_a(self, filename: str) -> int:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
+                """
+            SELECT COUNT(asset_id_fk)
+            FROM tts_mod_assets
+            WHERE mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+            """,
+                (filename,),
+            ) as cursor:
+                result = await cursor.fetchone()
+            await db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_total_assets=?
+                WHERE mod_filename=?
+                """,
+                (result[0], filename),
+            )
+            await db.commit()
         return result[0]
 
     def _count_missing_assets(self, filename: str) -> int:
@@ -198,6 +339,32 @@ class ModList:
                 (result[0], filename),
             )
             db.commit()
+        return result[0]
+
+    async def _count_missing_assets_a(self, filename: str) -> int:
+        async with aiosqlite.connect(self.db_path) as db:
+            query = """
+            SELECT COUNT(asset_id_fk)
+            FROM tts_mod_assets
+                WHERE (
+                    mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+                    AND
+                    asset_id_fk IN (SELECT id FROM tts_assets WHERE asset_mtime=?)
+                    AND
+                    mod_asset_ignore_missing=0
+                )
+            """
+            async with db.execute(query, (filename, 0)) as cursor:
+                result = await cursor.fetchone()
+            await db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_missing_assets=?
+                WHERE mod_filename=?
+                """,
+                (result[0], filename),
+            )
+            await db.commit()
         return result[0]
 
     def get_mod_details(self, filename: str) -> dict:

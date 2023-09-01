@@ -43,7 +43,7 @@ class ModListScreen(Screen):
         ) -> None:
             super().__init__()
             self.asset = asset
-    
+
     class DownloadEntry(NamedTuple):
         url: str
         trail: list
@@ -349,6 +349,40 @@ class ModListScreen(Screen):
     def update_counts(self, mod_filename, total_assets, missing_assets, size):
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
+        self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
+
+        id = "#ml_workshop_dt"
+        table = next(self.query(id).results(DataTable))
+
+        row_key = mod_filename
+        if row_key not in self.mods:
+            return
+
+        name = self.clean_name(self.mods[row_key]["name"])
+        if self.mods[row_key]["filename"] in self.infected_filenames:
+            name = MyText(name, style="#FF0000")
+        elif self.mods[row_key]["deleted"]:
+            name = MyText(name, style="strike")
+
+        # We need to update both our internal asset information
+        # and what is shown on the table...
+        self.mods[row_key]["total_assets"] = total_assets
+        self.mods[row_key]["missing_assets"] = missing_assets
+        self.mods[row_key]["size"] = size
+
+        try:
+            table.update_cell(row_key, "name", name)
+            table.update_cell(row_key, "total_assets", total_assets)
+            table.update_cell(row_key, "missing_assets", missing_assets)
+            table.update_cell(row_key, "size", size / (1024 * 1024))
+        except CellDoesNotExist:
+            # This can happen if some of our mods are filtered and an
+            # asset is shared with a filtered one that isn't being displayed.
+            pass
+
+    async def update_counts_a(self, mod_filename, total_assets, missing_assets, size):
+        asset_list = AssetList()
+        infected_mods = await asset_list.get_mods_using_asset_a(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
 
         id = "#ml_workshop_dt"
