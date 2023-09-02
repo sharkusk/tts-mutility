@@ -453,19 +453,27 @@ class BggSearch:
         d = bytearray()
         i = 0
         while i < len(s):
-            if s[i] != "&":
-                d.append(ord(s[i]))
-            else:
-                if s[i + 1] == "#":
-                    e = s.find(";", i + 2)
-                    if e != -1:
-                        code = int(s[i + 2 : e])
-                        d.append(code)
-                        i = e
-                    else:
-                        d.append(ord(s[i]))
+            # Find potential escaped character
+            e = s.find("&#", i)
+            if e != i:
+                # Copy all characters up to the escaped character
+                if e == -1:
+                    e = len(s)
+                d += s[i:e].encode("latin-1")
+                i = e
+            if e == i and i != len(s):
+                # Find end mark for escaped character
+                e = s.find(";", i + 2)
+                # Max value of escaped char is '255' (len of 3 or less)
+                if e != -1 and e - (i + 2) <= 3:
+                    # Got an escaped character
+                    code = int(s[i + 2 : e])
+                    d.append(code)
+                    i = e + 1
                 else:
+                    # We were fooled by text using &# but this does not seem to be
+                    # an actual escaped character
                     d.append(ord(s[i]))
-            i += 1
+                    i += 1
 
         return d.decode("utf-8")
