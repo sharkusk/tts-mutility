@@ -179,9 +179,14 @@ class BggSearch:
                 # For some reason BGG lists do not contain anything other
                 # than 4 or 5 spaces.  Replace with appropriate markdown
                 # compatible lists.
-                game_info[d.tag] = (
-                    unescape(d.text).replace("     ", "- ").replace("    ", "- ")
-                )
+                if d.tag == "description":
+                    game_info[d.tag] = (
+                        self.bgg_unescape(d.text)
+                        .replace("     ", "- ")
+                        .replace("    ", "- ")
+                    )
+                else:
+                    game_info[d.tag] = unescape(d.text)
             elif d.tag in self.BGG_FIELDS:
                 game_info[d.tag] = d.attrib["value"]
             elif d.tag == "link" and d.attrib["type"] in self.BGG_FIELDS:
@@ -437,3 +442,30 @@ class BggSearch:
             )
 
         return steam_info
+
+    def bgg_unescape(self, s):
+        """
+        BGG descriptions encode utf-8 as a series of encoded bytes
+        Eg. "&#232;&#128;&#129;&#229;&#184;&#171;&#230;&#149;&#172;&#230;&#156;&#141;"
+        This violates HTML/XML specs so Python cannot handle it properly.
+        See the following: https://github.com/python/cpython/issues/108802
+        """
+        d = bytearray()
+        i = 0
+        while i < len(s):
+            if s[i] != "&":
+                d.append(ord(s[i]))
+            else:
+                if s[i + 1] == "#":
+                    e = s.find(";", i + 2)
+                    if e != -1:
+                        code = int(s[i + 2 : e])
+                        d.append(code)
+                        i = e
+                    else:
+                        d.append(ord(s[i]))
+                else:
+                    d.append(ord(s[i]))
+            i += 1
+
+        return d.decode("utf-8")
