@@ -140,13 +140,6 @@ class ModList:
 
             combined = list(set(part1 + part2))
 
-            await db.execute(
-                """
-                UPDATE tts_assets
-                SET asset_new=0
-                """,
-            )
-
             await db.commit()
 
         return sorted(combined)
