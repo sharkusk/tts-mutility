@@ -181,7 +181,7 @@ class BggSearch:
                 # compatible lists.
                 if d.tag == "description":
                     game_info[d.tag] = (
-                        self.bgg_unescape(d.text)
+                        self.unescape_utf8(d.text)
                         .replace("     ", "- ")
                         .replace("    ", "- ")
                     )
@@ -443,11 +443,13 @@ class BggSearch:
 
         return steam_info
 
-    def bgg_unescape(self, s):
+    def unescape_utf8(self, s):
         """
-        BGG descriptions encode utf-8 as a series of encoded bytes
+        This function treats escaped codes as utf-8 sequences, rather than unicode values.
+        BGG descriptions encode utf-8 as a series of encoded utf-8 bytes
         Eg. "&#232;&#128;&#129;&#229;&#184;&#171;&#230;&#149;&#172;&#230;&#156;&#141;"
-        This violates HTML/XML specs so Python cannot handle it properly.
+        This violates HTML/XML specs so Python's unescape() treats these as unicode
+        values instead of utf-8 sequences.
         See the following: https://github.com/python/cpython/issues/108802
         """
         d = bytearray()
@@ -465,8 +467,8 @@ class BggSearch:
                 # Find end mark for escaped character
                 e = s.find(";", i + 2)
                 # Max value of escaped char is '255' (len of 3 or less)
-                if e != -1 and e - (i + 2) <= 3:
-                    # Got an escaped character
+                if e != -1 and e - (i + 2) <= 3 and s[i + 2 : e].isdigit():
+                    # Got an escaped utf-8 code
                     code = int(s[i + 2 : e])
                     d.append(code)
                     i = e + 1
