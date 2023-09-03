@@ -371,7 +371,7 @@ class ModList:
                     mod_version, mod_game_mode, mod_game_type,
                     mod_game_complexity, mod_min_players, mod_max_players,
                     mod_min_play_time, mod_max_play_time, mod_bgg_id,
-                    mod_backup_time, mod_fetch_time, mod_max_asset_mtime
+                    mod_backup_time, mod_max_asset_mtime
                 FROM
                     tts_mods
                 WHERE
@@ -398,8 +398,7 @@ class ModList:
                 "max_play_time": result[14],
                 "bgg_id": result[15],
                 "backup_time": result[16],
-                "fetch_time": result[17],
-                "newest_asset": result[18],
+                "newest_asset": result[17],
             }
             cursor = db.execute(
                 """
@@ -696,21 +695,6 @@ class ModList:
                     mod_filename=?
                 """,
                 (bgg_id, mod_filename),
-            )
-            db.commit()
-
-    def set_fetch_time(self, mod_filename: str, fetch_time: float) -> None:
-        with sqlite3.connect(self.db_path) as db:
-            db.execute(
-                """
-                UPDATE
-                    tts_mods
-                SET
-                    mod_fetch_time=?
-                WHERE
-                    mod_filename=?
-                """,
-                (fetch_time, mod_filename),
             )
             db.commit()
 

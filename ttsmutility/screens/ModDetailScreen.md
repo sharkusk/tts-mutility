@@ -5,7 +5,7 @@
 | Mod Details | |
 |------------------------------:|:--------------------------|
 | Mod Creation Time             | {epoch}                   |
-| Size on Disk                  | {size:,.2f} KBytes        |
+| Size on Disk                  | {size}                    |
 | Total Number of Assets        | {total_assets:,}          |
 | Missing Assets                | {missing_assets:,}        |
 | TTS Version                   | {version}                 |
@@ -15,7 +15,6 @@
 | Player Count                  | {min_players} - {max_players}     |
 | Play Time                     | {min_play_time} - {max_play_time} |
 | File Modified Time            | {mtime}                   |
-| Mod Download Time             | {fetch_time}              |
 | Mod Backup Time               | {backup_time}             |
 | Newest Asset Time             | {newest_asset}            |
 

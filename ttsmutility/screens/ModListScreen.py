@@ -270,7 +270,10 @@ class ModListScreen(Screen):
         for mod_filename in self.mods.keys():
             name = Path(mod_filename).name
             if name in backup_times:
-                if backup_times[name] > self.mods[mod_filename]["epoch"]:
+                if (
+                    backup_times[name] > self.mods[mod_filename]["epoch"]
+                    and backup_times[name] > self.mods[mod_filename]["newest_asset"]
+                ):
                     b = " ✓ "
                 else:
                     b = " ! "

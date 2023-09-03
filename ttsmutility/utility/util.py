@@ -124,3 +124,11 @@ def detect_file_type(filepath):
                 return ext
         else:
             return ""
+
+
+def sizeof_fmt(num, suffix="B"):
+    for i, unit in enumerate(("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi")):
+        if abs(num) < 1024.0:
+            return f"{num:3.{i}f} {unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.{i}f} Yi{suffix}"

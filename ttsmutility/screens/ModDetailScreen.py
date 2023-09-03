@@ -21,7 +21,7 @@ from ..parse.AssetList import AssetList
 from ..parse.BggSearch import BggSearch
 from ..parse.ModList import ModList
 from ..parse.ModParser import INFECTION_URL
-from ..utility.util import format_time
+from ..utility.util import format_time, sizeof_fmt
 from .AssetListScreen import AssetListScreen
 
 
@@ -114,12 +114,18 @@ class ModDetailScreen(Screen):
         tc.add_pane(pane, before="md_pane_assets")
 
     def on_mount(self):
-        self.query_one("#md_markdown_mod", expect_type=Markdown).update(self.get_markdown())
+        self.query_one("#md_markdown_mod", expect_type=Markdown).update(
+            self.get_markdown()
+        )
         if self.in_workshop:
-            self.query_one("#md_markdown_steam", expect_type=Markdown).update(self.get_markdown_steam())
+            self.query_one("#md_markdown_steam", expect_type=Markdown).update(
+                self.get_markdown_steam()
+            )
         if self.mod_detail["bgg_id"] is not None:
             self.insert_bgg_tab()
-            self.query_one("#md_markdown_bgg", expect_type=Markdown).update(self.get_markdown_bgg())
+            self.query_one("#md_markdown_bgg", expect_type=Markdown).update(
+                self.get_markdown_bgg()
+            )
         self.query_one("#title", expect_type=Label).update(self.mod_detail["name"])
         if self.is_infected():
             iw = self.query_one("#infection_warning", expect_type=Label)
@@ -177,11 +183,10 @@ class ModDetailScreen(Screen):
         else:
             mod_detail["mod_image"] = ""
 
-        mod_detail["size"] = mod_detail["size"] / (1024)
-        mod_detail["mtime"] = time.ctime(mod_detail["mtime"])
-        mod_detail["epoch"] = time.ctime(mod_detail["epoch"])
+        mod_detail["size"] = sizeof_fmt(int(mod_detail["size"]))
+        mod_detail["mtime"] = format_time(mod_detail["mtime"], "N/A")
+        mod_detail["epoch"] = format_time(mod_detail["epoch"], "N/A")
         mod_detail["backup_time"] = format_time(mod_detail["backup_time"], "N/A")
-        mod_detail["fetch_time"] = format_time(mod_detail["fetch_time"], "N/A")
         mod_detail["newest_asset"] = format_time(mod_detail["newest_asset"], "N/A")
         if "Workshop" in self.filename:
             mod_detail["uri"] = (self.mod_dir / self.filename).as_uri()
@@ -397,7 +402,9 @@ class ModDetailScreen(Screen):
         asset_list = AssetList()
         asset_list.get_mod_assets(self.filename, parse_only=True, force_refresh=True)
 
-        self.query_one("#md_markdown_mod", expect_type=Markdown).update(self.get_markdown())
+        self.query_one("#md_markdown_mod", expect_type=Markdown).update(
+            self.get_markdown()
+        )
         if self.mod_detail["bgg_id"] is not None:
             self.query_one("#md_markdown_bgg", expect_type=Markdown).update(
                 self.get_markdown_bgg(force_update=True)
