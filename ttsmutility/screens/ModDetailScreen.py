@@ -48,8 +48,11 @@ class ModDetailScreen(Screen):
         self.app.workers.cancel_node(self)
         self.app.pop_screen()
 
-    def __init__(self, filename: str, force_md_update: bool = False) -> None:
+    def __init__(
+        self, filename: str, backup_time: float, force_md_update: bool = False
+    ) -> None:
         self.filename = filename
+        self.backup_time = backup_time
         self.in_workshop = True
         if self.filename.find("Saves") == 0:
             self.in_workshop = False
@@ -186,7 +189,7 @@ class ModDetailScreen(Screen):
         mod_detail["size"] = sizeof_fmt(int(mod_detail["size"]))
         mod_detail["mtime"] = format_time(mod_detail["mtime"], "N/A")
         mod_detail["epoch"] = format_time(mod_detail["epoch"], "N/A")
-        mod_detail["backup_time"] = format_time(mod_detail["backup_time"], "N/A")
+        mod_detail["backup_time"] = format_time(self.backup_time)
         mod_detail["newest_asset"] = format_time(mod_detail["newest_asset"], "N/A")
         if "Workshop" in self.filename:
             mod_detail["uri"] = (self.mod_dir / self.filename).as_uri()

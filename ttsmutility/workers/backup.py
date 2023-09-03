@@ -151,7 +151,6 @@ class ModBackup(Widget):
             os.remove(zip_path)
         else:
             self.post_message(UpdateLog("Backup complete."))
-            mod_list.set_backup_time(mod_filename, backup_time)
 
         self.post_message(self.BackupComplete(mod_filename))
         self.mod_filenames.task_done()

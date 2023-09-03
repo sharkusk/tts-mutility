@@ -394,7 +394,8 @@ class TTSMutility(App):
 
     def on_mod_list_screen_mod_selected(self, event: ModListScreen.ModSelected):
         self.load_screen(
-            ModDetailScreen(event.filename, self.force_md_update), "mod_details"
+            ModDetailScreen(event.filename, event.backup_time, self.force_md_update),
+            "mod_details",
         )
 
     def on_mod_list_screen_backup_selected(self, event: ModListScreen.BackupSelected):

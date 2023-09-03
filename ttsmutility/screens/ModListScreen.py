@@ -118,8 +118,9 @@ class ModListScreen(Screen):
             super().__init__()
 
     class ModSelected(Message):
-        def __init__(self, mod_filename: str) -> None:
+        def __init__(self, mod_filename: str, backup_time: float) -> None:
             self.filename = mod_filename
+            self.backup_time = backup_time
             super().__init__()
 
     class ModLoaded(Message):
@@ -195,6 +196,7 @@ class ModListScreen(Screen):
         table.sort(self.last_sort_key, reverse=self.sort_order[self.last_sort_key])
         table.focus()
 
+        self.backup_times = {}
         self.update_backup_status()
 
     def load_mods(self) -> None:
@@ -253,7 +255,6 @@ class ModListScreen(Screen):
         if not Path(config.mod_backup_dir).exists():
             return
 
-        backup_times = {}
         async for bf in AsyncPath(config.mod_backup_dir).glob("*.zip"):
             stat = await bf.stat()
             name = bf.name
@@ -265,14 +266,15 @@ class ModListScreen(Screen):
                 s = name.rfind("[", 0, s)
                 t = name.rfind("]", 0, t)
             mod_filename = name[s + 1 : e] + ".json"
-            backup_times[mod_filename] = stat.st_mtime
+            self.backup_times[mod_filename] = stat.st_mtime
 
         for mod_filename in self.mods.keys():
             name = Path(mod_filename).name
-            if name in backup_times:
+            if name in self.backup_times:
                 if (
-                    backup_times[name] > self.mods[mod_filename]["epoch"]
-                    and backup_times[name] > self.mods[mod_filename]["newest_asset"]
+                    self.backup_times[name] > self.mods[mod_filename]["epoch"]
+                    and self.backup_times[name]
+                    > self.mods[mod_filename]["newest_asset"]
                 ):
                     b = " ✓ "
                 else:
@@ -420,7 +422,13 @@ class ModListScreen(Screen):
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if event.row_key.value is not None:
             if self.prev_selected is not None and event.row_key == self.prev_selected:
-                self.post_message(self.ModSelected(event.row_key.value))
+                mod_filename = event.row_key.value
+                name = Path(mod_filename).name
+                if name in self.backup_times:
+                    backup_time = self.backup_times[name]
+                else:
+                    backup_time = 0
+                self.post_message(self.ModSelected(mod_filename, backup_time))
             self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
