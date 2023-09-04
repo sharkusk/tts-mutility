@@ -382,7 +382,7 @@ class ModListScreen(Screen):
             table.update_cell(row_key, "name", name)
             table.update_cell(row_key, "total_assets", total_assets)
             table.update_cell(row_key, "missing_assets", missing_assets)
-            table.update_cell(row_key, "size", size / (1024 * 1024))
+            table.update_cell(row_key, "size", sizeof_fmt(size))
         except CellDoesNotExist:
             # This can happen if some of our mods are filtered and an
             # asset is shared with a filtered one that isn't being displayed.
@@ -416,7 +416,7 @@ class ModListScreen(Screen):
             table.update_cell(row_key, "name", name)
             table.update_cell(row_key, "total_assets", total_assets)
             table.update_cell(row_key, "missing_assets", missing_assets)
-            table.update_cell(row_key, "size", size / (1024 * 1024))
+            table.update_cell(row_key, "size", sizeof_fmt(size))
         except CellDoesNotExist:
             # This can happen if some of our mods are filtered and an
             # asset is shared with a filtered one that isn't being displayed.

@@ -180,7 +180,7 @@ class AssetListScreen(Widget):
         for asset in self.assets.values():
             if asset["fsize"] == 0 and asset["dl_status"] != "":
                 if len(await asset_list.find_asset_a(asset["url"])) > 0:
-                    asset["fsize"] = -1.0
+                    asset["fsize"] = "-1.0 B"
                     table.update_cell(
                         asset["url"], "size", asset["fsize"], update_width=True
                     )
