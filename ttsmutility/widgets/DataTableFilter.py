@@ -1,16 +1,19 @@
 from itertools import zip_longest
+from operator import itemgetter
+from typing import Any
 
 from rich.text import Text, TextType
 from textual._two_way_dict import TwoWayDict
 from textual.widgets import DataTable
 from textual.widgets.data_table import (
     CellDoesNotExist,
+    CellType,
+    ColumnKey,
     Row,
     RowKey,
-    ColumnKey,
-    CellType,
 )
 from typing_extensions import Self
+from ..utility.util import unsizeof_fmt
 
 
 class DataTableFilter(DataTable):
@@ -54,6 +57,41 @@ class DataTableFilter(DataTable):
 
         self._row_locations = TwoWayDict(
             {key: new_index for new_index, (key, _) in enumerate(self._data.items())}
+        )
+        self._update_count += 1
+        self.refresh()
+        return self
+
+    def sort(
+        self,
+        *columns: ColumnKey | str,
+        reverse: bool = False,
+        is_size: bool = False,
+    ) -> Self:
+        """Sort the rows in the `DataTable` by one or more column keys.
+
+        Args:
+            columns: One or more columns to sort by the values in.
+            reverse: If True, the sort order will be reversed.
+
+        Returns:
+            The `DataTable` instance.
+        """
+
+        def sort_by_column_keys(
+            row: tuple[RowKey, dict[ColumnKey | str, CellType]]
+        ) -> Any:
+            _, row_data = row
+            result = itemgetter(*columns)(row_data)
+            if "size" in columns:
+                result = unsizeof_fmt(result)
+            return result
+
+        ordered_rows = sorted(
+            self._data.items(), key=sort_by_column_keys, reverse=reverse
+        )
+        self._row_locations = TwoWayDict(
+            {key: new_index for new_index, (key, _) in enumerate(ordered_rows)}
         )
         self._update_count += 1
         self.refresh()

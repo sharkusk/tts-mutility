@@ -127,8 +127,19 @@ def detect_file_type(filepath):
 
 
 def sizeof_fmt(num, suffix="B"):
-    for i, unit in enumerate(("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi")):
+    for i, unit in enumerate(("  ", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi")):
         if abs(num) < 1024.0:
-            return f"{num:3.{i}f} {unit}{suffix}"
+            return f"{num:7.2f} {unit}{suffix}"
         num /= 1024.0
     return f"{num:.{i}f} Yi{suffix}"
+
+
+def unsizeof_fmt(size, suffix="B"):
+    for i, unit in enumerate(("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi")):
+        if f" {unit}{suffix}" in size:
+            try:
+                size = float(size[: size.find(f" {unit}{suffix}")]) * (1024.0**i)
+            except ValueError:
+                pass
+            break
+    return size

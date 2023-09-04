@@ -14,7 +14,7 @@ from textual.widgets.data_table import RowKey
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
-from ..utility.util import MyText, format_time, make_safe_filename
+from ..utility.util import MyText, format_time, make_safe_filename, sizeof_fmt
 from ..widgets.DataTableFilter import DataTableFilter
 
 
@@ -103,7 +103,7 @@ class AssetListScreen(Widget):
             "name": False,
             "mtime": False,
             "trail": False,
-            "fsize": False,
+            "size": False,
         }
         self.last_sort_key = "url"
 
@@ -112,7 +112,7 @@ class AssetListScreen(Widget):
         table.add_column("URL", width=self.url_width, key="url")
         table.add_column("Ext", key="ext")
         table.add_column("Content Name", key="name", width=25)
-        table.add_column("Size(KB)", key="fsize", width=9)
+        table.add_column("Size", key="size", width=12)
         table.add_column("Modified", key="mtime", width=25)
         table.add_column("Trail", key="trail")
 
@@ -182,7 +182,7 @@ class AssetListScreen(Widget):
                 if len(await asset_list.find_asset_a(asset["url"])) > 0:
                     asset["fsize"] = -1.0
                     table.update_cell(
-                        asset["url"], "fsize", asset["fsize"], update_width=True
+                        asset["url"], "size", asset["fsize"], update_width=True
                     )
 
     def format_url(self, url: str) -> str:
@@ -204,15 +204,6 @@ class AssetListScreen(Widget):
         return f"{url[:start_length-1]}..{url_end[len(url_end)-end_length:]}"
 
     def format_asset(self, asset: dict) -> dict:
-        def sizeof_fmt(num, suffix="B"):
-            if num == 0:
-                return ""
-            for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-                if abs(num) < 1024.0:
-                    return f"{num:3.1f} {unit}{suffix}"
-                num /= 1024.0
-            return f"{num:.1f} Yi{suffix}"
-
         new_asset = asset.copy()
         if asset["mtime"] == 0:
             if asset["dl_status"] == "":
@@ -223,7 +214,7 @@ class AssetListScreen(Widget):
             readable_time = format_time(asset["mtime"])
         new_asset["mtime"] = readable_time
 
-        new_asset["fsize"] = new_asset["fsize"] / 1024
+        new_asset["fsize"] = sizeof_fmt(new_asset["fsize"])
         new_asset["url"] = self.format_url(asset["url"])
 
         if asset["filename"] is None:
@@ -250,7 +241,7 @@ class AssetListScreen(Widget):
             # We need to update both our internal asset information
             # and what is shown on the table...
             self.assets[row_key]["mtime"] = asset["mtime"]
-            self.assets[row_key]["fsize"] = asset["fsize"]
+            self.assets[row_key]["size"] = asset["fsize"]
             self.assets[row_key]["content_name"] = asset["content_name"]
             self.assets[row_key]["filename"] = asset["filename"]
             self.assets[row_key]["dl_status"] = asset["dl_status"]
@@ -261,7 +252,7 @@ class AssetListScreen(Widget):
 
         readable_asset = self.format_asset(asset)
         table = next(self.query("#" + self.al_id).results(DataTable))
-        col_keys = ["url", "mtime", "fsize", "trail", "ext", "name"]
+        col_keys = ["url", "mtime", "size", "trail", "ext", "name"]
         table.update_cell(
             row_key, col_keys[0], readable_asset["url"], update_width=True
         )

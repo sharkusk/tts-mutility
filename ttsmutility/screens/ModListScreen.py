@@ -29,7 +29,7 @@ from ..parse.AssetList import AssetList
 from ..parse.FileFinder import trailstring_to_trail
 from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
-from ..utility.util import MyText, format_time, make_safe_filename
+from ..utility.util import MyText, format_time, make_safe_filename, sizeof_fmt
 from ..widgets.DataTableFilter import DataTableFilter
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
@@ -177,7 +177,7 @@ class ModListScreen(Screen):
         table.add_column("Type", key="type")
         table.add_column("Created", key="created", width=10)
         table.add_column("Modified", key="modified", width=10)
-        table.add_column("Size(MB)", key="size")
+        table.add_column("Size", key="size", width=12)
         table.add_column("Assets", key="total_assets")
         table.add_column("Missing", key="missing_assets")
         table.add_column("MinP", key="min_players")
@@ -228,6 +228,9 @@ class ModListScreen(Screen):
             "- ",
             "(remastered) ",
         ]
+        if len(name) == 0:
+            return name
+
         if name[0] == "[":
             # Move [] to end of name
             e = name.find("]")
@@ -310,7 +313,7 @@ class ModListScreen(Screen):
             "Mod" if "Workshop" in filename else "Save",
             format_time(mod["epoch"], ""),
             format_time(mod["mtime"], "Scanning..."),
-            mod["size"] / (1024 * 1024),
+            sizeof_fmt(mod["size"]),
             mod["total_assets"],
             mod["missing_assets"],
             mod["min_players"],
@@ -407,7 +410,7 @@ class ModListScreen(Screen):
         # and what is shown on the table...
         self.mods[row_key]["total_assets"] = total_assets
         self.mods[row_key]["missing_assets"] = missing_assets
-        self.mods[row_key]["size"] = size
+        self.mods[row_key]["size"] = sizeof_fmt(size)
 
         try:
             table.update_cell(row_key, "name", name)
