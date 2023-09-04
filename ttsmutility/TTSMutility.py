@@ -194,7 +194,7 @@ class TTSMutility(App):
                 )
             )
             mod_asset_list.get_mod_assets(
-                mod_filename, parse_only=True, force_refresh=self.force_refresh
+                mod_filename, parse_only=True, force_refresh=True
             )
             mod_list.set_mod_details(
                 {mod_filename: mod_asset_list.get_mod_info(mod_filename)}
