@@ -236,7 +236,7 @@ class AssetList:
             if result[1] != 0:
                 # Check if SHA1 computed from file contents matches steam
                 # filename SHA1
-                if result[2] != "" and result[3] != "":
+                if result[2] != "" and result[2] != "0" and result[3] != "" and result[3] != "0":
                     if result[2] != result[3]:
                         # We have a SHA1 mismatch so attempt to re-download
                         skip = False
@@ -606,7 +606,7 @@ class AssetList:
                     cursor = db.execute(
                         """
                         UPDATE tts_assets
-                        SET asset_sha1=0, asset_mtime=0, asset_size=0
+                        SET asset_sha1="", asset_mtime=0, asset_size=0
                         WHERE asset_filename IN ({0})
                         """.format(
                             ",".join("?" for _ in deleted_files)

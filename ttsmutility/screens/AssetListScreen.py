@@ -9,6 +9,7 @@ from textual.message import Message
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import DataTable, Header, Input, Label
+from textual.widgets.data_table import CellDoesNotExist
 from textual.widgets.data_table import RowKey
 
 from ..data.config import load_config
@@ -181,9 +182,13 @@ class AssetListScreen(Widget):
             if asset["fsize"] == 0 and asset["dl_status"] != "":
                 if len(await asset_list.find_asset_a(asset["url"])) > 0:
                     asset["fsize"] = "-1.0 B"
-                    table.update_cell(
-                        asset["url"], "size", asset["fsize"], update_width=True
-                    )
+                    try:
+                        table.update_cell(
+                            asset["url"], "size", asset["fsize"], update_width=True
+                        )
+                    except CellDoesNotExist:
+                        # This can happen if the table cell is filtered at the moment
+                        pass
 
     def format_url(self, url: str) -> str:
         if url[-1] == "/":

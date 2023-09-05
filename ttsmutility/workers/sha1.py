@@ -103,6 +103,8 @@ class Sha1Scanner(TTSWorker):
                 elif (
                     assets[filestem]["sha1_mtime"] == 0
                     or assets[filestem]["sha1"] is None
+                    or assets[filestem]["sha1"] == ""
+                    or assets[filestem]["sha1"] == "0"
                 ):
                     skip = False
                 elif mtime > assets[filestem]["sha1_mtime"]:
