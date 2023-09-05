@@ -71,7 +71,6 @@ class ModBackup(Widget):
         worker = get_current_worker()
         asset_list = AssetList()
         mod_list = ModList()
-        backup_time = time.time()
         mod = mod_list.get_mod_details(mod_filename)
 
         self.post_message(
@@ -110,6 +109,7 @@ class ModBackup(Widget):
             amount_stored = 0
             missing_csv = ""
             invalid_urls_csv = ""
+            content_names = ""
             for asset in assets:
                 if worker.is_cancelled:
                     cancelled = True
@@ -129,6 +129,8 @@ class ModBackup(Widget):
                         amount_stored = 0
                     if asset["dl_status"] != "":
                         invalid_urls_csv += f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                    if asset["content_name"] != "":
+                        content_names += f"{asset['url']}, {asset['content_name']}\n"
                 else:
                     missing_csv += (
                         f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
@@ -141,6 +143,8 @@ class ModBackup(Widget):
 
             if invalid_urls_csv != "":
                 modzip.writestr("invalid_urls.csv", invalid_urls_csv)
+
+            modzip.writestr("content_names.csv", content_names)
 
             # Make sure we get progress bar to 100%
             self.post_message(self.UpdateProgress(mod_filename, None, amount_stored))
