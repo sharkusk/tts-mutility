@@ -70,6 +70,7 @@ class FileDownload(Widget):
             "application/octet-stream",
             "application/binary",
             "video/mp4",
+            "video/webm",
         ),
         "audiolibrary": (
             "application/octet-stream",
