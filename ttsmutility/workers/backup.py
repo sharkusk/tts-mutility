@@ -186,3 +186,21 @@ class ModBackup(Widget):
 
         self.post_message(self.BackupComplete(mod_filename))
         self.mod_filenames.task_done()
+
+
+def unzip_backup(backup_path: Path, dest_path: Path) -> None:
+    with ZipFile(backup_path, "r") as zf:
+        zf.extractall(dest_path)
+        if "content_names.csv" in zf.namelist():
+            urls = []
+            content_names = []
+
+            with io.StringIO(zf.read("content_names.csv").decode("utf-8")) as f:
+                csv_in = csv.reader(f, delimiter="\t")
+                for line in csv_in:
+                    # Ignore filenames
+                    content_names.append(line[1].strip())
+                    urls.append(line[2].strip())
+
+            asset_list = AssetList()
+            asset_list.set_content_names(urls, content_names)

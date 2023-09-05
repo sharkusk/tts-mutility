@@ -1,20 +1,19 @@
 import csv
 import glob
-from aiopath import AsyncPath
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
 from typing import NamedTuple
 from webbrowser import open as open_url
-from zipfile import ZipFile
 
+from aiopath import AsyncPath
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.coordinate import Coordinate
 from textual.containers import Center
+from textual.coordinate import Coordinate
 from textual.events import Key
 from textual.message import Message
 from textual.screen import Screen
@@ -32,6 +31,7 @@ from ..parse.ModParser import INFECTION_URL
 from ..utility.messages import UpdateLog
 from ..utility.util import MyText, format_time, make_safe_filename, sizeof_fmt
 from ..widgets.DataTableFilter import DataTableFilter
+from ..workers.backup import unzip_backup
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
 
@@ -637,11 +637,10 @@ class ModListScreen(Screen):
         self.app.push_screen(InfoDialog(f"Saved content name report to '{outname}'."))
 
     def action_content_name_load(self):
-        config = load_config()
-
         urls = []
         content_names = []
 
+        config = load_config()
         inname = Path(config.mod_backup_dir) / "content_names.csv"
 
         if not inname.exists():
@@ -652,10 +651,9 @@ class ModListScreen(Screen):
 
         with open(inname, "r", encoding="utf-8", newline="") as f:
             csv_in = csv.reader(f, delimiter="\t")
-
-            for lines in csv_in:
-                urls.append(lines[0].strip())
-                content_names.append(lines[1].strip())
+            for line in csv_in:
+                urls.append(line[0].strip())
+                content_names.append(line[1].strip())
 
         asset_list = AssetList()
         asset_list.set_content_names(urls, content_names)
@@ -894,11 +892,24 @@ class ModListScreen(Screen):
         if row_key.value is not None:
             backup_name = Path(row_key.value).name
             if backup_name in self.backup_filenames:
-                with ZipFile(self.backup_filenames[backup_name], "r") as zf:
-                    dest_dir = Path(self.mod_dir).parent
-                    zf.extractall(dest_dir)
+                unzip_backup(
+                    self.backup_filenames[backup_name], Path(self.mod_dir).parent
+                )
+                self.post_message(
+                    UpdateLog(
+                        f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.",
+                        flush=True,
+                    )
+                )
                 self.app.push_screen(
                     InfoDialog(
                         f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.  Restart to scan for new assets."
+                    )
+                )
+            else:
+                self.post_message(
+                    UpdateLog(
+                        f"Mod Backup ({backup_name}) cannot be unzipped (backup not found).",
+                        flush=True,
                     )
                 )
