@@ -865,7 +865,7 @@ class AssetList:
             # Check if we have this mod in our DB
             cursor = db.execute(
                 """
-                SELECT asset_url, asset_content_name
+                SELECT asset_url, asset_content_name, asset_sha1
                 FROM tts_assets
                 WHERE asset_content_name != ""
                 """,

@@ -627,12 +627,12 @@ class ModListScreen(Screen):
         outname = Path(config.mod_backup_dir) / "content_names.csv"
 
         asset_list = AssetList()
-        urls, content_names = asset_list.get_content_names()
+        urls, content_names, sha1s = asset_list.get_content_names()
 
         with open(outname, "w", encoding="utf-8", newline="") as f:
             csv_out = csv.writer(f, delimiter="\t")
-            for url, cn in zip(urls, content_names):
-                csv_out.writerow([f"{url}", f"{cn}"])
+            for url, cn, sha1 in zip(urls, content_names, sha1s):
+                csv_out.writerow([f"{url}", f"{cn}", f"{sha1}"])
 
         self.app.push_screen(InfoDialog(f"Saved content name report to '{outname}'."))
 
