@@ -322,6 +322,8 @@ class AssetListScreen(Widget):
         table = next(self.query("#" + self.al_id).results(DataTable))
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
 
+        table.update_cell(row_key, "mtime", "Downloading", update_width=True)
+
         assets = [
             self.assets[row_key],
         ]

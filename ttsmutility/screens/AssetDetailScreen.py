@@ -4,6 +4,7 @@ from webbrowser import open as open_url
 
 from textual.app import ComposeResult
 from textual.containers import Container, VerticalScroll
+from textual.message import Message
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Markdown
 
@@ -14,6 +15,11 @@ from ..parse.ModList import ModList
 
 
 class AssetDetailScreen(ModalScreen):
+    class CopyComplete(Message):
+        def __init__(self, url: str) -> None:
+            super().__init__()
+            self.url = url
+
     BINDINGS = [
         ("escape", "app.pop_screen", "OK"),
     ]
@@ -161,6 +167,7 @@ class AssetDetailScreen(ModalScreen):
             link = event.href.replace("//localhost/", "file:///")
         elif self.uri_copy in event.href:
             self.asset_list.copy_asset(event.href.split(self.uri_copy)[1], self.url)
+            self.post_message(self.CopyComplete(self.url))
             self.app.push_screen(InfoDialog("Copied asset. Restart to update mod."))
         elif self.uri_delete in event.href:
             self.asset_list.delete_asset(self.url)

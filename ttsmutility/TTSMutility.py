@@ -379,6 +379,11 @@ class TTSMutility(App):
         if self.is_screen_installed("mod_details"):
             screen = self.get_screen("mod_details")
             screen.update_asset(event.asset)
+    
+    async def on_asset_detail_screen_copy_complete(
+        self, event: AssetDetailScreen.CopyComplete
+    ):
+        pass
 
     """
     # ███╗   ███╗ ██████╗ ██████╗ ██╗     ██╗███████╗████████╗███████╗ ██████╗██████╗ ███████╗███████╗███╗   ██╗
