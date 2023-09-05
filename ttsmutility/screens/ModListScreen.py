@@ -6,6 +6,7 @@ from pathlib import Path
 from queue import Empty, Queue
 from typing import NamedTuple
 from webbrowser import open as open_url
+from zipfile import ZipFile
 
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
@@ -70,6 +71,7 @@ class ModListScreen(Screen):
         Binding("ctrl+p", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
         Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
         Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
+        Binding("ctrl+u", "unzip", "Unzip Backup", show=False),
         Binding("y", "scan_names", "Scan Names", show=True),
     ]
 
@@ -85,6 +87,7 @@ class ModListScreen(Screen):
         self.progress_id = {}
         self.status = {}
         self.backup_status = {}
+        self.backup_filenames = {}
         self.dl_queue = Queue()
         self.filter_timer = None
         self.downloads = []
@@ -270,6 +273,7 @@ class ModListScreen(Screen):
                 t = name.rfind("]", 0, t)
             mod_filename = name[s + 1 : e] + ".json"
             self.backup_times[mod_filename] = stat.st_mtime
+            self.backup_filenames[mod_filename] = bf
 
         for mod_filename in self.mods.keys():
             name = Path(mod_filename).name
@@ -881,3 +885,19 @@ class ModListScreen(Screen):
         table.update_cell(
             mod_filename, "bgg", " ✓ " if bgg_id is not None else "", update_width=False
         )
+
+    def action_unzip(self):
+        id = "ml_workshop_dt"
+        table = next(self.query("#" + id).results(DataTable))
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        if row_key.value is not None:
+            backup_name = Path(row_key.value).name
+            if backup_name in self.backup_filenames:
+                with ZipFile(self.backup_filenames[backup_name], "r") as zf:
+                    dest_dir = Path(self.mod_dir).parent
+                    zf.extractall(dest_dir)
+                self.app.push_screen(
+                    InfoDialog(
+                        f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.  Restart to scan for new assets."
+                    )
+                )

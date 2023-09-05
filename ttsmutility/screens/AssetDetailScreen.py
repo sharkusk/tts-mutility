@@ -42,6 +42,8 @@ class AssetDetailScreen(ModalScreen):
 
     def get_markdown(self) -> str:
         asset_detail = self.asset_list.get_asset(self.url, self.mod_filename)
+        if asset_detail is None:
+            return ""
 
         asset_detail_md = ""
         ad_filepath = Path(__file__).with_name("AssetDetailScreen.md")
