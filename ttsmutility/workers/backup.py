@@ -2,7 +2,7 @@ import csv
 import io
 import os
 import os.path
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from queue import Empty, Queue
 from zipfile import ZipFile
 
@@ -156,7 +156,11 @@ class ModBackup(Widget):
                     )
                 if asset["content_name"] != "":
                     content_writer.writerow(
-                        [f"{asset['url']}", f"{asset['content_name']}"]
+                        [
+                            f"{PurePosixPath(Path(asset['filename']))}",  # Use posix path formatting
+                            f"{asset['content_name']}",
+                            f"{asset['url']}",
+                        ]
                     )
 
             if missing_csv.tell() > 0:
