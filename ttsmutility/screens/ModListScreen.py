@@ -629,9 +629,10 @@ class ModListScreen(Screen):
         asset_list = AssetList()
         urls, content_names = asset_list.get_content_names()
 
-        with open(outname, "w", encoding="utf-8") as f:
+        with open(outname, "w", encoding="utf-8", newline="") as f:
+            csv_out = csv.writer(f, delimiter="\t")
             for url, cn in zip(urls, content_names):
-                f.write(f"{url}, {cn}\n")
+                csv_out.writerow([f"{url}", f"{cn}"])
 
         self.app.push_screen(InfoDialog(f"Saved content name report to '{outname}'."))
 
@@ -649,10 +650,10 @@ class ModListScreen(Screen):
             )
             return
 
-        with open(inname, "r", encoding="utf-8") as f:
-            csv_file = csv.reader(f)
+        with open(inname, "r", encoding="utf-8", newline="") as f:
+            csv_in = csv.reader(f, delimiter="\t")
 
-            for lines in csv_file:
+            for lines in csv_in:
                 urls.append(lines[0].strip())
                 content_names.append(lines[1].strip())
 

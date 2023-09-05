@@ -1,6 +1,7 @@
+import csv
+import io
 import os
 import os.path
-import time
 from pathlib import Path
 from queue import Empty, Queue
 from zipfile import ZipFile
@@ -107,9 +108,12 @@ class ModBackup(Widget):
                 )
 
             amount_stored = 0
-            missing_csv = ""
-            invalid_urls_csv = ""
-            content_names = ""
+            missing_csv = io.StringIO()
+            missing_writer = csv.writer(missing_csv, delimiter="\t")
+            invalid_urls_csv = io.StringIO()
+            invalid_writer = csv.writer(invalid_urls_csv, delimiter="\t")
+            content_names_csv = io.StringIO()
+            content_writer = csv.writer(content_names_csv, delimiter="\t")
             for asset in assets:
                 if worker.is_cancelled:
                     cancelled = True
@@ -128,23 +132,43 @@ class ModBackup(Widget):
                         )
                         amount_stored = 0
                     if asset["dl_status"] != "":
-                        invalid_urls_csv += f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
-                    if asset["content_name"] != "":
-                        content_names += f"{asset['url']}, {asset['content_name']}\n"
+                        invalid_writer.writerow(
+                            [
+                                f"{asset['url']}",
+                                f"{asset['trail']}",
+                                f"{asset['dl_status']}",
+                            ]
+                        )
                 else:
-                    missing_csv += (
-                        f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                    missing_writer.writerow(
+                        [
+                            f"{asset['url']}",
+                            f"{asset['trail']}",
+                            f"{asset['dl_status']}",
+                        ]
                     )
-                    invalid_urls_csv += (
-                        f"{asset['url']}, {asset['dl_status']}, ({asset['trail']})\n"
+                    invalid_writer.writerow(
+                        [
+                            f"{asset['url']}",
+                            f"{asset['trail']}",
+                            f"{asset['dl_status']}",
+                        ]
                     )
-            if missing_csv != "":
-                modzip.writestr("missing_assets.csv", missing_csv)
+                if asset["content_name"] != "":
+                    content_writer.writerow(
+                        [f"{asset['url']}", f"{asset['content_name']}"]
+                    )
 
-            if invalid_urls_csv != "":
-                modzip.writestr("invalid_urls.csv", invalid_urls_csv)
+            if missing_csv.tell() > 0:
+                modzip.writestr("missing_assets.csv", missing_csv.getvalue())
+            if invalid_urls_csv.tell() > 0:
+                modzip.writestr("invalid_urls.csv", invalid_urls_csv.getvalue())
+            if content_names_csv.tell() > 0:
+                modzip.writestr("content_names.csv", content_names_csv.getvalue())
 
-            modzip.writestr("content_names.csv", content_names)
+            missing_csv.close()
+            invalid_urls_csv.close()
+            content_names_csv.close()
 
             # Make sure we get progress bar to 100%
             self.post_message(self.UpdateProgress(mod_filename, None, amount_stored))
