@@ -89,6 +89,7 @@ class ModListScreen(Screen):
         self.status = {}
         self.backup_status = {}
         self.backup_filenames = {}
+        self.backup_ready = False
         self.dl_queue = Queue()
         self.filter_timer = None
         self.downloads = []
@@ -300,6 +301,7 @@ class ModListScreen(Screen):
             except CellDoesNotExist:
                 # This cell may be currently filtered, so ignore any errors
                 pass
+        self.backup_ready = True
 
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
@@ -508,20 +510,21 @@ class ModListScreen(Screen):
         config = load_config()
         backup_path = config.mod_backup_dir
 
-        if not Path(backup_path).exists():
+        if not Path(backup_path).exists() or self.backup_ready == False:
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
             return
 
         row_key = self.get_current_row_key()
         filename = row_key.value
-        zip_path, _ = self.get_backup_name(self.mods[filename])
-        self.post_message(
-            self.BackupSelected(
-                [
-                    (filename, zip_path, []),
-                ]
+        zip_path, existing = self.get_backup_name(self.mods[filename])
+        if zip_path != "":
+            self.post_message(
+                self.BackupSelected(
+                    [
+                        (filename, zip_path, existing),
+                    ]
+                )
             )
-        )
 
     def get_active_table(self) -> DataTable:
         table_id = "#ml_workshop_dt"
@@ -796,13 +799,20 @@ class ModListScreen(Screen):
         else:
             zip_path = Path(str(backup_filepath) + ".zip")
 
-        return zip_path, backup_filepath
+        mf = Path(mod["filename"]).name
+        if mf in self.backup_filenames:
+            existing = self.backup_filenames[mf]
+        else:
+            existing = ""
+
+        self.backup_filenames[mf] = zip_path
+        return zip_path, existing
 
     def action_backup_all(self):
         config = load_config()
         backup_path = config.mod_backup_dir
 
-        if not Path(backup_path).exists():
+        if not Path(backup_path).exists() or self.backup_ready == False:
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
             return
 
@@ -810,23 +820,13 @@ class ModListScreen(Screen):
         for mod in self.mods.values():
             if mod["deleted"]:
                 continue
+            
+            if self.backup_status[mod["filename"]] == " ✓ ":
+                continue
 
-            zip_path, backup_filepath = self.get_backup_name(mod)
+            zip_path, existing = self.get_backup_name(mod)
 
-            backup = False
-            if zip_path.exists():
-                backup_mtime = zip_path.stat().st_mtime
-                if backup_mtime < mod["mtime"] or backup_mtime < mod["newest_asset"]:
-                    backup = True
-            else:
-                backup = True
-
-            if backup:
-                existing = sorted(
-                    backup_filepath.parent.glob(
-                        glob.escape(backup_filepath.name) + " (-*"
-                    )
-                )
+            if zip_path != "":
                 to_backup.append((mod["filename"], zip_path, existing))
                 self.status[mod["filename"]].backup = "Queued"
                 self.update_status(mod["filename"])

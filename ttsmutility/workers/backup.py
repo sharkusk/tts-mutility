@@ -60,14 +60,14 @@ class ModBackup(Widget):
                 (
                     mod_filename,
                     zip_path,
-                    existing_backups,
+                    existing_backup,
                 ) = self.mod_filenames.get(timeout=1)
             except Empty:
                 continue
 
-            self.backup_mod(mod_filename, zip_path, existing_backups)
+            self.backup_mod(mod_filename, zip_path, existing_backup)
 
-    def backup_mod(self, mod_filename, zip_path, old_files):
+    def backup_mod(self, mod_filename, zip_path, old_file):
         config = load_config()
         worker = get_current_worker()
         asset_list = AssetList()
@@ -81,10 +81,9 @@ class ModBackup(Widget):
 
         assets = asset_list.get_mod_assets(mod_filename)
 
-        if len(old_files) > 0:
-            for f_name in old_files:
-                self.post_message(UpdateLog(f"Removing old backup: '{f_name}"))
-                os.remove(f_name)
+        if old_file != "":
+            self.post_message(UpdateLog(f"Removing old backup: '{old_file}"))
+            os.remove(old_file)
 
         self.post_message(UpdateLog(f"Backing up to '{zip_path}'"))
         self.post_message(self.BackupStart(mod["filename"], zip_path))
