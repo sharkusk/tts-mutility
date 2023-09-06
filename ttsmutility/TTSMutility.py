@@ -190,7 +190,7 @@ class TTSMutility(App):
 
             self.post_message(
                 self.InitProcessing(
-                    f"Finding assets in {mod_filename} ({i}/{len(mods)})"
+                    f"Finding assets in {mod_filename} ({i+1}/{len(mods)})"
                 )
             )
             mod_asset_list.get_mod_assets(
@@ -433,6 +433,9 @@ class TTSMutility(App):
 
     def on_mod_list_screen_show_sha1(self, event: ModListScreen.ShowSha1):
         self.app.push_screen(MissingAssetScreen("sha1", "SHA1 Mismatches"))
+
+    def on_mod_list_screen_show_missing(self, event: ModListScreen.ShowMissing):
+        self.app.push_screen(MissingAssetScreen("missing", "Missing Assets"))
 
     def on_mod_list_screen_scan_names(self, event: ModListScreen.ScanNames):
         self.run_worker(self.name_scanner.scan_names, exclusive=True, thread=True)

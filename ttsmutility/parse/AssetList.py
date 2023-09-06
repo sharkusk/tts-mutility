@@ -146,6 +146,47 @@ class AssetList:
                 )
         return assets
 
+    def get_missing(self):
+        assets = []
+        with sqlite3.connect(self.db_path) as db:
+            cursor = db.execute(
+                (
+                    """
+                SELECT
+                    asset_url, asset_path, asset_filename, asset_ext,
+                    asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
+                    asset_dl_status, asset_size, asset_content_name
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
+                WHERE asset_size == 0 AND mod_asset_ignore_missing == 0
+                """
+                ),
+            )
+            results = cursor.fetchall()
+            for result in results:
+                path = result[1]
+                filename = result[2]
+                ext = result[3]
+
+                asset_filename = os.path.join(path, filename) + ext
+                assets.append(
+                    {
+                        "url": result[0],
+                        "filename": asset_filename,
+                        "mtime": result[4],
+                        "sha1": result[5],
+                        "steam_sha1": result[6],
+                        "trail": result[7],
+                        "dl_status": result[8],
+                        "fsize": result[9],
+                        "content_name": result[10],
+                    }
+                )
+        return assets
+
     async def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
         async with aiosqlite.connect(self.db_path) as db:
@@ -615,40 +656,14 @@ class AssetList:
                     )
 
                 if new_asset_count > 0 or removed_asset_count > 0:
-                    cursor = db.execute(
-                        """
-                        SELECT
-                            asset_mtime
-                        FROM
-                            tts_assets
-                        WHERE
-                            asset_mtime = (
-                                SELECT MAX(asset_mtime)
-                                FROM tts_assets
-                                WHERE id IN (
-                                    SELECT asset_id_fk
-                                    FROM tts_mod_assets
-                                    WHERE mod_id_fk = (
-                                        SELECT id
-                                        FROM tts_mods
-                                        WHERE mod_filename = ?
-                                    )
-                                )
-                            )
-                        """,
-                        (mod_filename,),
-                    )
-                    result = cursor.fetchone()
-                    max_asset_mtime = result[0]
-
                     db.execute(
                         """
                         UPDATE tts_mods
                         SET mod_total_assets=-1, mod_missing_assets=-1,
-                            mod_size=-1, mod_max_asset_mtime=?
+                            mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
                         WHERE mod_filename=?
                         """,
-                        (max_asset_mtime, mod_filename),
+                        (mod_filename,),
                     )
                 db.commit()
         return new_asset_count
@@ -703,6 +718,8 @@ class AssetList:
         assets = []
         if mod_filename == "sha1":
             return self.get_sha1_mismatches()
+        elif mod_filename == "missing":
+            return self.get_missing()
         elif mod_filename.find("Workshop") == 0:
             mod_path = os.path.join(self.mod_dir, mod_filename)
         else:
@@ -1173,7 +1190,7 @@ class AssetList:
     def get_asset(self, url: str, mod_filename: str = "") -> dict | None:
         with sqlite3.connect(self.db_path) as db:
             mods = self.get_mods_using_asset(url)
-            if len(mods) > 0 and (mod_filename == "" or mod_filename == "sha1"):
+            if len(mods) > 0 and (mod_filename == "" or mod_filename == "sha1" or mod_filename == "missing"):
                 mod_filename = mods[0][0]
             mod_names = [mod_name for _, mod_name in mods]
             if mod_filename == "":

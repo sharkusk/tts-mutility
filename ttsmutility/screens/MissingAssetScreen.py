@@ -18,7 +18,7 @@ class MissingAssetScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Footer()
         yield Label(
-            "SHA1 Mismatches - Press ESC to Exit",
+            "Press ESC to Exit",
             id="title",
             classes="aa_label",
         )

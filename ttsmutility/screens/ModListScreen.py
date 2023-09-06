@@ -72,6 +72,7 @@ class ModListScreen(Screen):
         Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
         Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
         Binding("ctrl+u", "unzip", "Unzip Backup", show=False),
+        Binding("m", "missing_assets", "Show All Missing Assets", show=True),
         Binding("y", "scan_names", "Scan Names", show=True),
     ]
 
@@ -152,6 +153,10 @@ class ModListScreen(Screen):
             super().__init__()
 
     class ShowSha1(Message):
+        def __init__(self) -> None:
+            super().__init__()
+
+    class ShowMissing(Message):
         def __init__(self) -> None:
             super().__init__()
 
@@ -613,6 +618,9 @@ class ModListScreen(Screen):
 
     def action_sha1_mismatches(self):
         self.post_message(self.ShowSha1())
+
+    def action_missing_assets(self):
+        self.post_message(self.ShowMissing())
 
     def action_mod_refresh(self):
         id = "ml_workshop_dt"
