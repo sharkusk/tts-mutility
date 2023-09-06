@@ -4,14 +4,16 @@
 
 This is an all-in-one application for managing Tabletop Simulator mods and save files.  The following features are currently supported:
 
-- Scans mods/saves and identifies assets that are downloaded or missing (including assets in LuaScript sections)
+- Scan mods/saves and identify assets that are downloaded or missing (including assets in LuaScript sections)
 - Browse Mod info, with integration with Steam Workshop descriptions and BoardGame Geek
-- Browse Asset info, including information regarding how the asset is used
+- Browse Asset info, including information regarding how the asset is used in the JSON mod
 - Download all missing assets from a mod, or individual assets
 - Backup Mods and Saves to zip files
-- Detects mods that are infected with the TTS script-virus (infected mods have a red name)
-- Uses Steam Workshop names to compare SHA1 signature to local file in order to detect corrupted files
+- Detect mods that are infected with the TTS script-virus (infected mods have a red name)
+- Use Steam Workshop names to compare SHA1 signature to local file in order to detect corrupted files
 - Cross platform, tested on Windows 10/11 and Linux (may work on MacOS but currently untested)
+- Recover original file names from steamcloud and other cloud providers (where possible)
+- Identify potential matches for missing assets using SHA1, filenames, and original file names
 
 ## Installation
 
