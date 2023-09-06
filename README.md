@@ -61,7 +61,7 @@ options:
 ![Screenshot_20230708_100830](https://github.com/sharkusk/tts-mutility/assets/4368882/dfe2ddae-23e9-4e87-a24a-e80bff5c316d)
 
 ### Mod Asset List
-![Screenshot_20230708_100919](https://github.com/sharkusk/tts-mutility/assets/4368882/c3ec2548-df2a-4573-a805-a5b971bd69e9)
+![AssetList](https://github.com/sharkusk/tts-mutility/assets/4368882/799701e4-15de-48d0-a3da-8944d86794af)
 
 ### Asset Detail
 ![Screenshot_20230708_102647](https://github.com/sharkusk/tts-mutility/assets/4368882/5ba672bf-7d42-4e43-bd30-7f89d7f98d94)
