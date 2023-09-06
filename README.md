@@ -14,6 +14,7 @@ This is an all-in-one application for managing Tabletop Simulator mods and save 
 - Cross platform, tested on Windows 10/11 and Linux (may work on MacOS but currently untested)
 - Recover original file names from steamcloud and other cloud providers (where possible)
 - Identify potential matches for missing assets using SHA1, filenames, and original file names
+- Clickable links for both local and cloud files
 
 ## Installation
 
