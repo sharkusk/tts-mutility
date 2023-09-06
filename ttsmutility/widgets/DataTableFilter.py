@@ -59,6 +59,7 @@ class DataTableFilter(DataTable):
             {key: new_index for new_index, (key, _) in enumerate(self._data.items())}
         )
         self._update_count += 1
+        self._require_update_dimensions = True
         self.refresh()
         return self
 
