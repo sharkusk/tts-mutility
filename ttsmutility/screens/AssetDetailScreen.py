@@ -65,7 +65,11 @@ class AssetDetailScreen(ModalScreen):
         filepath = Path(self.mod_dir) / asset_detail["filename"]
         asset_detail["uri"] = Path(filepath).as_uri() if filepath != "" else ""
 
-        if self.mod_filename == "" or self.mod_filename == "sha1" or self.mod_filename == "missing":
+        if (
+            self.mod_filename == ""
+            or self.mod_filename == "sha1"
+            or self.mod_filename == "missing"
+        ):
             asset_detail["mod_name"] = ""
         else:
             mod_list = ModList()
@@ -155,7 +159,7 @@ class AssetDetailScreen(ModalScreen):
                     copy_link = f"[copy]({self.uri_copy}{match[0]})"
                     asset_detail["matches"] += f"- {uri} [{match[1]}] <-- {copy_link}\n"
 
-            if asset_detail["fsize"] > 0:
+            if asset_detail["size"] > 0:
                 asset_detail["delete"] = "### Copied Asset Options\n"
                 asset_detail["delete"] += f"[delete]({self.uri_delete}{self.url})\n"
 

@@ -11,7 +11,7 @@
 | Asset Details | |
 |------------------------------:|:--------------------------|
 | Modified Time                 | {mtime}                   |
-| File Size                     | {fsize:,.2f}              |
+| File Size                     | {size:,.2f}              |
 | JSON Trail                    | {trail}                   |
 | Content Filename              | {content_name}            |
 | SHA1 File Hexdigest           | {sha1}                    |

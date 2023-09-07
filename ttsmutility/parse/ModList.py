@@ -1,12 +1,18 @@
 import os.path
 import sqlite3
-import aiosqlite
 import time
 from datetime import datetime
 from glob import glob
 from pathlib import Path
 
+import aiosqlite
+
 from ..data.config import load_config
+
+
+def mod_factory(cursor, row):
+    fields = [column[0] for column in cursor.description]
+    return {key.replace("mod_", ""): value for key, value in zip(fields, row)}
 
 
 class ModList:
@@ -371,7 +377,7 @@ class ModList:
                     mod_version, mod_game_mode, mod_game_type,
                     mod_game_complexity, mod_min_players, mod_max_players,
                     mod_min_play_time, mod_max_play_time, mod_bgg_id,
-                    mod_max_asset_mtime
+                    mod_max_asset_mtime as newest_asset
                 FROM
                     tts_mods
                 WHERE
@@ -379,26 +385,8 @@ class ModList:
                 """,
                 (filename,),
             )
-            result = cursor.fetchone()
-            mod = {
-                "filename": result[0],
-                "name": result[1],
-                "mtime": result[2],
-                "size": result[3],
-                "total_assets": result[4],
-                "missing_assets": result[5],
-                "epoch": result[6],
-                "version": result[7],
-                "game_mode": result[8],
-                "game_type": result[9],
-                "game_complexity": result[10],
-                "min_players": result[11],
-                "max_players": result[12],
-                "min_play_time": result[13],
-                "max_play_time": result[14],
-                "bgg_id": result[15],
-                "newest_asset": result[16],
-            }
+            cursor.row_factory = mod_factory
+            mod = cursor.fetchone()
             cursor = db.execute(
                 """
                 SELECT tag_name
@@ -627,40 +615,19 @@ class ModList:
                         mod_version, mod_game_mode, mod_game_type,
                         mod_game_complexity, mod_min_players, mod_max_players,
                         mod_min_play_time, mod_max_play_time, mod_bgg_id,
-                        mod_max_asset_mtime
+                        mod_max_asset_mtime as newest_asset
                     FROM
                         tts_mods
                     """,
                 )
+                cursor.row_factory = mod_factory
                 results = cursor.fetchall()
-                for result in results:
-                    filename = result[0]
-                    if filename not in mods_on_disk:
-                        if not include_deleted:
-                            continue
-                        deleted = True
-                    else:
-                        deleted = False
-                    mods[filename] = {
-                        "filename": result[0],
-                        "name": result[1],
-                        "mtime": result[2],
-                        "size": result[3],
-                        "total_assets": result[4],
-                        "missing_assets": result[5],
-                        "epoch": result[6],
-                        "version": result[7],
-                        "game_mode": result[8],
-                        "game_type": result[9],
-                        "game_complexity": result[10],
-                        "min_players": result[11],
-                        "max_players": result[12],
-                        "min_play_time": result[13],
-                        "max_play_time": result[14],
-                        "bgg_id": result[15],
-                        "newest_asset": result[16],
-                        "deleted": deleted,
-                    }
+                for mod in results:
+                    filename = mod["filename"]
+                    if filename not in mods_on_disk and not include_deleted:
+                        continue
+                    mods[filename] = mod
+                    mods[filename]["deleted"] = filename not in mods_on_disk
                     cursor = db.execute(
                         """
                         SELECT tag_name

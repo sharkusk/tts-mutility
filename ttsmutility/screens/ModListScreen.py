@@ -1,5 +1,4 @@
 import csv
-import glob
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
@@ -510,7 +509,7 @@ class ModListScreen(Screen):
         config = load_config()
         backup_path = config.mod_backup_dir
 
-        if not Path(backup_path).exists() or self.backup_ready == False:
+        if not Path(backup_path).exists() or not self.backup_ready:
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
             return
 
@@ -812,7 +811,7 @@ class ModListScreen(Screen):
         config = load_config()
         backup_path = config.mod_backup_dir
 
-        if not Path(backup_path).exists() or self.backup_ready == False:
+        if not Path(backup_path).exists() or not self.backup_ready:
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
             return
 
@@ -820,7 +819,7 @@ class ModListScreen(Screen):
         for mod in self.mods.values():
             if mod["deleted"]:
                 continue
-            
+
             if self.backup_status[mod["filename"]] == " ✓ ":
                 continue
 

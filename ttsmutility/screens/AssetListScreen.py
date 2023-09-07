@@ -149,7 +149,7 @@ class AssetListScreen(Widget):
                     readable_asset["url"],
                     readable_asset["ext"],
                     readable_asset["content_name"],
-                    readable_asset["fsize"],
+                    readable_asset["size"],
                     readable_asset["mtime"],
                     self.trail_reformat(trail),
                     key=row_key,  # Use original url for our key
@@ -179,12 +179,12 @@ class AssetListScreen(Widget):
         asset_list = AssetList()
         table = next(self.query("#" + self.al_id).results(DataTable))
         for asset in self.assets.values():
-            if asset["fsize"] == 0 and asset["dl_status"] != "":
+            if asset["size"] == 0 and asset["dl_status"] != "":
                 if len(await asset_list.find_asset_a(asset["url"])) > 0:
-                    asset["fsize"] = "-1.0 B"
+                    asset["size"] = "-1.0 B"
                     try:
                         table.update_cell(
-                            asset["url"], "size", asset["fsize"], update_width=True
+                            asset["url"], "size", asset["size"], update_width=True
                         )
                     except CellDoesNotExist:
                         # This can happen if the table cell is filtered at the moment
@@ -219,7 +219,7 @@ class AssetListScreen(Widget):
             readable_time = format_time(asset["mtime"])
         new_asset["mtime"] = readable_time
 
-        new_asset["fsize"] = sizeof_fmt(new_asset["fsize"])
+        new_asset["size"] = sizeof_fmt(new_asset["size"])
         new_asset["url"] = self.format_url(asset["url"])
 
         if asset["filename"] is None:
@@ -246,7 +246,7 @@ class AssetListScreen(Widget):
             # We need to update both our internal asset information
             # and what is shown on the table...
             self.assets[row_key]["mtime"] = asset["mtime"]
-            self.assets[row_key]["size"] = asset["fsize"]
+            self.assets[row_key]["size"] = asset["size"]
             self.assets[row_key]["content_name"] = asset["content_name"]
             self.assets[row_key]["filename"] = asset["filename"]
             self.assets[row_key]["dl_status"] = asset["dl_status"]
@@ -265,7 +265,7 @@ class AssetListScreen(Widget):
             row_key, col_keys[1], readable_asset["mtime"], update_width=True
         )
         table.update_cell(
-            row_key, col_keys[2], readable_asset["fsize"], update_width=True
+            row_key, col_keys[2], readable_asset["size"], update_width=True
         )
         # Skip Trail....  It doesn't change anyhow.
         table.update_cell(
@@ -346,10 +346,7 @@ class AssetListScreen(Widget):
         ).with_suffix(".missing.csv")
         with open(outname, "w", encoding="utf-8") as f:
             for url in self.assets:
-                if (
-                    self.assets[url]["dl_status"] != ""
-                    or self.assets[url]["fsize"] == 0
-                ):
+                if self.assets[url]["dl_status"] != "" or self.assets[url]["size"] == 0:
                     f.write(
                         (
                             f"{url}, "

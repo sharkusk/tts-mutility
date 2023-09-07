@@ -1,11 +1,14 @@
-import aiosqlite
+import operator
 import os
 import os.path
 import pathlib
 import sqlite3
 import time
+from functools import reduce
 from pathlib import Path
-from shutil import move, copy
+from shutil import copy, move
+
+import aiosqlite
 
 from ..data.config import load_config
 from ..parse.FileFinder import (
@@ -17,13 +20,18 @@ from ..parse.FileFinder import (
     trailstring_to_trail,
 )
 from ..utility.messages import UpdateLog
-from ..utility.util import get_steam_sha1_from_url, get_content_name, detect_file_type
+from ..utility.util import detect_file_type, get_content_name, get_steam_sha1_from_url
 from .ModParser import ModParser
 
 
 class IllegalSavegameException(ValueError):
     def __init__(self):
         super().__init__("not a Tabletop Simulator savegame")
+
+
+def asset_factory(cursor, row):
+    fields = [column[0] for column in cursor.description]
+    return {key.replace("asset_", ""): value for key, value in zip(fields, row)}
 
 
 class AssetList:
@@ -59,9 +67,17 @@ class AssetList:
         return self.mod_infos
 
     def get_sha1_info(self, path: str) -> dict:
-        # filename, return sha1, steam_sha1, sha1_mtime
+        def my_factory(cursor, row):
+            fields = [column[0] for column in cursor.description]
+            return {
+                row[0]: {
+                    key.replace("asset_", ""): value
+                    for key, value in zip(fields[1:], row[1:])
+                }
+            }
 
         with sqlite3.connect(self.db_path) as db:
+            db.row_factory = my_factory
             cursor = db.execute(
                 """
                 SELECT
@@ -75,16 +91,8 @@ class AssetList:
                 (path,),
             )
             results = cursor.fetchall()
-            sha1s = {}
-            if len(results) > 0:
-                for result in results:
-                    sha1s[result[0]] = {
-                        "sha1": result[1],
-                        "steam_sha1": result[2],
-                        "sha1_mtime": result[3],
-                        "mtime": result[4],
-                        "fsize": result[5],
-                    }
+            # We now have a list of dictionaries, combine them into one:
+            sha1s = reduce(operator.ior, results, {})
             return sha1s
 
     def sha1_scan_done(
@@ -107,12 +115,13 @@ class AssetList:
     def get_sha1_mismatches(self):
         assets = []
         with sqlite3.connect(self.db_path) as db:
+            db.row_factory = asset_factory
             cursor = db.execute(
                 (
                     """
                 SELECT
-                    asset_url, asset_path, asset_filename, asset_ext,
-                    asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
+                    (asset_path || "/" || asset_filename || asset_ext) as filename,
+                    asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail as trail,
                     asset_dl_status, asset_size, asset_content_name
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
@@ -124,37 +133,19 @@ class AssetList:
                 """
                 ),
             )
-            results = cursor.fetchall()
-            for result in results:
-                path = result[1]
-                filename = result[2]
-                ext = result[3]
-
-                asset_filename = os.path.join(path, filename) + ext
-                assets.append(
-                    {
-                        "url": result[0],
-                        "filename": asset_filename,
-                        "mtime": result[4],
-                        "sha1": result[5],
-                        "steam_sha1": result[6],
-                        "trail": result[7],
-                        "dl_status": result[8],
-                        "fsize": result[9],
-                        "content_name": result[10],
-                    }
-                )
+            assets = cursor.fetchall()
         return assets
 
     def get_missing(self):
         assets = []
         with sqlite3.connect(self.db_path) as db:
+            db.row_factory = asset_factory
             cursor = db.execute(
                 (
                     """
                 SELECT
-                    asset_url, asset_path, asset_filename, asset_ext,
-                    asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail,
+                    (asset_path || "/" || asset_filename || asset_ext) as filename,
+                    asset_url, asset_mtime, asset_sha1, asset_steam_sha1, mod_asset_trail as trail,
                     asset_dl_status, asset_size, asset_content_name
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
@@ -165,26 +156,7 @@ class AssetList:
                 """
                 ),
             )
-            results = cursor.fetchall()
-            for result in results:
-                path = result[1]
-                filename = result[2]
-                ext = result[3]
-
-                asset_filename = os.path.join(path, filename) + ext
-                assets.append(
-                    {
-                        "url": result[0],
-                        "filename": asset_filename,
-                        "mtime": result[4],
-                        "sha1": result[5],
-                        "steam_sha1": result[6],
-                        "trail": result[7],
-                        "dl_status": result[8],
-                        "fsize": result[9],
-                        "content_name": result[10],
-                    }
-                )
+            assets = cursor.fetchall()
         return assets
 
     async def download_done(self, asset: dict) -> None:
@@ -224,7 +196,7 @@ class AssetList:
                         path,
                         ext,
                         asset["mtime"],
-                        asset["fsize"],
+                        asset["size"],
                         asset["dl_status"],
                         asset["content_name"],
                         asset["steam_sha1"],
@@ -277,7 +249,12 @@ class AssetList:
             if result[1] != 0:
                 # Check if SHA1 computed from file contents matches steam
                 # filename SHA1
-                if result[2] != "" and result[2] != "0" and result[3] != "" and result[3] != "0":
+                if (
+                    result[2] != ""
+                    and result[2] != "0"
+                    and result[3] != ""
+                    and result[3] != "0"
+                ):
                     if result[2] != result[3]:
                         # We have a SHA1 mismatch so attempt to re-download
                         skip = False
@@ -774,14 +751,15 @@ class AssetList:
                                 trail,
                             ]
 
+                db.row_factory = asset_factory
                 cursor = db.execute(
                     (
                         """
                     SELECT
-                        asset_url, asset_path, asset_filename, asset_ext,
-                        asset_mtime, asset_sha1, asset_steam_sha1,
-                        mod_asset_trail, asset_dl_status, asset_size,
-                        asset_content_name, mod_asset_ignore_missing
+                        (asset_path || "/" || asset_filename || asset_ext) as filename,
+                        asset_url, asset_mtime, asset_sha1, asset_steam_sha1,
+                        mod_asset_trail as trail, asset_dl_status, asset_size,
+                        asset_content_name, mod_asset_ignore_missing as ignore_missing
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -792,58 +770,28 @@ class AssetList:
                     ),
                     (mod_filename,),
                 )
-                results = cursor.fetchall()
-                for result in results:
-                    path = result[1]
-                    filename = result[2]
-                    ext = result[3]
-                    if all_nodes:
-                        trail = trails[result[0]]
-                    else:
-                        trail = result[7]
-                    asset_filename = os.path.join(path, filename) + ext
-                    assets.append(
-                        {
-                            "url": result[0],
-                            "filename": asset_filename,
-                            "mtime": result[4],
-                            "sha1": result[5],
-                            "steam_sha1": result[6],
-                            "trail": trail,
-                            "dl_status": result[8],
-                            "fsize": result[9],
-                            "content_name": result[10],
-                            "ignore_missing": result[11],
-                        }
-                    )
-
+                assets = cursor.fetchall()
+                if all_nodes:
+                    for asset in assets:
+                        asset["trail"] = trails[asset["url"]]
         return assets
 
     async def get_mod_assets_a(self, mod_filename: str) -> list:
         assets = []
         if mod_filename == "sha1":
-            return self.get_sha1_mismatches()
+            # TODO: Not needed yet
+            return assets
 
         async with aiosqlite.connect(self.db_path) as db:
-            # Check if we have this mod in our DB
-            async with db.execute(
-                """
-                SELECT mod_mtime
-                FROM tts_mods
-                WHERE mod_filename=?
-                """,
-                (mod_filename,),
-            ) as cursor:
-                result = await cursor.fetchone()
-
+            db.row_factory = asset_factory
             async with db.execute(
                 (
                     """
                 SELECT
-                    asset_url, asset_path, asset_filename, asset_ext,
-                    asset_mtime, asset_sha1, asset_steam_sha1,
-                    mod_asset_trail, asset_dl_status, asset_size,
-                    asset_content_name, mod_asset_ignore_missing
+                    (asset_path || "/" || asset_filename || asset_ext) as filename,
+                    asset_url, asset_mtime, asset_sha1, asset_steam_sha1,
+                    mod_asset_trail as trail, asset_dl_status, asset_size,
+                    asset_content_name, mod_asset_ignore_missing as ignore_missing
                 FROM tts_assets
                     INNER JOIN tts_mod_assets
                         ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -854,26 +802,7 @@ class AssetList:
                 ),
                 (mod_filename,),
             ) as cursor:
-                async for result in cursor:
-                    path = result[1]
-                    filename = result[2]
-                    ext = result[3]
-                    trail = result[7]
-                    asset_filename = os.path.join(path, filename) + ext
-                    assets.append(
-                        {
-                            "url": result[0],
-                            "filename": asset_filename,
-                            "mtime": result[4],
-                            "sha1": result[5],
-                            "steam_sha1": result[6],
-                            "trail": trail,
-                            "dl_status": result[8],
-                            "fsize": result[9],
-                            "content_name": result[10],
-                            "ignore_missing": result[11],
-                        }
-                    )
+                assets = await cursor.fetchall()
 
         return assets
 
@@ -1187,19 +1116,24 @@ class AssetList:
 
         return matches
 
-    def get_asset(self, url: str, mod_filename: str = "") -> dict | None:
+    def get_asset(self, url: str, mod_filename: str = "") -> dict:
+        asset = {}
+        mods = self.get_mods_using_asset(url)
+        if len(mods) > 0 and (
+            mod_filename == "" or mod_filename == "sha1" or mod_filename == "missing"
+        ):
+            mod_filename = mods[0][0]
+        mod_names = [mod_name for _, mod_name in mods]
+
         with sqlite3.connect(self.db_path) as db:
-            mods = self.get_mods_using_asset(url)
-            if len(mods) > 0 and (mod_filename == "" or mod_filename == "sha1" or mod_filename == "missing"):
-                mod_filename = mods[0][0]
-            mod_names = [mod_name for _, mod_name in mods]
+            db.row_factory = asset_factory
             if mod_filename == "":
                 cursor = db.execute(
                     """
                     SELECT
-                        asset_path, asset_filename, asset_ext,
-                        asset_mtime, asset_sha1, asset_steam_sha1,
-                        asset_dl_status, asset_size, asset_content_name
+                        (asset_path || "/" || asset_filename || asset_ext) as filename,
+                        asset_url, asset_mtime, asset_sha1, asset_steam_sha1,
+                        asset_dl_status, asset_size, asset_content_name, "" as trail
                     FROM tts_assets
                     WHERE asset_url=?
                     """,
@@ -1209,10 +1143,10 @@ class AssetList:
                 cursor = db.execute(
                     """
                     SELECT
-                        asset_path, asset_filename, asset_ext,
-                        asset_mtime, asset_sha1, asset_steam_sha1,
-                        asset_dl_status, asset_size, asset_content_name,
-                        mod_asset_trail
+                        asset_filename, (asset_path || "/" || asset_filename || asset_ext) as filename,
+                        asset_url, asset_mtime, asset_sha1, asset_steam_sha1,
+                        mod_asset_trail as trail, asset_dl_status, asset_size,
+                        asset_content_name
                     FROM tts_assets
                         INNER JOIN tts_mod_assets
                             ON tts_mod_assets.asset_id_fk=tts_assets.id
@@ -1225,25 +1159,9 @@ class AssetList:
                         url,
                     ),
                 )
-            result = cursor.fetchone()
-            if result is not None:
-                asset_filename = os.path.join(result[0], result[1]) + result[2]
-                asset = {
-                    "url": url,
-                    "filename": asset_filename,
-                    "mtime": int(result[3]),
-                    "sha1": result[4],
-                    "steam_sha1": result[5],
-                    "dl_status": result[6],
-                    "fsize": int(result[7]),
-                    "content_name": result[8],
-                    "mods": sorted(mod_names),
-                    "trail": "",
-                }
-                if mod_filename != "":
-                    asset["trail"] = result[9]
-                return asset
-        return None
+            asset = cursor.fetchone()
+            asset["mods"] = sorted(mod_names)
+        return asset
 
     def delete_asset(self, url):
         with sqlite3.connect(self.db_path) as db:

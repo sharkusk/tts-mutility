@@ -139,7 +139,7 @@ class FileDownload(Widget):
             "url": self.url,
             "filename": self.filename,
             "mtime": self.mtime,
-            "fsize": self.filesize,
+            "size": self.filesize,
             "sha1": "",
             "steam_sha1": self.steam_sha1,
             "dl_status": self.error,

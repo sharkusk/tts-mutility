@@ -117,13 +117,13 @@ class ModBackup(Widget):
                 if worker.is_cancelled:
                     cancelled = True
                     break
-                if asset["fsize"] > 0:
+                if asset["size"] > 0:
                     # self.post_message(UpdateLog(f"Adding {asset['filename']}."))
                     modzip.write(
                         Path(config.tts_mods_dir) / asset["filename"],
                         Path("Mods") / asset["filename"],
                     )
-                    amount_stored += asset["fsize"]
+                    amount_stored += asset["size"]
                     # Reduce number of messages to improve performance
                     if amount_stored > 2 * 1024 * 1024:
                         self.post_message(
