@@ -107,7 +107,6 @@ class TTSMutility(App):
         yield Header()
         yield LoadingIndicator(id="loading")
         yield Static(id="status")
-        self.run_worker(self.initialize_database, thread=True, exclusive=True)
 
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
         if self.f_log is not None:
@@ -119,6 +118,10 @@ class TTSMutility(App):
                     + f"{output}{suffix}"
                 )
 
+    def on_mount(self):
+        self.initialize_database()
+
+    @work(thread=True)
     def initialize_database(self) -> None:
         config = load_config()
         worker = get_current_worker()
@@ -203,9 +206,9 @@ class TTSMutility(App):
             self.write_log(f"'{mod_filename}' refreshed.")
 
         self.post_message(self.InitProcessing("Init complete. Loading UI."))
-        self.post_message(self.InitComplete())
         self.write_log("Initialization complete.")
         self.f_log.flush()
+        self.post_message(self.InitComplete())
 
     def force_refresh_mod(self, mod_filename: str) -> None:
         mod_list = ModList.ModList()
@@ -379,7 +382,7 @@ class TTSMutility(App):
         if self.is_screen_installed("mod_details"):
             screen = self.get_screen("mod_details")
             screen.update_asset(event.asset)
-    
+
     async def on_asset_detail_screen_copy_complete(
         self, event: AssetDetailScreen.CopyComplete
     ):
