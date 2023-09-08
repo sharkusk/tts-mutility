@@ -79,6 +79,9 @@ class Config:
         "Personal Steam API key. Not currently used, so completely optional."
     )
 
+    recurse_save_dir: bool = False
+    recurse_save_dir_help: str = "Scan files in subdirectories of save dir."
+
 
 def config_override(config_file: Path) -> None:
     """Overrides the default configfile location.

@@ -21,6 +21,7 @@ class ModList:
         self.db_path = Path(config.db_path)
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
+        self.recurse_save_dir = config.recurse_save_dir
         self.max_mods = max_mods
 
     def _get_mod_path(self, filename: str) -> str:
@@ -549,15 +550,15 @@ class ModList:
             else:
                 mod_filenames = []
 
-            for root_dir, base_dir in [
-                (self.mod_dir, "Workshop"),
-                (self.save_dir, "Saves"),
+            for root_dir, base_dir, prefix in [
+                (self.mod_dir, "Workshop", ""),
+                (self.save_dir, "Saves", "**/" if self.recurse_save_dir else ""),
             ]:
                 # We want the mod filenames to be formatted:
                 # Saves/xxxx.json or Workshop/xxxx.json
 
                 for i, f in enumerate(
-                    glob(os.path.join(base_dir, "*.json"), root_dir=root_dir)
+                    glob(os.path.join(base_dir, f"{prefix}*.json"), root_dir=root_dir, recursive=True)
                 ):
                     if (
                         "WorkshopFileInfos" in f
