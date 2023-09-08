@@ -108,7 +108,7 @@ class ModParser:
                         try:
                             # It appears that AudioLibrary items are mappings of form
                             # “Item1” → URL, “Item2” → audio title.
-                            url = elem["Item1"]
+                            url = elem["Item1"].strip()
                             recode = recodeURL(url)
                             if recode in done and not all_nodes:
                                 continue
@@ -143,7 +143,7 @@ class ModParser:
 
                 # Deck art URLs can contain metadata in curly braces
                 # (yikes).
-                v = re.sub(r"{.*}", "", v)
+                v = re.sub(r"{.*}", "", v).strip()
                 recode = recodeURL(v)
                 if recode in done and not all_nodes:
                     continue
