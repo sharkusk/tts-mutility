@@ -7,8 +7,10 @@ from webbrowser import open as open_url
 
 from aiopath import AsyncPath
 from rich.markdown import Markdown
-from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
+from rich.progress import (BarColumn, DownloadColumn, MofNCompleteColumn,
+                           Progress)
 from textual import work
+from textual.actions import SkipAction
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center
@@ -562,45 +564,43 @@ class ModListScreen(Screen):
                 event.stop()
 
         elif event.key == "up":
-            if filter_open:
+            if filter_open and "focus-within" in fc.pseudo_classes:
                 table = self.get_active_table()
-                row, col = table.cursor_coordinate
-                if row > 0:
-                    table.cursor_coordinate = Coordinate(row - 1, col)
-                    event.stop()
+                try:
+                    table.action_cursor_up()
+                except SkipAction:
+                    pass
 
         elif event.key == "down":
-            if filter_open:
+            if filter_open and "focus-within" in fc.pseudo_classes:
                 table = self.get_active_table()
-                row, col = table.cursor_coordinate
-                if row < table.row_count - 1:
-                    table.cursor_coordinate = Coordinate(row + 1, col)
-                    event.stop()
+                try:
+                    table.action_cursor_down()
+                except SkipAction:
+                    pass
 
         elif event.key == "enter":
             # Select requires two activations (to simulate double click with mouse)
             # However, we want single enter to select a row.  Also, we want enter to
             # auto-select row if filter is enabled.
             table = self.get_active_table()
-            f = self.query_one("#ml_filter_center")
-            if "focus-within" in f.pseudo_classes:
-                if self.filter == "":
-                    table.focus()
-                    f.toggle_class("unhide")
-            row_key, _ = table.coordinate_to_cell_key(Coordinate(table.cursor_row, 0))
-            # The row selected event will run after this, normally the first
-            # row selected event will be ignored (so that single mouse clicks
-            # do not jump immediately into the asset screen).  However, when
-            # enter is pressed we want to jump to the next screen.  This can
-            # be done by forcing the prev_selected to be the current row, then
-            # when the row selected even runs it will think this is the second
-            # selection event.
-            self.prev_selected = row_key
-            row_sel_event = DataTable.RowSelected(table, table.cursor_row, row_key)
+            if "focus-within" in fc.pseudo_classes:
+                table.focus()
+            else:
+                row_key, _ = table.coordinate_to_cell_key(Coordinate(table.cursor_row, 0))
+                # The row selected event will run after this, normally the first
+                # row selected event will be ignored (so that single mouse clicks
+                # do not jump immediately into the asset screen).  However, when
+                # enter is pressed we want to jump to the next screen.  This can
+                # be done by forcing the prev_selected to be the current row, then
+                # when the row selected even runs it will think this is the second
+                # selection event.
+                self.prev_selected = row_key
+                row_sel_event = DataTable.RowSelected(table, table.cursor_row, row_key)
 
-            # Manually trigger this event, then stop it from bubbling so we can
-            # keep focus on the filter box (if it is currently in focus).
-            self.on_data_table_row_selected(row_sel_event)
+                # Manually trigger this event, then stop it from bubbling so we can
+                # keep focus on the filter box (if it is currently in focus).
+                self.on_data_table_row_selected(row_sel_event)
             event.stop()
 
     def on_input_changed(self, event: Input.Changed):

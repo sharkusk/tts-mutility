@@ -14,6 +14,7 @@ from textual.widgets.data_table import (
 )
 from typing_extensions import Self
 from ..utility.util import unsizeof_fmt
+from textual.events import Blur, Focus
 
 
 class DataTableFilter(DataTable):
@@ -21,6 +22,12 @@ class DataTableFilter(DataTable):
         super().__init__(**kwargs)
         self._unfiltered_data: None | dict[RowKey, dict[ColumnKey, CellType]] = None
         self._unfiltered_rows: None | dict[RowKey, Row] = None
+
+    def on_blur(self, event: Blur):
+        self.show_cursor = False
+
+    def on_focus(self, event: Focus):
+        self.show_cursor = True
 
     def filter(self, f: str, *columns: str) -> Self:
         if f == "":

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from textual import work
+from textual.actions import SkipAction
 from textual.app import ComposeResult
 from textual.containers import Center
 from textual.coordinate import Coordinate
@@ -9,8 +10,7 @@ from textual.message import Message
 from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import DataTable, Header, Input, Label
-from textual.widgets.data_table import CellDoesNotExist
-from textual.widgets.data_table import RowKey
+from textual.widgets.data_table import CellDoesNotExist, RowKey
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
@@ -413,20 +413,36 @@ class AssetListScreen(Widget):
                 event.stop()
 
         elif event.key == "up":
-            if filter_open:
+            if filter_open and "focus-within" in fc.pseudo_classes:
                 table = self.get_active_table()
-                row, col = table.cursor_coordinate
-                if row > 0:
-                    table.cursor_coordinate = Coordinate(row - 1, col)
-                    event.stop()
+                try:
+                    table.action_cursor_up()
+                except SkipAction:
+                    pass
 
         elif event.key == "down":
-            if filter_open:
+            if filter_open and "focus-within" in fc.pseudo_classes:
                 table = self.get_active_table()
-                row, col = table.cursor_coordinate
-                if row < table.row_count - 1:
-                    table.cursor_coordinate = Coordinate(row + 1, col)
-                    event.stop()
+                try:
+                    table.action_cursor_down()
+                except SkipAction:
+                    pass
+
+        elif event.key == "enter":
+            table = self.get_active_table()
+            if "focus-within" in fc.pseudo_classes:
+                table.focus()
+                event.stop()
+
+        elif event.key == "tab" or event.key == "shift+tab":
+            if filter_open:
+                if "focus-within" in fc.pseudo_classes:
+                    table = self.get_active_table()
+                    table.focus()
+                else:
+                    f = self.query_one("#al_filter", expect_type=Input)
+                    f.focus()
+                event.stop()
 
     def on_input_changed(self, event: Input.Changed):
         self.filter = event.input.value
