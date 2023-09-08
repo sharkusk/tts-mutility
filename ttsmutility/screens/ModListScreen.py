@@ -7,8 +7,7 @@ from webbrowser import open as open_url
 
 from aiopath import AsyncPath
 from rich.markdown import Markdown
-from rich.progress import (BarColumn, DownloadColumn, MofNCompleteColumn,
-                           Progress)
+from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
 from textual import work
 from textual.actions import SkipAction
 from textual.app import ComposeResult
@@ -290,11 +289,14 @@ class ModListScreen(Screen):
                     and self.backup_times[name]
                     > self.mods[mod_filename]["newest_asset"]
                 ):
-                    b = " ✓ "
+                    b = " ✓"
                 else:
-                    b = " ! "
+                    b = " !"
             else:
-                b = " X "
+                b = " X"
+
+            if config.backup_read_only:
+                b += "®"
 
             self.backup_status[mod_filename] = b
             try:
@@ -515,6 +517,10 @@ class ModListScreen(Screen):
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
             return
 
+        if config.backup_read_only:
+            self.app.push_screen(InfoDialog("Backup is set as read-only."))
+            return
+
         row_key = self.get_current_row_key()
         filename = row_key.value
         zip_path, existing = self.get_backup_name(self.mods[filename])
@@ -587,7 +593,9 @@ class ModListScreen(Screen):
             if "focus-within" in fc.pseudo_classes:
                 table.focus()
             else:
-                row_key, _ = table.coordinate_to_cell_key(Coordinate(table.cursor_row, 0))
+                row_key, _ = table.coordinate_to_cell_key(
+                    Coordinate(table.cursor_row, 0)
+                )
                 # The row selected event will run after this, normally the first
                 # row selected event will be ignored (so that single mouse clicks
                 # do not jump immediately into the asset screen).  However, when
@@ -813,6 +821,10 @@ class ModListScreen(Screen):
 
         if not Path(backup_path).exists() or not self.backup_ready:
             self.app.push_screen(InfoDialog(f"Backup path '{backup_path}' not found."))
+            return
+
+        if config.backup_read_only:
+            self.app.push_screen(InfoDialog("Backup is set as read-only."))
             return
 
         to_backup = []

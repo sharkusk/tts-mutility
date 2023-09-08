@@ -85,6 +85,11 @@ class Config:
     scan_ts_saves: bool = False
     scan_ts_saves_help: str = "Scan TS_Save_xx files in save directories."
 
+    backup_read_only: bool = False
+    backup_read_only_help: str = (
+        "Backup directory is read-only (can only be used for unzipping)"
+    )
+
 
 def config_override(config_file: Path) -> None:
     """Overrides the default configfile location.
