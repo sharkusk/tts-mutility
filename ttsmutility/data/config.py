@@ -82,6 +82,9 @@ class Config:
     recurse_save_dir: bool = False
     recurse_save_dir_help: str = "Scan files in subdirectories of save dir."
 
+    scan_ts_saves: bool = False
+    scan_ts_saves_help: str = "Scan TS_Save_xx files in save directories."
+
 
 def config_override(config_file: Path) -> None:
     """Overrides the default configfile location.

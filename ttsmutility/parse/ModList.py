@@ -22,6 +22,7 @@ class ModList:
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
         self.recurse_save_dir = config.recurse_save_dir
+        self.scan_ts_saves = config.scan_ts_saves
         self.max_mods = max_mods
 
     def _get_mod_path(self, filename: str) -> str:
@@ -556,16 +557,31 @@ class ModList:
             ]:
                 # We want the mod filenames to be formatted:
                 # Saves/xxxx.json or Workshop/xxxx.json
+                files_to_skip = [
+                    "WorkshopFileInfos",
+                    "SaveFileInfos",
+                    "TS_AutoSave",
+                ]
+
+                if not self.scan_ts_saves:
+                    files_to_skip.append("TS_Save")
+
+                def skip_mod(filename):
+                    result = False
+                    for ignore in files_to_skip:
+                        if ignore in filename:
+                            result = True
+                            break
+                    return result
 
                 for i, f in enumerate(
-                    glob(os.path.join(base_dir, f"{prefix}*.json"), root_dir=root_dir, recursive=True)
+                    glob(
+                        os.path.join(base_dir, f"{prefix}*.json"),
+                        root_dir=root_dir,
+                        recursive=True,
+                    )
                 ):
-                    if (
-                        "WorkshopFileInfos" in f
-                        or "SaveFileInfos" in f
-                        or "TS_AutoSave" in f
-                        or "TS_Save" in f
-                    ):
+                    if skip_mod(f):
                         continue
 
                     if self.max_mods != -1 and i >= self.max_mods:
