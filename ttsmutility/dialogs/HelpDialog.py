@@ -25,15 +25,19 @@ Welcome to {APPLICATION_TITLE} Help! {APPLICATION_TITLE} was built with [Textual
 | -- | -- |
 | `/` | Filter Game Names |
 | `esc` | Close Filter Bar / Background Task Window |
-| `tab` | Cycle Tabs |
 | `ctrl+q` | Quit the application |
+| `enter` | Select Mod |
 
 | Key | Mod Command |
 | -- | -- |
 | `Ctrl+d` | Download Missing Assets from Mod |
 | `Ctrl+a` | Download Missing Assets from ALL Displayed Mods |
 | `Ctrl+b` | Create zip backup of Mod |
+| `Ctrl+w` | Backup of ALL Mods (if needed) |
+| `Ctrl+u` | Unzip mod backup |
 | `Ctrl+r` | Force refresh Mod |
+| `y` | Download Content Names |
+| `m` | Show all missing assets (for all mods) |
 
 | Key | General Command |
 | -- | -- |
