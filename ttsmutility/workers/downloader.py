@@ -109,7 +109,7 @@ class FileDownload(Widget):
         chunk_size: int = 64 * 1024,
     ):
         super().__init__()
-        self.url = url
+        self.url = url.strip()
         self.trail = trail
         self.timeout = timeout
         self.timeout_retries = timeout_retries
@@ -184,6 +184,13 @@ class FileDownload(Widget):
 
         if "paste.ee" in hostname and "/p/" in self.fetch_url:
             self.fetch_url = self.fetch_url.replace("paste.ee/p/", "paste.ee/d/")
+
+        if "steamusercontent" in hostname and self.fetch_url[-1] != "/":
+            # Steam links must always end in / or the download will fail
+            self.fetch_url += "/"
+
+        # Obtain preliminary content_name from url if possible
+        self.content_name = get_content_name(self.url)
 
         # type in the response.
         if is_model(self.trail):

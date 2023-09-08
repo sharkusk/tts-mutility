@@ -140,7 +140,7 @@ class ModList:
             await db.executemany(
                 """
                 UPDATE tts_mods
-                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
                 WHERE mod_filename=?
                 """,
                 result,

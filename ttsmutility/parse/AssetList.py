@@ -167,12 +167,13 @@ class AssetList:
                     """
                     UPDATE tts_assets
                     SET
-                        asset_dl_status=?, asset_steam_sha1=?
+                        asset_dl_status=?, asset_steam_sha1=?, asset_content_name=?
                     WHERE asset_url=?
                     """,
                     (
                         asset["dl_status"],
                         asset["steam_sha1"],
+                        asset["content_name"],
                         asset["url"],
                     ),
                 )

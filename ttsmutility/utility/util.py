@@ -32,6 +32,7 @@ def get_steam_sha1_from_url(url):
 
 
 def get_content_name(url: str, content_disposition: str = "") -> str:
+    url = url.strip()
     domain = urlparse(url).netloc
 
     content_name = ""
@@ -75,8 +76,10 @@ def get_content_name(url: str, content_disposition: str = "") -> str:
                 ext = ext[0:4]
                 content_name = name + ext
 
-        if "." not in content_name:
-            content_name = ""
+        if content_name != "" and "." not in content_name:
+            # githubusercontent doesn't always contain the ext :(
+            if "githubusercontent" not in domain and "singlecolorimage" not in domain:
+                content_name = ""
         elif ext.lower() not in ALL_VALID_EXTS:
             content_name = ""
 
