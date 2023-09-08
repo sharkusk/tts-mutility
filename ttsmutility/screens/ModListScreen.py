@@ -289,14 +289,14 @@ class ModListScreen(Screen):
                     and self.backup_times[name]
                     > self.mods[mod_filename]["newest_asset"]
                 ):
-                    b = " ✓"
+                    b = " ✔"
                 else:
                     b = " !"
             else:
-                b = " X"
+                b = " ✘"
 
             if config.backup_read_only:
-                b += "®"
+                b += "·"
 
             self.backup_status[mod_filename] = b
             try:
@@ -832,7 +832,7 @@ class ModListScreen(Screen):
             if mod["deleted"]:
                 continue
 
-            if self.backup_status[mod["filename"]] == " ✓ ":
+            if "✓" in self.backup_status[mod["filename"]]:
                 continue
 
             zip_path, existing = self.get_backup_name(mod)
@@ -893,7 +893,7 @@ class ModListScreen(Screen):
 
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""
-        self.backup_status[filename] = " ✓ "
+        self.backup_status[filename] = " ✓"
         self.update_status(filename)
 
     def update_bgg(self, mod_filename, bgg_id):
