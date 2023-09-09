@@ -289,7 +289,7 @@ class ModListScreen(Screen):
                     and self.backup_times[name]
                     > self.mods[mod_filename]["newest_asset"]
                 ):
-                    b = " ✔"
+                    b = " ✓"
                 else:
                     b = " !"
             else:
