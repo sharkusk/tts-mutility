@@ -949,8 +949,12 @@ class AssetList:
         self.post_message(UpdateLog(f"Copying `{src_filepath}` to `{dest_filepath}`"))
         copy(src_filepath, dest_filepath)
 
-    def find_asset(self, url, trail=None):
-        matches = []
+    def find_asset(self, url, trail=None, max_matches=20):
+        sha_match = ""
+        name_matches = []
+        fuzzy_matches = []
+        total_matches = 0
+
 
         with sqlite3.connect(self.db_path) as db:
             content_name = get_content_name(url)
@@ -980,20 +984,23 @@ class AssetList:
                 )
                 result = cursor.fetchone()
                 if result is not None and result[0] != url:
-                    matches.append((result[0], "sha1"))
+                    sha_match = result[0]
+                    total_matches += 1
 
             if content_name != "":
                 cursor = db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
-                    WHERE asset_content_name=?
+                    WHERE asset_content_name LIKE ?
                     """,
                     (content_name,),
                 )
-                result = cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Exact Name"))
+                results = cursor.fetchall()
+                for result in results:
+                    if result[0] != url and result[0] not in sha_match:
+                        name_matches.append(result[0])
+                        total_matches += 1
 
                 # Ignore the extension for the fuuzzy searches
                 content_name = os.path.splitext(content_name)[0]
@@ -1005,9 +1012,17 @@ class AssetList:
                     """,
                     ("%" + recodeURL(content_name) + "%",),
                 )
-                result = cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Fuzzy Recode"))
+                results = cursor.fetchall()
+                for result in results:
+                    if total_matches > max_matches:
+                        break
+                    if (
+                        result[0] != url
+                        and result[0] != sha_match
+                        and result[0] not in name_matches
+                    ):
+                        fuzzy_matches.append(result[0])
+                        total_matches += 1
 
                 cursor = db.execute(
                     """
@@ -1017,9 +1032,17 @@ class AssetList:
                     """,
                     ("%" + content_name + "%",),
                 )
-                result = cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Fuzzy Name"))
+                results = cursor.fetchall()
+                for result in results:
+                    if total_matches > max_matches:
+                        break
+                    if (
+                        result[0] != url
+                        and result[0] != sha_match
+                        and result[0] not in name_matches
+                        and result[0] not in fuzzy_matches
+                    ):
+                        fuzzy_matches.append(result[0])
 
             if trail is not None and False:
                 # This is not currently supported...  Need
@@ -1040,6 +1063,13 @@ class AssetList:
                 result = cursor.fetchone()
                 if len(result) > 0:
                     matches.append((result[0], "trail"))
+
+        matches = []
+        if sha_match != "":
+            matches += [(sha_match, "SHA1")]
+
+        matches += [(url, "Exact Name") for url in name_matches]
+        matches += [(url, "Fuzzy Match") for url in fuzzy_matches]
 
         return matches
 
