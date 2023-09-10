@@ -421,15 +421,13 @@ class TTSMutility(App):
         screen = self.get_screen("mod_list")
 
         for mod_filename in mod_filenames:
-            await asyncio.sleep(0.1)
-            turls = mod_asset_list.get_missing_assets(mod_filename)
+            turls = await mod_asset_list.get_missing_assets(mod_filename)
             if len(turls) == 0:
                 continue
             urls, trails = tuple(zip(*turls))
             self.write_log(f"Downloading missing assets from `{mod_filename}`.")
             self.mods_queued_dl[mod_filename] = list(urls)
-
-            screen.dl_urls(urls, trails)
+            screen.dl_urls(urls, trails, mod_filename)
 
     def on_mod_list_screen_sha1selected(self, event: ModListScreen.Sha1Selected):
         self.run_worker(self.sha1.scan_sha1s, exclusive=True, thread=True)

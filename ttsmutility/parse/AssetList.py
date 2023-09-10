@@ -226,9 +226,9 @@ class AssetList:
                 )
             await db.commit()
 
-    def get_missing_assets(self, mod_filename: str) -> list:
-        with sqlite3.connect(self.db_path) as db:
-            cursor = db.execute(
+    async def get_missing_assets(self, mod_filename: str) -> list:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
                 """
                 SELECT
                     asset_url, asset_mtime, asset_sha1,
@@ -241,8 +241,8 @@ class AssetList:
                 WHERE mod_filename=?
                 """,
                 (mod_filename,),
-            )
-            results = cursor.fetchall()
+            ) as cursor:
+                results = await cursor.fetchall()
         urls = []
         for result in results:
             skip = True
@@ -954,7 +954,6 @@ class AssetList:
         name_matches = []
         fuzzy_matches = []
         total_matches = 0
-
 
         with sqlite3.connect(self.db_path) as db:
             content_name = get_content_name(url)
