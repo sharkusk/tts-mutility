@@ -745,7 +745,7 @@ class ModListScreen(Screen):
             self.status[filename].download = ""
             self.update_status(filename)
 
-    def dl_urls(self, urls, trails) -> None:
+    def dl_urls(self, urls, trails, mod_filename="") -> None:
         for url, trail in zip(urls, trails):
             if url in self.downloads:
                 continue
