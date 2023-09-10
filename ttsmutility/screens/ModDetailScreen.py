@@ -320,7 +320,7 @@ class ModDetailScreen(Screen):
                     if remainder != 0:
                         tick = int(remainder / 0.125)
                         line += TICKS[tick]
-                    line += " " + numvotes
+                    line += " " + str(numvotes)
                     line += "  \n"
                     chart += line
             else:
@@ -332,7 +332,7 @@ class ModDetailScreen(Screen):
                 if remainder != 0:
                     tick = int(remainder / 0.125)
                     line += TICKS[tick]
-                line += " " + bar_values["numvotes"]
+                line += " " + str(bar_values["numvotes"])
                 line += "\n"
                 chart += line
 

@@ -13,6 +13,7 @@
 |------------------------------:|:--------------------------|
 {ranking}
 | Average User Rating | {average} |
+| Num User Ratings | {usersrated:,} |
 | Bayes Average | {bayesaverage} |
 | Average Weight | {averageweight} |
 | Player Count | {minplayers} - {maxplayers} |

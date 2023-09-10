@@ -11,6 +11,7 @@ from urllib.request import urlopen
 
 from ..data.config import load_config
 from ..parse.FileFinder import recodeURL
+from ..utility.util import str_to_num
 
 
 class BggSearch:
@@ -112,7 +113,7 @@ class BggSearch:
             year = ""
             if e.tag == "item" and e.attrib["type"] == "boardgame":
                 # We found our games!
-                id = e.attrib["id"]
+                id = str_to_num(e.attrib["id"])
                 for g in e:
                     if g.tag == "name" and g.attrib["type"] == "primary":
                         name = g.attrib["value"]
@@ -121,7 +122,7 @@ class BggSearch:
                         # a name.
                         name = g.attrib["value"]
                     elif g.tag == "yearpublished":
-                        year = g.attrib["value"]
+                        year = str_to_num(g.attrib["value"])
                 if name != "" and id != "" and year != "":
                     games.append((name, id, year))
         return games
@@ -188,14 +189,14 @@ class BggSearch:
                 else:
                     game_info[d.tag] = unescape(d.text)
             elif d.tag in self.BGG_FIELDS:
-                game_info[d.tag] = d.attrib["value"]
+                game_info[d.tag] = str_to_num(d.attrib["value"])
             elif d.tag == "link" and d.attrib["type"] in self.BGG_FIELDS:
                 # game_info[d.attrib["type"]] = d.attrib["value"]
                 game_info[d.attrib["type"]] = self._make_link(d)
             elif d.tag == "statistics":
                 for s in d[0]:
                     if s.tag in self.BGG_STATS:
-                        game_info[s.tag] = s.attrib["value"]
+                        game_info[s.tag] = str_to_num(s.attrib["value"])
                     elif s.tag in self.BGG_STATS_LISTS:
                         game_info[s.tag] = []
                         """
@@ -207,7 +208,7 @@ class BggSearch:
                         for r in s:
                             d = {}
                             for key in r.attrib.keys():
-                                d[key] = r.attrib[key]
+                                d[key] = str_to_num(r.attrib[key])
                             game_info[s.tag].append(d)
             elif d.tag == "link" and d.attrib["type"] in self.BGG_LISTS:
                 link = self._make_link(d)
@@ -244,7 +245,7 @@ class BggSearch:
                 """  # noqa
                 p = {}
                 for key in d.attrib.keys():
-                    p[key] = d.attrib[key]
+                    p[key] = str_to_num(d.attrib[key])
                 name = p["name"]
                 for r in d:
                     if r.tag == "results":
@@ -259,7 +260,7 @@ class BggSearch:
                                 v = {}
                                 if s.tag == "result":
                                     for key in s.attrib.keys():
-                                        v[key] = s.attrib[key]
+                                        v[key] = str_to_num(s.attrib[key])
                                 p[name][r.attrib[results_key]].append(v)
                         else:
                             # suggested_playerage style poll
@@ -269,9 +270,9 @@ class BggSearch:
                                     p[name][s.attrib["value"]] = {}
                                     for key in s.attrib.keys():
                                         if key != "value":
-                                            p[name][s.attrib["value"]][key] = s.attrib[
+                                            p[name][s.attrib["value"]][
                                                 key
-                                            ]
+                                            ] = str_to_num(s.attrib[key])
                 game_info[p["name"]] = p
         return game_info
 

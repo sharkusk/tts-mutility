@@ -146,3 +146,15 @@ def unsizeof_fmt(size, suffix="B"):
                 pass
             break
     return size
+
+
+def is_number(s: str) -> bool:
+    return s.replace(".", "", 1).isdigit()
+
+
+def str_to_num(s: str) -> int | float | str:
+    if s.isdigit():
+        return int(s)
+    elif is_number(s):
+        return float(s)
+    return s
