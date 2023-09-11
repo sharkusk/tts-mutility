@@ -665,9 +665,9 @@ class ModList:
             db.commit()
         return mods
 
-    def set_bgg_id(self, mod_filename: str, bgg_id: str) -> None:
-        with sqlite3.connect(self.db_path) as db:
-            db.execute(
+    async def set_bgg_id(self, mod_filename: str, bgg_id: str) -> None:
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
                 """
                 UPDATE
                     tts_mods
@@ -678,4 +678,4 @@ class ModList:
                 """,
                 (bgg_id, mod_filename),
             )
-            db.commit()
+            await db.commit()

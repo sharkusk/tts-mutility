@@ -1,4 +1,3 @@
-import time
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
@@ -348,6 +347,9 @@ class ModDetailScreen(Screen):
     def get_markdown_bgg(self, force_update=False) -> str:
         mod_detail = self.get_markdown_common()
 
+        if mod_detail["bgg_id"] == "":
+            mod_detail["bgg_id"] = None
+
         if (bgg_id := mod_detail["bgg_id"]) is None:
             mod_detail["bgg_link"] = ""
             return "# No BoardGameGeek ID is associated with this game."
@@ -423,7 +425,7 @@ class ModDetailScreen(Screen):
 
         self.app.push_screen(InputDialog(self.mod_detail["name"], msg=msg), set_name)
 
-    def action_bgg_lookup(self, mod_name: str = ""):
+    async def action_bgg_lookup(self, mod_name: str = ""):
         if mod_name == "":
             mod_name = self.mod_detail["name"]
 
@@ -434,10 +436,10 @@ class ModDetailScreen(Screen):
 
         if len(options) > 1:
 
-            def set_id(index: int) -> None:
+            async def set_id(index: int) -> None:
                 if index == len(options) - 1:
                     if self.mod_detail["bgg_id"] is not None:
-                        self.mod_list.set_bgg_id(self.filename, "")
+                        await self.mod_list.set_bgg_id(self.filename, None)
                     # TODO: remove bgg tab if it exists
                 else:
                     if self.mod_detail["bgg_id"] is None:
@@ -449,7 +451,7 @@ class ModDetailScreen(Screen):
                     if bgg_id != self.mod_detail["bgg_id"]:
                         self.mod_detail["bgg_id"] = bgg_id
                         md = self.query_one("#md_markdown_bgg", expect_type=Markdown)
-                        self.mod_list.set_bgg_id(self.filename, bgg_id)
+                        await self.mod_list.set_bgg_id(self.filename, bgg_id)
                         md.update(self.get_markdown_bgg())
                         self.post_message(
                             self.BggIdUpdated(self.mod_detail["filename"], bgg_id)

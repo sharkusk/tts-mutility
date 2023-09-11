@@ -172,7 +172,7 @@ class ModListScreen(Screen):
             "missing_assets": True,
             "min_players": True,
             "max_players": True,
-            "backup": False,
+            "backup": True,
             "bgg": False,
             "status": True,
         }
@@ -291,9 +291,9 @@ class ModListScreen(Screen):
                 ):
                     b = " ✓"
                 else:
-                    b = " !"
+                    b = "!"
             else:
-                b = " ✘"
+                b = "✘"
 
             if config.backup_read_only:
                 b += "·"
