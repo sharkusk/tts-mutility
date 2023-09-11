@@ -1026,9 +1026,9 @@ class AssetList:
                     """
                     SELECT asset_url, asset_content_name
                     FROM tts_assets
-                    WHERE asset_content_name LIKE ?
+                    WHERE asset_content_name LIKE ? AND asset_ext LIKE ?
                     """,
-                    ("%" + content_name + "%",),
+                    ("%" + content_name + "%", "%" + ext),
                 )
                 results = cursor.fetchall()
                 for result in results:
@@ -1041,6 +1041,7 @@ class AssetList:
                         and result[0] not in fuzzy_matches
                     ):
                         fuzzy_matches.append((result[0], result[1]))
+                        total_matches += 1
 
         matches = []
         if sha_match != "":
