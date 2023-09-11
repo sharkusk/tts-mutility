@@ -155,9 +155,11 @@ class AssetDetailScreen(ModalScreen):
                 asset_detail["matches"] += "None Found\n"
             else:
                 for match in matches:
-                    uri = f"[{match[0]}]({self.ad_uri_prefix}{match[0]})"
-                    copy_link = f"[copy]({self.uri_copy}{match[0]})"
-                    asset_detail["matches"] += f"- {uri} [{match[1]}] <-- {copy_link}\n"
+                    uri = f"[Asset Details]({self.ad_uri_prefix}{match[0][0]})"
+                    copy_link = f"[copy]({self.uri_copy}{match[0][0]})"
+                    asset_detail[
+                        "matches"
+                    ] += f"- [{match[1]}] {uri}: {match[0][1]} --> {copy_link}\n"
 
             if asset_detail["size"] > 0:
                 asset_detail["delete"] = "### Copied Asset Options\n"

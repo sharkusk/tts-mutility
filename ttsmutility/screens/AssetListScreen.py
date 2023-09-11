@@ -219,7 +219,9 @@ class AssetListScreen(Widget):
             readable_time = format_time(asset["mtime"])
         new_asset["mtime"] = readable_time
 
-        new_asset["size"] = sizeof_fmt(new_asset["size"])
+        # Don't reformat our size if it's already been converted to readable form
+        if type(new_asset["size"]) is int:
+            new_asset["size"] = sizeof_fmt(new_asset["size"])
         new_asset["url"] = self.format_url(asset["url"])
 
         if asset["filename"] is None:

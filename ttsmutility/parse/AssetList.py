@@ -152,7 +152,7 @@ class AssetList:
                         ON tts_mod_assets.asset_id_fk=tts_assets.id
                     INNER JOIN tts_mods
                         ON tts_mod_assets.mod_id_fk=tts_mods.id
-                WHERE asset_size == 0 AND mod_asset_ignore_missing == 0
+                WHERE asset_size == 0 AND mod_asset_ignore_missing == 0 AND asset_dl_status != ""
                 """
                 ),
             )
@@ -975,7 +975,7 @@ class AssetList:
             if steam_sha1 != "":
                 cursor = db.execute(
                     """
-                    SELECT asset_url
+                    SELECT asset_url, asset_content_name
                     FROM tts_assets
                     WHERE asset_sha1=?
                     """,
@@ -983,13 +983,13 @@ class AssetList:
                 )
                 result = cursor.fetchone()
                 if result is not None and result[0] != url:
-                    sha_match = result[0]
+                    sha_match = result[0], result[1]
                     total_matches += 1
 
             if content_name != "":
                 cursor = db.execute(
                     """
-                    SELECT asset_url
+                    SELECT asset_url, asset_content_name
                     FROM tts_assets
                     WHERE asset_content_name LIKE ?
                     """,
@@ -998,18 +998,17 @@ class AssetList:
                 results = cursor.fetchall()
                 for result in results:
                     if result[0] != url and result[0] not in sha_match:
-                        name_matches.append(result[0])
+                        name_matches.append((result[0], result[1]))
                         total_matches += 1
 
-                # Ignore the extension for the fuuzzy searches
-                content_name = os.path.splitext(content_name)[0]
+                content_name, ext = os.path.splitext(content_name)
                 cursor = db.execute(
                     """
-                    SELECT asset_url
+                    SELECT asset_url, asset_content_name
                     FROM tts_assets
-                    WHERE asset_content_name LIKE ?
+                    WHERE asset_content_name LIKE ? AND asset_ext LIKE ?
                     """,
-                    ("%" + recodeURL(content_name) + "%",),
+                    ("%" + recodeURL(content_name) + "%", "%" + ext),
                 )
                 results = cursor.fetchall()
                 for result in results:
@@ -1020,12 +1019,12 @@ class AssetList:
                         and result[0] != sha_match
                         and result[0] not in name_matches
                     ):
-                        fuzzy_matches.append(result[0])
+                        fuzzy_matches.append((result[0], result[1]))
                         total_matches += 1
 
                 cursor = db.execute(
                     """
-                    SELECT asset_url
+                    SELECT asset_url, asset_content_name
                     FROM tts_assets
                     WHERE asset_content_name LIKE ?
                     """,
@@ -1041,27 +1040,7 @@ class AssetList:
                         and result[0] not in name_matches
                         and result[0] not in fuzzy_matches
                     ):
-                        fuzzy_matches.append(result[0])
-
-            if trail is not None and False:
-                # This is not currently supported...  Need
-                # a way to detect somewhat unique names in
-                # the trails...
-                cursor = db.execute(
-                    """
-                    SELECT asset_url
-                    FROM tts_assets
-                        INNER JOIN tts_mod_assets
-                            ON tts_mod_assets.asset_id_fk=tts_assets.id
-                        INNER JOIN tts_mods
-                            ON tts_mod_assets.mod_id_fk=tts_mods.id
-                    WHERE mod_asset_trail LIKE '%?%'
-                    """,
-                    (trail,),
-                )
-                result = cursor.fetchone()
-                if len(result) > 0:
-                    matches.append((result[0], "trail"))
+                        fuzzy_matches.append((result[0], result[1]))
 
         matches = []
         if sha_match != "":
