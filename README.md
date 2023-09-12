@@ -70,6 +70,10 @@ options:
 ### Virus Alert
 ![Screenshot 2023-07-10 124257](https://github.com/sharkusk/tts-mutility/assets/4368882/a257b5d4-a2b7-4df0-8484-7d9409ed5864)
 
+### Explorer Tree View
+![tree](https://github.com/sharkusk/tts-mutility/assets/4368882/46112527-eee7-4239-bbd5-6e69f8db7bf9)
+
+
 # ttscleaner.py - TTS Script Virus Removal Tool
 
 A stand alone tool is also available to remove the TTS virus from Mods and Saves.  **Please store a backup of your original mod.**
