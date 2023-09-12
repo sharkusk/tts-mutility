@@ -970,6 +970,12 @@ class AssetList:
                 if result is not None:
                     content_name = result[0]
 
+            if content_name == "":
+                if "=" in url:
+                    content_name = url[url.rfind("=") :]
+                else:
+                    content_name = recodeURL(url)
+
             steam_sha1 = get_steam_sha1_from_url(url)
 
             if steam_sha1 != "":
@@ -1067,8 +1073,14 @@ class AssetList:
                     (url,),
                 ) as cursor:
                     result = await cursor.fetchone()
-                if result is not None:
-                    content_name = result[0]
+                    if result is not None:
+                        content_name = result[0]
+
+            if content_name == "":
+                if "=" in url:
+                    content_name = url[url.rfind("=") :]
+                else:
+                    content_name = recodeURL(url)
 
             steam_sha1 = get_steam_sha1_from_url(url)
 
@@ -1081,48 +1093,52 @@ class AssetList:
                     """,
                     (steam_sha1,),
                 ) as cursor:
-                    result = await cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "sha1"))
+                    async for result in cursor:
+                        if result[0] != url:
+                            matches.append((result[0], "sha1"))
+                            break
 
             if content_name != "":
                 async with db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
-                    WHERE asset_content_name=?
+                    WHERE asset_content_name LIKE ?
                     """,
                     (content_name,),
                 ) as cursor:
-                    result = await cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Exact Name"))
+                    async for result in cursor:
+                        if result[0] != url:
+                            matches.append((result[0], "Exact Name"))
+                            break
 
                 # Ignore the extension for the fuuzzy searches
-                content_name = os.path.splitext(content_name)[0]
+                content_name, ext = os.path.splitext(content_name)
                 async with db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
-                    WHERE asset_content_name LIKE ?
+                    WHERE asset_content_name LIKE ? AND asset_ext LIKE ?
                     """,
-                    ("%" + recodeURL(content_name) + "%",),
+                    ("%" + recodeURL(content_name) + "%", "%" + ext),
                 ) as cursor:
-                    result = await cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Fuzzy Recode"))
+                    async for result in cursor:
+                        if result[0] != url:
+                            matches.append((result[0], "Fuzzy Recode"))
+                            break
 
                 async with db.execute(
                     """
                     SELECT asset_url
                     FROM tts_assets
-                    WHERE asset_content_name LIKE ?
+                    WHERE asset_content_name LIKE ? AND asset_ext LIKE ?
                     """,
-                    ("%" + content_name + "%",),
+                    ("%" + content_name + "%", "%" + ext),
                 ) as cursor:
-                    result = await cursor.fetchone()
-                if result is not None and result[0] != url:
-                    matches.append((result[0], "Fuzzy Name"))
+                    async for result in cursor:
+                        if result[0] != url:
+                            matches.append((result[0], "Fuzzy Name"))
+                            break
 
         return matches
 

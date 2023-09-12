@@ -425,7 +425,7 @@ class ModDetailScreen(Screen):
 
         self.app.push_screen(InputDialog(self.mod_detail["name"], msg=msg), set_name)
 
-    async def action_bgg_lookup(self, mod_name: str = ""):
+    def action_bgg_lookup(self, mod_name: str = ""):
         if mod_name == "":
             mod_name = self.mod_detail["name"]
 
