@@ -10,7 +10,7 @@ class ModExplorerScreen(Screen):
         ("escape", "app.pop_screen", "OK"),
     ]
 
-    def __init__(self, mod_filepath, trail):
+    def __init__(self, mod_filepath, trail=[]):
         super().__init__()
         self.mod_filepath = mod_filepath
         self.trail = trail
