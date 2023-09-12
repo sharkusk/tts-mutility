@@ -498,5 +498,12 @@ class AssetListScreen(Widget):
         else:
             mod_filepath = Path(self.save_dir) / self.mod_filename
 
-        trail = trailstring_to_trail(self.assets[row_key]["trail"])
-        self.app.push_screen(ModExplorerScreen(mod_filepath, trail))
+        if self.all_nodes and "#" in row_key.value:
+            i = row_key.value.split("#")[1]
+            trail = self.assets[row_key.value]["trail"][int(i)]
+        else:
+            trail = self.assets[row_key.value]["trail"]
+
+        self.app.push_screen(
+            ModExplorerScreen(mod_filepath, trailstring_to_trail(trail))
+        )
