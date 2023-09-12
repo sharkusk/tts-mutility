@@ -1,7 +1,7 @@
 import json
 
-from pathlib import Path
 from rich.text import Text
+from rich.highlighter import ReprHighlighter
 
 from textual.app import ComposeResult
 from textual.widget import Widget
@@ -12,15 +12,19 @@ from textual.widgets.tree import TreeNode
 class ModExplorer(Widget):
     BINDINGS = []
 
-    def __init__(self, json_path: Path):
+    def __init__(self, json_path, *, json_data=None, start_trail=[]):
         self.json_path = json_path
+        self.json_data = json_data
+        self.trail = start_trail
+        self.start_node = None
         super().__init__()
 
     def compose(self) -> ComposeResult:
         yield Tree("Root")
 
-    @classmethod
-    def add_json(cls, name: str, node: TreeNode, json_data: object) -> None:
+    def add_json(
+        self, name: str, node: TreeNode, json_data: object, trail: list = []
+    ) -> None:
         """Adds JSON data to a node.
 
         Args:
@@ -28,11 +32,11 @@ class ModExplorer(Widget):
             json_data (object): An object decoded from JSON.
         """
 
-        from rich.highlighter import ReprHighlighter
-
         highlighter = ReprHighlighter()
 
-        def add_node(name: str, node: TreeNode, data: object) -> None:
+        # ObjectStates -> "Infinite_Bag KOBAN (f591f5)" -> ContainedObjects -> "Koban (32c4ff)" -> CustomMesh -> DiffuseURL
+
+        def add_node(name: str, node: TreeNode, data: object, trail: list = []) -> None:
             """Adds a node to the tree.
 
             Args:
@@ -44,7 +48,14 @@ class ModExplorer(Widget):
                 node.set_label(Text(f"{{{len(data)}}} {name}"))
                 for key, value in data.items():
                     new_node = node.add("")
-                    add_node(key, new_node, value)
+                    if len(trail) > 0 and key in trail[0]:
+                        node.expand()
+                        new_trail = trail[1:]
+                        if len(new_trail) == 0:
+                            self.start_node = new_node
+                    else:
+                        new_trail = []
+                    add_node(key, new_node, value, new_trail)
             elif isinstance(data, list):
                 node.set_label(Text(f"[{len(data)}] {name}"))
                 for index, value in enumerate(data):
@@ -53,10 +64,24 @@ class ModExplorer(Widget):
                         new_name = f"{index} - {value['Name']}"
                         if "Nickname" in value and value["Nickname"] != "":
                             new_name += f" ({value['Nickname']})"
+                        if (
+                            "GUID" in value
+                            and len(trail) > 0
+                            and value["GUID"] in trail[0]
+                        ):
+                            node.expand()
+                            new_trail = trail[1:]
+                            if len(new_trail) == 0:
+                                self.start_node = new_node
+                        else:
+                            new_trail = []
                     else:
                         new_name = str(index)
-                    add_node(new_name, new_node, value)
+                        new_trail = trail
+                    add_node(new_name, new_node, value, new_trail)
             else:
+                if len(trail) == 1 and name in trail[0]:
+                    self.start_node = node
                 node.allow_expand = False
                 value = repr(data)
                 if len(value) > 80:
@@ -69,13 +94,22 @@ class ModExplorer(Widget):
                     label = Text(value)
                 node.set_label(label)
 
-        add_node(name, node, json_data)
+        add_node(name, node, json_data, self.trail)
+
+    def jump_to_node(self, node):
+        tree = self.query_one(Tree)
+        tree.scroll_to_node(node)
+        tree.select_node(node)
 
     def on_mount(self) -> None:
-        with open(self.json_path, encoding="utf-8") as data_file:
-            self.json_data = json.load(data_file)
+        if self.json_data is None:
+            with open(self.json_path, encoding="utf-8") as data_file:
+                self.json_data = json.load(data_file)
         tree = self.query_one(Tree)
         tree.auto_expand = True
-        tree.show_root = not tree.show_root
+        tree.show_root = False
         json_node = tree.root.add("ROOT")
-        self.add_json(str(self.json_path), json_node, self.json_data)
+        self.add_json(str(self.json_path), json_node, self.json_data, self.trail)
+
+        if self.start_node is not None:
+            self.call_after_refresh(self.jump_to_node, self.start_node)

@@ -17,6 +17,8 @@ from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
 from ..utility.util import MyText, format_time, make_safe_filename, sizeof_fmt
 from ..widgets.DataTableFilter import DataTableFilter
+from ..screens.ModExplorerScreen import ModExplorerScreen
+from ..parse.FileFinder import trailstring_to_trail
 
 
 class AllAssets(Screen):
@@ -46,6 +48,7 @@ class AssetListScreen(Widget):
         ("r", "missing_report", "Missing Report"),
         ("i", "ignore_missing", "Ignore Missing"),
         ("a", "all_nodes", "Show All Nodes"),
+        ("e", "explore", "Explore"),
     ]
 
     class AssetSelected(Message):
@@ -486,3 +489,14 @@ class AssetListScreen(Widget):
 
     def get_active_table(self) -> DataTable:
         return next(self.query("#" + self.al_id).results(DataTable))
+
+    def action_explore(self) -> None:
+        row_key = self.get_current_row_key()
+
+        if "Workshop" in self.mod_filename:
+            mod_filepath = Path(self.mod_dir) / self.mod_filename
+        else:
+            mod_filepath = Path(self.save_dir) / self.mod_filename
+
+        trail = trailstring_to_trail(self.assets[row_key]["trail"])
+        self.app.push_screen(ModExplorerScreen(mod_filepath, trail))

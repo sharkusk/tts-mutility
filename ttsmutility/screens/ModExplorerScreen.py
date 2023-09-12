@@ -10,10 +10,11 @@ class ModExplorerScreen(Screen):
         ("escape", "app.pop_screen", "OK"),
     ]
 
-    def __init__(self, mod_filepath):
+    def __init__(self, mod_filepath, trail):
         super().__init__()
         self.mod_filepath = mod_filepath
+        self.trail = trail
 
     def compose(self) -> ComposeResult:
         yield Footer()
-        yield ModExplorer(self.mod_filepath)
+        yield ModExplorer(self.mod_filepath, start_trail=self.trail)
