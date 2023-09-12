@@ -34,6 +34,7 @@ from ..widgets.DataTableFilter import DataTableFilter
 from ..workers.backup import unzip_backup
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
+from .ModExplorerScreen import ModExplorerScreen
 
 
 class ModListScreen(Screen):
@@ -74,6 +75,7 @@ class ModListScreen(Screen):
         Binding("ctrl+u", "unzip", "Unzip Backup", show=False),
         Binding("m", "missing_assets", "Show All Missing Assets", show=True),
         Binding("y", "scan_names", "Scan Names", show=True),
+        Binding("e", "explore", "Explore Mod", show=True),
     ]
 
     def __init__(self, mod_dir: str, save_dir: str) -> None:
@@ -932,3 +934,16 @@ class ModListScreen(Screen):
                         flush=True,
                     )
                 )
+
+    def action_explore(self):
+        row_key = self.get_current_row_key()
+        mod_filename = row_key.value
+        if mod_filename is None:
+            return
+
+        if "Workshop" in mod_filename:
+            mod_filepath = Path(self.mod_dir) / mod_filename
+        else:
+            mod_filepath = Path(self.save_dir) / mod_filename
+
+        self.app.push_screen(ModExplorerScreen(mod_filepath))
