@@ -72,9 +72,10 @@ class ModExplorer(Widget):
         add_node(name, node, json_data)
 
     def on_mount(self) -> None:
-        with open(self.json_path) as data_file:
+        with open(self.json_path, encoding="utf-8") as data_file:
             self.json_data = json.load(data_file)
         tree = self.query_one(Tree)
+        tree.auto_expand = True
         tree.show_root = not tree.show_root
         json_node = tree.root.add("ROOT")
         self.add_json(str(self.json_path), json_node, self.json_data)
