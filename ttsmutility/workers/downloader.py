@@ -433,7 +433,7 @@ class FileDownload(Widget):
             if "[Errno 22]" in str(error):
                 return f"Filename too long ({len(str(temp_path))} chars) for Windows. "
             else:
-                return f"Error writing object to disk: {error}"
+                return f"{error}"
 
         # Don’t leave files with partial content lying around.
         except SystemExit:
