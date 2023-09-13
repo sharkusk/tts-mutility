@@ -95,13 +95,18 @@ class ModListScreen(Screen):
         self.dl_queue = Queue()
         self.filter_timer = None
         self.downloads = []
+        self.fds = []
         super().__init__()
 
         config = load_config()
 
         for i in range(int(config.num_download_threads)):
+            fd = FileDownload()
+            self.fds.append(fd)
+            self.mount(fd)
             self.run_worker(
                 self.download_daemon,
+                name=f"{i}",
                 group="downloaders",
                 description=f"DL Task {i}",
                 thread=True,
@@ -179,8 +184,7 @@ class ModListScreen(Screen):
             "status": True,
         }
 
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
         table.fixed_columns = 1
         table.zebra_stripes = True
 
@@ -262,8 +266,7 @@ class ModListScreen(Screen):
 
     @work(exclusive=True)
     async def update_backup_status(self):
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         config = load_config()
         if not Path(config.mod_backup_dir).exists():
@@ -310,8 +313,7 @@ class ModListScreen(Screen):
 
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         name = self.clean_name(mod["name"])
         if mod["filename"] in self.infected_filenames:
@@ -375,8 +377,7 @@ class ModListScreen(Screen):
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
 
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         row_key = mod_filename
         if row_key not in self.mods:
@@ -409,8 +410,7 @@ class ModListScreen(Screen):
         infected_mods = await asset_list.get_mods_using_asset_a(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
 
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         row_key = mod_filename
         if row_key not in self.mods:
@@ -536,12 +536,11 @@ class ModListScreen(Screen):
             )
 
     def get_active_table(self) -> DataTable:
-        table_id = "#ml_workshop_dt"
-        return next(self.query(table_id).results(DataTable))
+        table = self.query_one(DataTable)
+        return table
 
     def get_current_row_key(self) -> RowKey:
-        id = "ml_workshop_dt"
-        table = next(self.query("#" + id).results(DataTable))
+        table = self.query_one(DataTable)
         if table.is_valid_coordinate(table.cursor_coordinate):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         else:
@@ -635,8 +634,7 @@ class ModListScreen(Screen):
         self.post_message(self.ShowMissing())
 
     def action_mod_refresh(self):
-        id = "ml_workshop_dt"
-        table = next(self.query("#" + id).results(DataTable))
+        table = self.query_one(DataTable)
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         if row_key.value is not None:
             self.post_message(self.ModRefresh(row_key.value))
@@ -688,8 +686,7 @@ class ModListScreen(Screen):
         if filename not in self.status:
             return
 
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         stat = []
         if self.status[filename].download == "Queued":
@@ -713,8 +710,7 @@ class ModListScreen(Screen):
             pass
 
     def set_files_remaining(self, filename, files_remaining):
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         if self.status[filename].download == "Queued":
             self.status[filename].download = "Running"
@@ -759,6 +755,7 @@ class ModListScreen(Screen):
 
     def download_daemon(self) -> None:
         worker = get_current_worker()
+        fd = self.fds[int(worker.name)]
 
         while True:
             if worker.is_cancelled:
@@ -769,9 +766,7 @@ class ModListScreen(Screen):
             except Empty:
                 continue
 
-            fd = FileDownload(dl_task.url, dl_task.trail)
-
-            error, asset = fd.download()
+            error, asset = fd.download(dl_task.url, dl_task.trail)
 
             if error == "":
                 message = (
@@ -847,8 +842,7 @@ class ModListScreen(Screen):
         self.post_message(self.BackupSelected(to_backup))
 
     def set_backup_progress(self, filename, update_total, advance_amount):
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
 
         if (
             self.status[filename].backup == "Queued"
@@ -885,8 +879,7 @@ class ModListScreen(Screen):
                 pass
 
     def set_backup_start(self, filename, zip_path):
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
         try:
             table.update_cell(filename, "status", str(zip_path), update_width=True)
         except CellDoesNotExist:
@@ -900,15 +893,13 @@ class ModListScreen(Screen):
 
     def update_bgg(self, mod_filename, bgg_id):
         self.mods[mod_filename]["bgg_id"] = bgg_id
-        id = "#ml_workshop_dt"
-        table = next(self.query(id).results(DataTable))
+        table = self.query_one(DataTable)
         table.update_cell(
             mod_filename, "bgg", " ✓ " if bgg_id is not None else "", update_width=False
         )
 
     def action_unzip(self):
-        id = "ml_workshop_dt"
-        table = next(self.query("#" + id).results(DataTable))
+        table = self.query_one(DataTable)
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         if row_key.value is not None:
             backup_name = Path(row_key.value).name

@@ -119,6 +119,10 @@ class TTSMutility(App):
                 )
 
     def on_mount(self):
+        # Mount the worker screens so our messages bubbled
+        self.mount(self.sha1)
+        self.mount(self.backup)
+        self.mount(self.name_scanner)
         self.initialize_database()
 
     @work(thread=True)
@@ -256,16 +260,9 @@ class TTSMutility(App):
     def load_screen(self, new_screen: Screen, name: str):
         if self.is_screen_installed(name):
             self.uninstall_screen(name)
+        new_screen.mount(TTSWorker())
         self.install_screen(new_screen, name)
         self.push_screen(name)
-        screen = self.get_screen(name)
-
-        # Mount the worker screens so our messages bubbled
-        if name == "mod_list":
-            screen.mount(self.sha1)
-            screen.mount(self.backup)
-            screen.mount(self.name_scanner)
-        screen.mount(TTSWorker())
 
     def on_ttsmutility_init_complete(self):
         self.run_worker(

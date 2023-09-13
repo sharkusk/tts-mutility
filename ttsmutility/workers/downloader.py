@@ -99,8 +99,6 @@ class FileDownload(Widget):
 
     def __init__(
         self,
-        url,
-        trail,
         timeout: int = 10,
         timeout_retries: int = 10,
         user_agent: str = USER_AGENT,
@@ -109,8 +107,6 @@ class FileDownload(Widget):
         chunk_size: int = 64 * 1024,
     ):
         super().__init__()
-        self.url = url.strip()
-        self.trail = trail
         self.timeout = timeout
         self.timeout_retries = timeout_retries
         self.user_agent = user_agent
@@ -120,16 +116,6 @@ class FileDownload(Widget):
 
         config = load_config()
         self.mod_dir = config.tts_mods_dir
-
-        # Asset information
-        # TODO: Convert assets and other structures to named tuples
-        self.cur_retry = 0
-        self.filename = ""
-        self.content_name = ""
-        self.filesize = 0
-        self.steam_sha1 = ""
-        self.error = ""
-        self.mtime = 0
 
     def compose(self) -> ComposeResult:
         return []
@@ -221,7 +207,17 @@ class FileDownload(Widget):
         self.filename = get_fs_path(self.trail, self.url)
         return
 
-    def download(self):
+    def download(self, url: str, trail: list):
+        self.url = url.strip()
+        self.trail = trail
+        self.cur_retry = 0
+        self.filename = ""
+        self.content_name = ""
+        self.filesize = 0
+        self.steam_sha1 = ""
+        self.error = ""
+        self.mtime = 0
+
         self._prep_url_for_download()
         if self.error != "":
             return self.error, self.make_asset()

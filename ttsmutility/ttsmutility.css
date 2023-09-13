@@ -33,6 +33,11 @@ Sha1Scanner {
     visibility: hidden;
 }
 
+FileDownload {
+    height: 0;
+    visibility: hidden;
+}
+
 NameScanner {
     height: 0;
     visibility: hidden;
@@ -42,22 +47,8 @@ TabbedContent {
     height: 1fr;
 }
 
-ContentSwitcher {
-    width: 1fr;
-    height: 1fr;
-}
-
 TabPane {
     padding: 0;
-    height: 1fr;
-}
-
-DataTable {
-    background: $panel;
-    height: 1fr;
-}
-
-ModListScreen {
     height: 1fr;
 }
 
