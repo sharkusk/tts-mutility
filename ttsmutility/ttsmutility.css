@@ -57,10 +57,6 @@ DataTable {
     height: 1fr;
 }
 
-AssetListScreen {
-    height: 1fr;
-}
-
 ModListScreen {
     height: 1fr;
 }
@@ -70,17 +66,6 @@ MarkdownH1 {
     border-top: none;
     height: auto;
 }
-
-/*
-MarkdownTable {
-    width: 1fr;
-}
-
-MarkdownTableContent {
-    width: auto;
-    padding: 0;
-}
-*/
 
 MarkdownFence {
     width: auto;
@@ -181,6 +166,13 @@ MarkdownFence {
     text-align: center;
 }
 
+#id_text {
+    width: 75%;
+    border: round $accent;
+    padding: 1;
+    text-align: left;
+}
+
 #id_center {
     width: 75%;
     border: round $accent;
@@ -228,7 +220,12 @@ MarkdownFence {
     background: $surface;
 }
 
-#asset-list {
+#al_container {
+    layout: horizontal;
+    width: 100%;
+}
+
+#al_screen {
     width: 100%;
     padding-left: 1;
     padding-right: 1;
@@ -260,4 +257,8 @@ MarkdownFence {
 #infection_warning.unhide {
     visibility: visible;
     height: auto;
+}
+
+#mod_explorer {
+    width: 1fr;
 }

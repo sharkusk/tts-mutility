@@ -1,23 +1,26 @@
 import json
+from webbrowser import open as open_url
 
-from rich.text import Text
 from rich.highlighter import ReprHighlighter
-
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
+from ..dialogs.InfoDialog import TextDialog
+
 
 class ModExplorer(Widget):
     BINDINGS = []
 
-    def __init__(self, json_path, *, json_data=None, start_trail=[]):
+    def __init__(self, json_path, *, json_data=None, start_trail=[], **kwargs):
         self.json_path = json_path
         self.json_data = json_data
         self.trail = start_trail
         self.start_node = None
-        super().__init__()
+        self.text_values = []
+        super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
         yield Tree("Root")
@@ -64,22 +67,44 @@ class ModExplorer(Widget):
             else:
                 node.allow_expand = False
                 value = repr(data)
-                if len(value) > 80:
-                    value = value[:77] + "..."
-                if name:
-                    label = Text.assemble(
-                        Text.from_markup(f"[b]{name}[/b]="), highlighter(value)
-                    )
+                if str(data)[0:4] == "http" or (name and "URL" in name):
+                    label = ""
+                    value = str(value)
+                    if name:
+                        label += f"{name}="
+                    if len(value) > 40:
+                        link_value = value[:37] + "..."
+                    else:
+                        link_value = value
+                    label += f"[@click=link_clicked({value})]{link_value}[/]"
+                elif len(value) > 80:
+                    label = ""
+                    self.text_values.append(str(data))
+                    if name:
+                        label += f"{name}="
+                    short_value = value[:77] + "..." + value[0]
+                    label += f"[@click=text_clicked({len(self.text_values)-1})]{short_value}[/]"
                 else:
-                    label = Text(value)
+                    if name:
+                        label = Text.assemble(
+                            Text.from_markup(f"[b]{name}[/b]="), highlighter(value)
+                        )
+                    else:
+                        label = Text(value)
                 node.set_label(label)
 
         add_node(name, node, json_data)
 
     def jump_to_node(self, node):
         tree = self.query_one(Tree)
-        tree.scroll_to_node(node)
         tree.select_node(node)
+        tree.select_node(node)
+        self.call_after_refresh(self.update_scroll)
+
+    def update_scroll(self):
+        tree = self.query_one(Tree)
+        line = tree.cursor_line
+        tree.scroll_to_line(line)
 
     def find_node(self, trail: list, expand: bool = True) -> TreeNode:
         tree = self.query_one(Tree)
@@ -120,3 +145,12 @@ class ModExplorer(Widget):
             self.start_node.expand()
 
         self.call_after_refresh(self.jump_to_node, self.start_node)
+
+        tree.action_link_clicked = self.action_link_clicked
+        tree.action_text_clicked = self.action_text_clicked
+
+    def action_link_clicked(self, url: str):
+        open_url(url)
+
+    def action_text_clicked(self, i: str):
+        self.app.push_screen(TextDialog(self.text_values[int(i)]))

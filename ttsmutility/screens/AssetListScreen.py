@@ -3,42 +3,23 @@ from pathlib import Path
 from textual import work
 from textual.actions import SkipAction
 from textual.app import ComposeResult
-from textual.containers import Center
+from textual.containers import Center, Container
 from textual.coordinate import Coordinate
+from textual.css.query import NoMatches
 from textual.events import Key
 from textual.message import Message
-from textual.screen import Screen
 from textual.widget import Widget
-from textual.widgets import DataTable, Header, Input, Label
+from textual.widgets import DataTable, Input
 from textual.widgets.data_table import CellDoesNotExist, RowKey
+
+from ttsmutility.widgets.ModExplorer import ModExplorer
 
 from ..data.config import load_config
 from ..dialogs.InfoDialog import InfoDialog
 from ..parse.AssetList import AssetList
+from ..parse.FileFinder import trailstring_to_trail
 from ..utility.util import MyText, format_time, make_safe_filename, sizeof_fmt
 from ..widgets.DataTableFilter import DataTableFilter
-from ..screens.ModExplorerScreen import ModExplorerScreen
-from ..parse.FileFinder import trailstring_to_trail
-
-
-class AllAssets(Screen):
-    BINDINGS = [
-        ("escape", "app.pop_screen", "OK"),
-    ]
-
-    def __init__(self, filename, mod_name):
-        super().__init__()
-        self.filename = filename
-        self.mod_name = mod_name
-
-    def compose(self) -> ComposeResult:
-        yield Header()
-        yield Label(
-            f"{self.mod_name} - All Nodes - Press ESC to Exit",
-            id="title",
-            classes="aa_label",
-        )
-        yield AssetListScreen(self.filename, self.mod_name, all_nodes=True)
 
 
 class AssetListScreen(Widget):
@@ -69,17 +50,14 @@ class AssetListScreen(Widget):
             super().__init__()
 
     def __init__(
-        self, mod_filename: str, mod_name: str, al_id: str = "", all_nodes=False
+        self, mod_filename: str, mod_name: str, al_id: str = "al_screen"
     ) -> None:
         self.mod_filename = mod_filename
         self.mod_name = mod_name
-        self.all_nodes = all_nodes
+        self.all_nodes = False
         self.current_row = 0
         self.url_width = 40
-        if al_id == "":
-            self.al_id = "asset-list"
-        else:
-            self.al_id = al_id
+        self.al_id = al_id
 
         config = load_config()
         self.mod_dir = config.tts_mods_dir
@@ -98,7 +76,8 @@ class AssetListScreen(Widget):
                 disabled=True,
                 id="al_filter",
             )
-        yield DataTableFilter(id=self.al_id)
+        with Container(id="al_container"):
+            yield DataTableFilter(id=self.al_id)
 
     def on_mount(self) -> None:
         self.sort_order = {
@@ -380,10 +359,10 @@ class AssetListScreen(Widget):
         self.update_asset(self.assets[row_key])
 
     def action_all_nodes(self):
-        if self.all_nodes:
-            return
-
-        self.app.push_screen(AllAssets(self.mod_filename, self.mod_name))
+        self.all_nodes = not self.all_nodes
+        table = next(self.query("#" + self.al_id).results(DataTable))
+        table.clear()
+        self.load_data()
 
     def action_filter(self) -> None:
         f = self.query_one("#al_filter_center")
@@ -490,7 +469,7 @@ class AssetListScreen(Widget):
     def get_active_table(self) -> DataTable:
         return next(self.query("#" + self.al_id).results(DataTable))
 
-    def action_explore(self) -> None:
+    async def action_explore(self) -> None:
         row_key = self.get_current_row_key()
 
         if "Workshop" in self.mod_filename:
@@ -504,6 +483,12 @@ class AssetListScreen(Widget):
         else:
             trail = self.assets[row_key.value]["trail"]
 
-        self.app.push_screen(
-            ModExplorerScreen(mod_filepath, trailstring_to_trail(trail))
-        )
+        try:
+            me = self.query_one(ModExplorer)
+        except NoMatches:
+            container = self.query_one(Container)
+            await container.mount(ModExplorer(mod_filepath, id="mod_explorer"))
+            me = self.query_one(ModExplorer)
+
+        node = me.find_node(trailstring_to_trail(trail))
+        me.jump_to_node(node)
