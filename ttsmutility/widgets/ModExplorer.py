@@ -3,6 +3,7 @@ from webbrowser import open as open_url
 
 from rich.highlighter import ReprHighlighter
 from rich.text import Text
+from rich.syntax import Syntax
 from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Tree
@@ -79,9 +80,20 @@ class ModExplorer(Widget):
                     label += f"[@click=link_clicked({value})]{link_value}[/]"
                 elif len(value) > 80:
                     label = ""
-                    self.text_values.append(str(data))
                     if name:
                         label += f"{name}="
+                        if "lua" in name.lower():
+                            self.text_values.append(
+                                Syntax(str(data), "lua", line_numbers=True)
+                            )
+                        elif "xml" in name.lower():
+                            self.text_values.append(
+                                Syntax(str(data), "xml", line_numbers=True)
+                            )
+                        else:
+                            self.text_values.append(highlighter(str(data)))
+                    else:
+                        self.text_values.append(highlighter(str(data)))
                     short_value = value[:77] + "..." + value[0]
                     label += f"[@click=text_clicked({len(self.text_values)-1})]{short_value}[/]"
                 else:

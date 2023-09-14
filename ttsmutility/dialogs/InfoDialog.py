@@ -2,6 +2,7 @@ from rich.highlighter import ReprHighlighter
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import Footer, Static
+from textual.containers import ScrollableContainer
 
 
 class InfoDialog(ModalScreen):
@@ -28,7 +29,6 @@ class TextDialog(ModalScreen):
         self.info = info
 
     def compose(self) -> ComposeResult:
-        highlighter = ReprHighlighter()
-        label = highlighter(self.info)
         yield Footer()
-        yield Static(label, id="id_text")
+        with ScrollableContainer(id="td_container"):
+            yield Static(self.info, id="td_static")

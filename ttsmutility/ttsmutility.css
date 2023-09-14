@@ -157,11 +157,21 @@ MarkdownFence {
     text-align: center;
 }
 
-#id_text {
-    width: 75%;
+#td_container {
     border: round $accent;
     padding: 1;
+    width: auto;
+    height: auto;
+    min-height: 4;
+    max-height: 90%;
+    max-width: 90%;
+    align: center middle;
+}
+
+#td_static {
     text-align: left;
+    width: auto;
+    height: auto;
 }
 
 #id_center {

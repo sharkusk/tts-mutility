@@ -8,6 +8,7 @@ from webbrowser import open as open_url
 from aiopath import AsyncPath
 from rich.markdown import Markdown
 from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
+from rich.style import Style
 from textual import work
 from textual.actions import SkipAction
 from textual.app import ComposeResult
@@ -78,9 +79,7 @@ class ModListScreen(Screen):
         Binding("e", "explore", "Explore Mod", show=True),
     ]
 
-    def __init__(self, mod_dir: str, save_dir: str) -> None:
-        self.mod_dir = mod_dir
-        self.save_dir = save_dir
+    def __init__(self) -> None:
         self.prev_selected = None
         self.filter = ""
         self.prev_filter = ""
@@ -99,6 +98,8 @@ class ModListScreen(Screen):
         super().__init__()
 
         config = load_config()
+        self.mod_dir = config.tts_mods_dir
+        self.save_dir = config.tts_saves_dir
 
         for i in range(int(config.num_download_threads)):
             fd = FileDownload()
@@ -311,15 +312,24 @@ class ModListScreen(Screen):
                 pass
         self.backup_ready = True
 
+    def stylize_name(self, mod):
+        clean_name = self.clean_name(mod["name"])
+
+        if mod["filename"] in self.infected_filenames:
+            name = MyText(clean_name, style="#FF0000")
+        elif mod["deleted"]:
+            name = MyText(clean_name, style="strike")
+        else:
+            name = MyText(clean_name)
+        return name
+
     def add_mod_row(self, mod: dict) -> None:
         filename = mod["filename"]
         table = self.query_one(DataTable)
 
-        name = self.clean_name(mod["name"])
-        if mod["filename"] in self.infected_filenames:
-            name = MyText(name, style="#FF0000")
-        elif mod["deleted"]:
-            name = MyText(name, style="strike")
+        name = self.stylize_name(mod)
+
+        # name.stylize(Style(bgcolor="magenta"), 0, 5)
 
         if filename in self.backup_status:
             b = self.backup_status[filename]
@@ -383,11 +393,7 @@ class ModListScreen(Screen):
         if row_key not in self.mods:
             return
 
-        name = self.clean_name(self.mods[row_key]["name"])
-        if self.mods[row_key]["filename"] in self.infected_filenames:
-            name = MyText(name, style="#FF0000")
-        elif self.mods[row_key]["deleted"]:
-            name = MyText(name, style="strike")
+        name = self.stylize_name(self.mods[row_key])
 
         # We need to update both our internal asset information
         # and what is shown on the table...
@@ -416,11 +422,7 @@ class ModListScreen(Screen):
         if row_key not in self.mods:
             return
 
-        name = self.clean_name(self.mods[row_key]["name"])
-        if self.mods[row_key]["filename"] in self.infected_filenames:
-            name = MyText(name, style="#FF0000")
-        elif self.mods[row_key]["deleted"]:
-            name = MyText(name, style="strike")
+        name = self.stylize_name(self.mods[row_key])
 
         # We need to update both our internal asset information
         # and what is shown on the table...
