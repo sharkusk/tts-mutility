@@ -52,6 +52,14 @@ TabPane {
     height: 1fr;
 }
 
+AssetListScreen {
+    height: 1fr;
+}
+
+Container {
+    height: 1fr;
+}
+
 MarkdownH1 {
     padding: 1;
     border-top: none;
