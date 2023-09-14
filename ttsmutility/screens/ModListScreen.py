@@ -1,4 +1,5 @@
 import csv
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
@@ -7,7 +8,7 @@ from webbrowser import open as open_url
 
 from aiopath import AsyncPath
 from rich.markdown import Markdown
-from rich.progress import BarColumn, DownloadColumn, MofNCompleteColumn, Progress
+from rich.progress import BarColumn, DownloadColumn, Progress
 from rich.style import Style
 from textual import work
 from textual.actions import SkipAction
@@ -42,10 +43,12 @@ class ModListScreen(Screen):
     class FileDownloadComplete(Message):
         def __init__(
             self,
+            worker_num: int,
             asset: dict,
         ) -> None:
             super().__init__()
             self.asset = asset
+            self.worker_num = worker_num
 
     class DownloadEntry(NamedTuple):
         url: str
@@ -53,8 +56,19 @@ class ModListScreen(Screen):
 
     @dataclass
     class WorkerStatus:
-        download: str
         backup: str
+        download: str
+
+    @dataclass
+    class DlWorkerStatus:
+        filename: str
+        filesize: int
+        bytes_complete: int
+
+    @dataclass
+    class ModDlProgress:
+        total_files: int
+        finished_files: int
 
     BINDINGS = [
         Binding("f1", "help", "Help"),
@@ -86,7 +100,6 @@ class ModListScreen(Screen):
         self.active_rows = {}
         self.filtered_rows = {}
         self.progress = {}
-        self.progress_id = {}
         self.status = {}
         self.backup_status = {}
         self.backup_filenames = {}
@@ -95,15 +108,18 @@ class ModListScreen(Screen):
         self.filter_timer = None
         self.downloads = []
         self.fds = []
+        self.dl_worker_status = []
         super().__init__()
 
         config = load_config()
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
+        self.num_dl_threads = int(config.num_download_threads)
 
-        for i in range(int(config.num_download_threads)):
+        for i in range(self.num_dl_threads):
             fd = FileDownload()
             self.fds.append(fd)
+            self.dl_worker_status.append(self.DlWorkerStatus("", 0, 0))
             self.mount(fd)
             self.run_worker(
                 self.download_daemon,
@@ -201,7 +217,6 @@ class ModListScreen(Screen):
         table.add_column("BGG", key="bgg")
         table.add_column("BUp", key="backup")
         table.add_column("Status", key="status")
-        table.add_column("Progress", key="progress")
 
         table.cursor_type = "row"
         table.sort("name", reverse=self.sort_order["name"])
@@ -349,7 +364,6 @@ class ModListScreen(Screen):
             " ✓ " if mod["bgg_id"] is not None else "",
             b,  # No backup status
             "",  # Update status in func below
-            "",  # No progress to start...
             key=filename,
         )
         self.active_rows[filename] = mod["name"]
@@ -454,10 +468,6 @@ class ModListScreen(Screen):
             self.prev_selected = event.row_key
 
     def on_data_table_header_selected(self, event: DataTable.HeaderSelected):
-        if event.column_key.value == "progress":
-            # Progress bars don't support sort operations
-            return
-
         sort_key = event.column_key.value
         if sort_key is not None:
             if self.last_sort_key == sort_key:
@@ -689,24 +699,31 @@ class ModListScreen(Screen):
         self.app.push_screen(HelpDialog())
 
     def update_status(self, filename):
+        chart_chars = " ▁▂▃▄▅▆▇█"
         if filename not in self.status:
             return
 
         table = self.query_one(DataTable)
 
-        stat = []
+        stat_message = ""
         if self.status[filename].download == "Queued":
-            stat.append("DLoad-Q")
+            stat_message += "DLoad-Q"
         elif self.status[filename].download == "Running":
-            stat.append("DLoad")
+            stat_message += f"{self.progress[filename].finished_files}/{self.progress[filename].total_files}: "
+            for i, dl_stat in enumerate(self.dl_worker_status):
+                stat_message += f"▕"
+                if dl_stat.filename != "":
+                    percent_done = float(dl_stat.bytes_complete / dl_stat.filesize)
+                    index = math.floor(percent_done * 8)
+                    stat_message += chart_chars[index]
+                else:
+                    stat_message += " "
+                stat_message += "▏"
+
         if self.status[filename].backup == "Queued":
             self.backup_status[filename] = " Q"
         elif self.status[filename].backup == "Running":
             self.backup_status[filename] = "..."
-        if len(stat) > 0:
-            stat_message = ",".join(stat)
-        else:
-            stat_message = ""
 
         try:
             table.update_cell(filename, "status", stat_message, update_width=True)
@@ -715,39 +732,25 @@ class ModListScreen(Screen):
             # This cell may be currently filtered, so ignore any errors
             pass
 
-    def set_files_remaining(self, filename, files_remaining):
-        table = self.query_one(DataTable)
-
+    def set_dl_progress(self, filename, worker_num, filesize, bytes_complete):
         if self.status[filename].download == "Queued":
             self.status[filename].download = "Running"
-            self.update_status(filename)
+        self.dl_worker_status[worker_num].filename = filename
+        self.dl_worker_status[worker_num].filesize = filesize
+        self.dl_worker_status[worker_num].bytes_complete = bytes_complete
+        self.update_status(filename)
 
-            # This is the first update, so configure our progress bar
-            self.progress[filename] = Progress(MofNCompleteColumn(), BarColumn())
-
-            # This function gets called after the first file is already downloaded.
-            # Therefore we need to add 1 to our total number of files
-            self.progress_id[filename] = self.progress[filename].add_task(
-                "Files", total=files_remaining + 1
-            )
-            try:
-                table.update_cell(
-                    filename, "progress", self.progress[filename], update_width=True
-                )
-            except CellDoesNotExist:
-                # This cell may be currently filtered, so ignore any errors
-                pass
-
-        self.progress[filename].update(self.progress_id[filename], advance=1)
-        try:
-            table.update_cell(filename, "progress", self.progress[filename])
-        except CellDoesNotExist:
-            # This cell may be currently filtered, so ignore any errors
-            pass
-
-        if files_remaining == 0:
-            self.status[filename].download = ""
-            self.update_status(filename)
+    def set_files_remaining(self, filename, files_remaining, worker_num):
+        if worker_num == -1:
+            # First time before download starts
+            self.progress[filename] = self.ModDlProgress(files_remaining, 0)
+        else:
+            if self.status[filename].download == "Queued":
+                self.status[filename].download = "Running"
+            self.progress[filename].finished_files += 1
+            if files_remaining == 0:
+                self.status[filename].download = ""
+        self.update_status(filename)
 
     def dl_urls(self, urls, trails, mod_filename="") -> None:
         for url, trail in zip(urls, trails):
@@ -772,7 +775,7 @@ class ModListScreen(Screen):
             except Empty:
                 continue
 
-            error, asset = fd.download(dl_task.url, dl_task.trail)
+            error, asset = fd.download(int(worker.name), dl_task.url, dl_task.trail)
 
             if error == "":
                 message = (
@@ -789,7 +792,7 @@ class ModListScreen(Screen):
                     )
                 )
 
-            self.post_message(self.FileDownloadComplete(asset))
+            self.post_message(self.FileDownloadComplete(int(worker.name), asset))
             self.dl_queue.task_done()
 
     def get_backup_name(self, mod):

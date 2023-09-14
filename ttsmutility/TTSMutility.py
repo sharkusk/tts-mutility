@@ -1,8 +1,6 @@
-import asyncio
 import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from git import UpdateProgress
 
 from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
 from textual.app import App, ComposeResult
@@ -348,16 +346,15 @@ class TTSMutility(App):
     def on_file_download_file_download_progress(
         self, event: FileDownload.FileDownloadProgress
     ):
-        # Progress bar for current file being downloaded...
-        # TODO: This isn't working since we can't bubble messages outside the DOM
-        pass
-
-    def on_mod_list_screen_file_download_progress(
-        self, event: FileDownload.FileDownloadProgress
-    ):
-        # Progress bar for current file being downloaded...
-        # TODO: This isn't working since we can't bubble messages outside the DOM
-        pass
+        screen = self.get_screen("mod_list")
+        for mod_filename in self.mods_queued_dl:
+            if event.url in self.mods_queued_dl[mod_filename]:
+                screen.set_dl_progress(
+                    mod_filename,
+                    event.worker_num,
+                    event.filesize,
+                    event.bytes_complete,
+                )
 
     async def on_mod_list_screen_file_download_complete(
         self, event: ModListScreen.FileDownloadComplete
@@ -370,7 +367,9 @@ class TTSMutility(App):
                 self.mods_queued_dl[mod_filename].remove(event.asset["url"])
                 files_remaining = len(self.mods_queued_dl[mod_filename])
                 screen = self.get_screen("mod_list")
-                screen.set_files_remaining(mod_filename, files_remaining)
+                screen.set_files_remaining(
+                    mod_filename, files_remaining, event.worker_num
+                )
                 if files_remaining == 0:
                     self.refresh_mods()
 
@@ -419,6 +418,7 @@ class TTSMutility(App):
             turls = await mod_asset_list.get_missing_assets(mod_filename)
             if len(turls) == 0:
                 continue
+            screen.set_files_remaining(mod_filename, len(turls), -1)
             urls, trails = tuple(zip(*turls))
             self.write_log(f"Downloading missing assets from `{mod_filename}`.")
             self.mods_queued_dl[mod_filename] = list(urls)

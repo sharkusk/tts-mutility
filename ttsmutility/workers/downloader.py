@@ -32,8 +32,9 @@ from ..utility.util import get_steam_sha1_from_url, get_content_name, detect_fil
 
 class FileDownload(Widget):
     class FileDownloadProgress(Message):
-        def __init__(self, url, filesize=None, bytes_complete=0) -> None:
+        def __init__(self, url, worker_num, filesize=None, bytes_complete=0) -> None:
             super().__init__()
+            self.worker_num = worker_num
             self.url = url
             self.filesize = filesize
             self.bytes_complete = bytes_complete
@@ -207,7 +208,7 @@ class FileDownload(Widget):
         self.filename = get_fs_path(self.trail, self.url)
         return
 
-    def download(self, url: str, trail: list):
+    def download(self, worker_num: int, url: str, trail: list):
         self.url = url.strip()
         self.trail = trail
         self.cur_retry = 0
@@ -217,6 +218,7 @@ class FileDownload(Widget):
         self.steam_sha1 = ""
         self.error = ""
         self.mtime = 0
+        self.worker_num = worker_num
 
         self._prep_url_for_download()
         if self.error != "":
@@ -390,7 +392,9 @@ class FileDownload(Widget):
 
         length = int(response.getheader("Content-Length", 0))
         self.post_message(
-            self.FileDownloadProgress(self.url, filesize=length, bytes_complete=0)
+            self.FileDownloadProgress(
+                self.url, self.worker_num, filesize=length, bytes_complete=0
+            )
         )
         self.post_message(UpdateLog(f"URL Filesize: `{length}`"))
 
@@ -402,25 +406,25 @@ class FileDownload(Widget):
 
         # This will actually go negative since we already assume
         # that we will read the chunk_size.
-        remaining = length
+        bytes_read = 0
         try:
             with open(temp_path, "ab") as outfile:
                 data = response.read(self.chunk_size)
-                remaining -= self.chunk_size
+                bytes_read += self.chunk_size
                 while data:
-                    if remaining < 0:
-                        bytes_complete = self.chunk_size - remaining
-                    else:
-                        bytes_complete = self.chunk_size
-
+                    if bytes_read > length:
+                        bytes_read = length
                     self.post_message(
                         self.FileDownloadProgress(
-                            self.url, bytes_complete=bytes_complete
+                            self.url,
+                            self.worker_num,
+                            filesize=length,
+                            bytes_complete=bytes_read,
                         )
                     )
                     outfile.write(data)
                     data = response.read(self.chunk_size)
-                    remaining -= self.chunk_size
+                    bytes_read += self.chunk_size
 
         except FileNotFoundError as error:
             return f"Error writing object to disk: {error}"
