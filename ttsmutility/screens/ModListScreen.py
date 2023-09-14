@@ -445,6 +445,7 @@ class ModListScreen(Screen):
             if self.prev_selected is not None and event.row_key == self.prev_selected:
                 mod_filename = event.row_key.value
                 name = Path(mod_filename).name
+                # We have to pass the backup time to the detail page
                 if name in self.backup_times:
                     backup_time = self.backup_times[name]
                 else:
@@ -527,8 +528,11 @@ class ModListScreen(Screen):
 
         row_key = self.get_current_row_key()
         filename = row_key.value
-        zip_path, existing = self.get_backup_name(self.mods[filename])
+        mod = self.mods[filename]
+        zip_path, existing = self.get_backup_name(mod)
         if zip_path != "":
+            self.status[mod["filename"]].backup = "Queued"
+            self.update_status(mod["filename"])
             self.post_message(
                 self.BackupSelected(
                     [
@@ -696,9 +700,9 @@ class ModListScreen(Screen):
         elif self.status[filename].download == "Running":
             stat.append("DLoad")
         if self.status[filename].backup == "Queued":
-            stat.append("Backup-Q")
+            self.backup_status[filename] = " Q"
         elif self.status[filename].backup == "Running":
-            stat.append("Backup")
+            self.backup_status[filename] = "..."
         if len(stat) > 0:
             stat_message = ",".join(stat)
         else:
@@ -881,12 +885,8 @@ class ModListScreen(Screen):
                 pass
 
     def set_backup_start(self, filename, zip_path):
-        table = self.query_one(DataTable)
-        try:
-            table.update_cell(filename, "status", str(zip_path), update_width=True)
-        except CellDoesNotExist:
-            # This cell may be currently filtered, so ignore any errors
-            pass
+        self.status[filename].backup = "Running"
+        self.update_status(filename)
 
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""

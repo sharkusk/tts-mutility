@@ -2,6 +2,7 @@ import asyncio
 import time
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from git import UpdateProgress
 
 from textual import __version__ as textual_version  # pylint: disable=no-name-in-module
 from textual.app import App, ComposeResult
@@ -460,14 +461,16 @@ class TTSMutility(App):
             self.f_log.flush()
 
     def on_mod_backup_update_progress(self, event: ModBackup.UpdateProgress):
-        screen = self.get_screen("mod_list")
-        screen.set_backup_progress(
-            event.filename, event.update_total, event.advance_amount
+        up_prog = TTSWorker.UpdateProgress(
+            update_total=event.update_total, advance_amount=event.advance_amount
         )
+        self.on_ttsworker_update_progress(up_prog)
 
     def on_mod_backup_backup_start(self, event: ModBackup.BackupStart):
         screen = self.get_screen("mod_list")
         screen.set_backup_start(event.filename, event.zip_path)
+        status = TTSWorker.UpdateStatus(str(event.zip_path))
+        self.on_ttsworker_update_status(status)
 
     def on_mod_backup_backup_complete(self, event: ModBackup.BackupComplete):
         screen = self.get_screen("mod_list")

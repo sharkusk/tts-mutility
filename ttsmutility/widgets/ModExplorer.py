@@ -70,15 +70,14 @@ class ModExplorer(Widget):
                 value = repr(data)
                 if str(data)[0:4] == "http" or (name and "URL" in name):
                     label = ""
-                    value = str(value)
                     if name:
                         label += f"{name}="
-                    if len(value) > 40:
-                        link_value = value[:37] + "..."
+                    if len(value) > 50:
+                        link_value = value[:46] + "..."
                     else:
                         link_value = value
                     label += f"[@click=link_clicked({value})]{link_value}[/]"
-                elif len(value) > 80:
+                elif len(value) > 50:
                     label = ""
                     if name:
                         label += f"{name}="
@@ -94,7 +93,7 @@ class ModExplorer(Widget):
                             self.text_values.append(highlighter(str(data)))
                     else:
                         self.text_values.append(highlighter(str(data)))
-                    short_value = value[:77] + "..." + value[0]
+                    short_value = value[:45] + "..." + value[0]
                     label += f"[@click=text_clicked({len(self.text_values)-1})]{short_value}[/]"
                 else:
                     if name:
