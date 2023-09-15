@@ -40,11 +40,6 @@ class ModDetailScreen(Screen):
 
     def action_exit(self):
         self.post_message(AssetListScreen.UpdateCounts(self.filename))
-        # We may have some background workers refreshing the asset list.
-        # Cancel them so we don't hurt our performance
-        al = self.query_one(AssetListScreen)
-        self.app.workers.cancel_node(al)
-        self.app.workers.cancel_node(self)
         self.app.pop_screen()
 
     def __init__(
@@ -517,8 +512,16 @@ class ModDetailScreen(Screen):
 
     def update_asset(
         self,
+        mod_filename,
         asset,
     ) -> None:
-        pane = next(self.query("#md_pane_assets").results(TabPane))
-        al = pane.children[0]
-        al.update_asset(asset)
+        if self.filename == mod_filename:
+            pane = next(self.query("#md_pane_assets").results(TabPane))
+            al = pane.children[0]
+            al.update_asset(asset)
+
+    def update_size(self, mod_filename, url, bytes_complete):
+        if self.filename == mod_filename:
+            pane = next(self.query("#md_pane_assets").results(TabPane))
+            al = pane.children[0]
+            al.update_size(url, bytes_complete)

@@ -62,13 +62,13 @@ class ModListScreen(Screen):
     @dataclass
     class DlWorkerStatus:
         filename: str
+        url: str
         filesize: int
         bytes_complete: int
 
     @dataclass
     class ModDlProgress:
-        total_files: int
-        finished_files: int
+        files_remaining: int
 
     BINDINGS = [
         Binding("f1", "help", "Help"),
@@ -119,7 +119,7 @@ class ModListScreen(Screen):
         for i in range(self.num_dl_threads):
             fd = FileDownload()
             self.fds.append(fd)
-            self.dl_worker_status.append(self.DlWorkerStatus("", 0, 0))
+            self.dl_worker_status.append(self.DlWorkerStatus("", "", 0, 0))
             self.mount(fd)
             self.run_worker(
                 self.download_daemon,
@@ -228,7 +228,7 @@ class ModListScreen(Screen):
         table.focus()
 
         self.backup_times = {}
-        self.update_backup_status()
+        self.update_backup()
 
     def load_mods(self) -> None:
         mod_list = ModList.ModList()
@@ -281,7 +281,7 @@ class ModListScreen(Screen):
         return name
 
     @work(exclusive=True)
-    async def update_backup_status(self):
+    async def update_backup(self):
         table = self.query_one(DataTable)
 
         config = load_config()
@@ -367,7 +367,8 @@ class ModListScreen(Screen):
             key=filename,
         )
         self.active_rows[filename] = mod["name"]
-        self.update_status(filename)
+        self.update_backup_status(filename)
+        self.update_dl_status(filename)
 
     def update_filtered_rows(self) -> None:
         self.filter_timer = None
@@ -501,7 +502,7 @@ class ModListScreen(Screen):
     def download_missing_assets(self, filenames):
         for filename in filenames:
             self.status[filename].download = "Queued"
-            self.update_status(filename)
+            self.update_dl_status(filename)
         self.post_message(self.DownloadSelected(filenames))
 
     def action_filter(self) -> None:
@@ -542,7 +543,7 @@ class ModListScreen(Screen):
         zip_path, existing = self.get_backup_name(mod)
         if zip_path != "":
             self.status[mod["filename"]].backup = "Queued"
-            self.update_status(mod["filename"])
+            self.update_backup_status(mod["filename"])
             self.post_message(
                 self.BackupSelected(
                     [
@@ -697,8 +698,24 @@ class ModListScreen(Screen):
     def action_help(self) -> None:
         """Show the help."""
         self.app.push_screen(HelpDialog())
+    
+    def update_backup_status(self, filename):
+        if filename not in self.status:
+            return
 
-    def update_status(self, filename):
+        if self.status[filename].backup == "Queued":
+            self.backup_status[filename] = " Q"
+        elif self.status[filename].backup == "Running":
+            self.backup_status[filename] = "..."
+
+        table = self.query_one(DataTable)
+        try:
+            table.update_cell(filename, "backup", self.backup_status[filename])
+        except (CellDoesNotExist, KeyError):
+            # This cell may be currently filtered, so ignore any errors
+            pass
+
+    def update_dl_status(self, filename):
         chart_chars = " ▁▂▃▄▅▆▇█"
         if filename not in self.status:
             return
@@ -709,48 +726,41 @@ class ModListScreen(Screen):
         if self.status[filename].download == "Queued":
             stat_message += "DLoad-Q"
         elif self.status[filename].download == "Running":
-            stat_message += f"{self.progress[filename].finished_files}/{self.progress[filename].total_files}: "
+            stat_message += f"{self.progress[filename].files_remaining}->"
             for i, dl_stat in enumerate(self.dl_worker_status):
-                stat_message += f"▕"
-                if dl_stat.filename != "":
-                    percent_done = float(dl_stat.bytes_complete / dl_stat.filesize)
-                    index = math.floor(percent_done * 8)
-                    stat_message += chart_chars[index]
-                else:
-                    stat_message += " "
-                stat_message += "▏"
-
-        if self.status[filename].backup == "Queued":
-            self.backup_status[filename] = " Q"
-        elif self.status[filename].backup == "Running":
-            self.backup_status[filename] = "..."
+                if dl_stat.filename == filename:
+                    if dl_stat.filesize == 0:
+                        stat_message += "?"
+                    else:
+                        stat_message += f"{i}:"
+                        percent_done = float(dl_stat.bytes_complete / dl_stat.filesize)
+                        index = math.floor(percent_done * 8)
+                        stat_message += chart_chars[index]
+                    stat_message += "▏"
 
         try:
             table.update_cell(filename, "status", stat_message, update_width=True)
-            table.update_cell(filename, "backup", self.backup_status[filename])
         except (CellDoesNotExist, KeyError):
             # This cell may be currently filtered, so ignore any errors
             pass
 
-    def set_dl_progress(self, filename, worker_num, filesize, bytes_complete):
-        if self.status[filename].download == "Queued":
+    def set_dl_progress(self, filename, url, worker_num, filesize, bytes_complete):
+        if self.status[filename].download != "Running":
             self.status[filename].download = "Running"
         self.dl_worker_status[worker_num].filename = filename
+        self.dl_worker_status[worker_num].url = url
         self.dl_worker_status[worker_num].filesize = filesize
         self.dl_worker_status[worker_num].bytes_complete = bytes_complete
-        self.update_status(filename)
+        self.update_dl_status(filename)
 
     def set_files_remaining(self, filename, files_remaining, worker_num):
-        if worker_num == -1:
-            # First time before download starts
-            self.progress[filename] = self.ModDlProgress(files_remaining, 0)
-        else:
+        self.progress[filename] = self.ModDlProgress(files_remaining)
+        if worker_num != -1:
             if self.status[filename].download == "Queued":
                 self.status[filename].download = "Running"
-            self.progress[filename].finished_files += 1
             if files_remaining == 0:
                 self.status[filename].download = ""
-        self.update_status(filename)
+        self.update_dl_status(filename)
 
     def dl_urls(self, urls, trails, mod_filename="") -> None:
         for url, trail in zip(urls, trails):
@@ -846,55 +856,18 @@ class ModListScreen(Screen):
             if zip_path != "":
                 to_backup.append((mod["filename"], zip_path, existing))
                 self.status[mod["filename"]].backup = "Queued"
-                self.update_status(mod["filename"])
+                self.update_backup_status(mod["filename"])
 
         self.post_message(self.BackupSelected(to_backup))
 
-    def set_backup_progress(self, filename, update_total, advance_amount):
-        table = self.query_one(DataTable)
-
-        if (
-            self.status[filename].backup == "Queued"
-            or self.status[filename].backup == ""
-        ):
-            self.status[filename].backup = "Running"
-            self.update_status(filename)
-
-            # This is the first update, so configure our progress bar
-            self.progress[filename] = Progress(
-                DownloadColumn(binary_units=True), BarColumn()
-            )
-
-            # This function gets called after the first file is already downloaded.
-            # Therefore we need to add 1 to our total number of files
-            self.progress_id[filename] = self.progress[filename].add_task(
-                "Bytes", total=update_total
-            )
-            try:
-                table.update_cell(
-                    filename, "progress", self.progress[filename], update_width=True
-                )
-            except CellDoesNotExist:
-                # This cell may be currently filtered, so ignore any errors
-                pass
-        if advance_amount is not None:
-            self.progress[filename].update(
-                self.progress_id[filename], advance=advance_amount
-            )
-            try:
-                table.update_cell(filename, "progress", self.progress[filename])
-            except CellDoesNotExist:
-                # This cell may be currently filtered, so ignore any errors
-                pass
-
     def set_backup_start(self, filename, zip_path):
         self.status[filename].backup = "Running"
-        self.update_status(filename)
+        self.update_backup_status(filename)
 
     def set_backup_complete(self, filename):
         self.status[filename].backup = ""
         self.backup_status[filename] = " ✓"
-        self.update_status(filename)
+        self.update_backup_status(filename)
 
     def update_bgg(self, mod_filename, bgg_id):
         self.mods[mod_filename]["bgg_id"] = bgg_id

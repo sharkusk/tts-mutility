@@ -1,4 +1,5 @@
 import http.client
+import ssl
 import os
 import socket
 import urllib.error
@@ -105,7 +106,7 @@ class FileDownload(Widget):
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
-        chunk_size: int = 64 * 1024,
+        chunk_size: int = 512 * 1024,
     ):
         super().__init__()
         self.timeout = timeout
@@ -297,7 +298,10 @@ class FileDownload(Widget):
         request = urllib.request.Request(url=self.fetch_url, headers=headers)
 
         try:
-            response = urllib.request.urlopen(request, timeout=self.timeout)
+            # Ignore SSL errors with this context setting
+            response = urllib.request.urlopen(
+                request, timeout=self.timeout, context=ssl.SSLContext()
+            )
 
         except urllib.error.HTTPError as error:
             return f"HTTPError {error.code} ({error.reason})"

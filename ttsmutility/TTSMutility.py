@@ -328,7 +328,12 @@ class TTSMutility(App):
             urls.append(asset["url"])
             trails.append(asset["trail"])
 
+        if event.mod_filename in self.mods_queued_dl:
+            self.mods_queued_dl[event.mod_filename] += urls
+        else:
+            self.mods_queued_dl[event.mod_filename] = urls
         screen = self.get_screen("mod_list")
+        screen.set_files_remaining(event.mod_filename, len(self.mods_queued_dl[event.mod_filename]), -1)
         screen.dl_urls(urls, trails)
 
     def on_asset_list_screen_update_counts(self):
@@ -347,35 +352,46 @@ class TTSMutility(App):
         self, event: FileDownload.FileDownloadProgress
     ):
         screen = self.get_screen("mod_list")
+        if self.is_screen_installed("mod_details"):
+            detail_screen = self.get_screen("mod_details")
+        else:
+            detail_screen = None
         for mod_filename in self.mods_queued_dl:
             if event.url in self.mods_queued_dl[mod_filename]:
                 screen.set_dl_progress(
                     mod_filename,
+                    event.url,
                     event.worker_num,
                     event.filesize,
                     event.bytes_complete,
                 )
+                if detail_screen is not None:
+                    detail_screen.update_size(
+                        mod_filename, event.url, event.bytes_complete
+                    )
 
     async def on_mod_list_screen_file_download_complete(
         self, event: ModListScreen.FileDownloadComplete
     ):
         asset_list = AssetList.AssetList()
+        screen = self.get_screen("mod_list")
+        if self.is_screen_installed("mod_details"):
+            detail_screen = self.get_screen("mod_details")
+        else:
+            detail_screen = None
         await asset_list.download_done(event.asset)
         # Find the mods being downloaded that contain this URL so we can update the status
         for mod_filename in self.mods_queued_dl:
             if event.asset["url"] in self.mods_queued_dl[mod_filename]:
                 self.mods_queued_dl[mod_filename].remove(event.asset["url"])
                 files_remaining = len(self.mods_queued_dl[mod_filename])
-                screen = self.get_screen("mod_list")
                 screen.set_files_remaining(
                     mod_filename, files_remaining, event.worker_num
                 )
                 if files_remaining == 0:
                     self.refresh_mods()
-
-        if self.is_screen_installed("mod_details"):
-            screen = self.get_screen("mod_details")
-            screen.update_asset(event.asset)
+                elif detail_screen is not None:
+                    detail_screen.update_asset(mod_filename, event.asset)
 
     async def on_asset_detail_screen_copy_complete(
         self, event: AssetDetailScreen.CopyComplete

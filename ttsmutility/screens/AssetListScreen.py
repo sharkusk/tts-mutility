@@ -40,7 +40,8 @@ class AssetListScreen(Widget):
             super().__init__()
 
     class DownloadSelected(Message):
-        def __init__(self, assets: list) -> None:
+        def __init__(self, mod_filename, assets: list) -> None:
+            self.mod_filename = mod_filename
             self.assets = assets
             super().__init__()
 
@@ -220,6 +221,13 @@ class AssetListScreen(Widget):
 
         return new_asset
 
+    def update_size(self, url, size):
+        table = next(self.query("#" + self.al_id).results(DataTable))
+        try:
+            table.update_cell(url, "size", sizeof_fmt(size))
+        except KeyError:
+            pass
+
     def update_asset(
         self,
         asset,
@@ -316,7 +324,7 @@ class AssetListScreen(Widget):
         assets = [
             self.assets[row_key],
         ]
-        self.post_message(self.DownloadSelected(assets))
+        self.post_message(self.DownloadSelected(self.mod_filename, assets))
         self.updated_counts = True
 
     def action_missing_report(self):
