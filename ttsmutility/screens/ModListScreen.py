@@ -747,9 +747,13 @@ class ModListScreen(Screen):
         self.dl_worker_status[worker_num].url = url
         self.dl_worker_status[worker_num].filesize = filesize
         self.dl_worker_status[worker_num].bytes_complete = bytes_complete
-        self.update_dl_status(filename)
+        # No need to update status when file is done, as we will get updated when remaining files are updated
+        if bytes_complete != filesize:
+            self.update_dl_status(filename)
 
-    def set_files_remaining(self, filename, files_remaining, worker_num):
+    def set_files_remaining(self, filename, url_completed, files_remaining, worker_num):
+        if url_completed is not None:
+            self.downloads.remove(url_completed)
         self.progress[filename] = self.ModDlProgress(files_remaining)
         if worker_num != -1:
             if self.status[filename].download == "Queued":

@@ -333,7 +333,9 @@ class TTSMutility(App):
         else:
             self.mods_queued_dl[event.mod_filename] = urls
         screen = self.get_screen("mod_list")
-        screen.set_files_remaining(event.mod_filename, len(self.mods_queued_dl[event.mod_filename]), -1)
+        screen.set_files_remaining(
+            event.mod_filename, None, len(self.mods_queued_dl[event.mod_filename]), -1
+        )
         screen.dl_urls(urls, trails)
 
     def on_asset_list_screen_update_counts(self):
@@ -386,11 +388,11 @@ class TTSMutility(App):
                 self.mods_queued_dl[mod_filename].remove(event.asset["url"])
                 files_remaining = len(self.mods_queued_dl[mod_filename])
                 screen.set_files_remaining(
-                    mod_filename, files_remaining, event.worker_num
+                    mod_filename, event.asset["url"], files_remaining, event.worker_num
                 )
                 if files_remaining == 0:
                     self.refresh_mods()
-                elif detail_screen is not None:
+                if detail_screen is not None:
                     detail_screen.update_asset(mod_filename, event.asset)
 
     async def on_asset_detail_screen_copy_complete(
@@ -434,7 +436,7 @@ class TTSMutility(App):
             turls = await mod_asset_list.get_missing_assets(mod_filename)
             if len(turls) == 0:
                 continue
-            screen.set_files_remaining(mod_filename, len(turls), -1)
+            screen.set_files_remaining(mod_filename, None, len(turls), -1)
             urls, trails = tuple(zip(*turls))
             self.write_log(f"Downloading missing assets from `{mod_filename}`.")
             self.mods_queued_dl[mod_filename] = list(urls)
