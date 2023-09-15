@@ -508,7 +508,6 @@ class ModDetailScreen(Screen):
             status_center = self.query_one("#worker_center")
             if status_center.has_class("unhide"):
                 status_center.remove_class("unhide")
-                event.stop()
 
     def update_asset(
         self,

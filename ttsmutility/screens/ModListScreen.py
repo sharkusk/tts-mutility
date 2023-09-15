@@ -8,8 +8,6 @@ from webbrowser import open as open_url
 
 from aiopath import AsyncPath
 from rich.markdown import Markdown
-from rich.progress import BarColumn, DownloadColumn, Progress
-from rich.style import Style
 from textual import work
 from textual.actions import SkipAction
 from textual.app import ComposeResult
@@ -198,7 +196,7 @@ class ModListScreen(Screen):
             "max_players": True,
             "backup": True,
             "bgg": False,
-            "status": True,
+            "dl_status": True,
         }
 
         table = self.query_one(DataTable)
@@ -216,7 +214,7 @@ class ModListScreen(Screen):
         table.add_column("MaxP", key="max_players")
         table.add_column("BGG", key="bgg")
         table.add_column("BUp", key="backup")
-        table.add_column("Status", key="status")
+        table.add_column("DL", key="dl_status")
 
         table.cursor_type = "row"
         table.sort("name", reverse=self.sort_order["name"])
@@ -343,8 +341,6 @@ class ModListScreen(Screen):
         table = self.query_one(DataTable)
 
         name = self.stylize_name(mod)
-
-        # name.stylize(Style(bgcolor="magenta"), 0, 5)
 
         if filename in self.backup_status:
             b = self.backup_status[filename]
@@ -698,13 +694,13 @@ class ModListScreen(Screen):
     def action_help(self) -> None:
         """Show the help."""
         self.app.push_screen(HelpDialog())
-    
+
     def update_backup_status(self, filename):
         if filename not in self.status:
             return
 
         if self.status[filename].backup == "Queued":
-            self.backup_status[filename] = " Q"
+            self.backup_status[filename] = "Q"
         elif self.status[filename].backup == "Running":
             self.backup_status[filename] = "..."
 
@@ -739,7 +735,7 @@ class ModListScreen(Screen):
                     stat_message += "▏"
 
         try:
-            table.update_cell(filename, "status", stat_message, update_width=True)
+            table.update_cell(filename, "dl_status", stat_message, update_width=True)
         except (CellDoesNotExist, KeyError):
             # This cell may be currently filtered, so ignore any errors
             pass
