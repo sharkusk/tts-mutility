@@ -87,7 +87,7 @@ def get_content_name(url: str, content_disposition: str = "") -> str:
         steam_sha1 = get_steam_sha1_from_url(url)
         if steam_sha1 != "" and steam_sha1 in content_name and "_" in content_name:
             # Steam context_disp_names is formatted like: SHA1_<filename>
-            content_name = content_name.split("_", 1)[1]
+            content_name = content_name.rsplit(steam_sha1 + "_", 1)[1]
 
     return content_name
 
