@@ -163,7 +163,7 @@ class AssetListScreen(Widget):
         table = next(self.query("#" + self.al_id).results(DataTable))
         for asset in self.assets.values():
             if asset["size"] == 0 and asset["dl_status"] != "":
-                if len(await asset_list.find_asset_a(asset["url"])) > 0:
+                if await asset_list.find_asset_a(asset["url"], asset["trail"]):
                     asset["size"] = "-1.0 B"
                     try:
                         table.update_cell(

@@ -150,7 +150,7 @@ class AssetDetailScreen(ModalScreen):
 
         if asset_detail["dl_status"] != "":
             asset_detail["matches"] = "### Asset Matches\n"
-            matches = self.asset_list.find_asset(self.url)
+            matches = self.asset_list.find_asset(self.url, asset_detail["trail"])
             if len(matches) == 0:
                 asset_detail["matches"] += "None Found\n"
             else:

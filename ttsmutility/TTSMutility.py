@@ -350,7 +350,7 @@ class TTSMutility(App):
     # ╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
     """  # noqa
 
-    def on_file_download_file_download_progress(
+    async def on_file_download_file_download_progress(
         self, event: FileDownload.FileDownloadProgress
     ):
         screen = self.get_screen("mod_list")

@@ -106,7 +106,7 @@ class FileDownload(Widget):
         user_agent: str = USER_AGENT,
         status_id: int = 0,
         ignore_content_type: bool = False,
-        chunk_size: int = 512 * 1024,
+        chunk_size: int = 1024 * 1024,
     ):
         super().__init__()
         self.timeout = timeout
@@ -259,9 +259,7 @@ class FileDownload(Widget):
             filepath = os.path.join(self.mod_dir, str(self.filename))
             self.filesize = os.path.getsize(filepath)
             self.mtime = os.path.getmtime(filepath)
-            self.post_message(
-                UpdateLog(f"Download Success: `{self.filename}`", flush=True)
-            )
+            self.post_message(UpdateLog(f"Download Success: `{self.filename}`"))
             self.error = ""
             return "", self.make_asset()
         else:
@@ -357,7 +355,7 @@ class FileDownload(Widget):
         self.content_name = get_content_name(self.url, content_disposition)
 
         if self.content_name != "":
-            self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
+            # self.post_message(UpdateLog(f"Content Filename: `{self.content_name}`"))
             extensions["content-disposition"] = os.path.splitext(self.content_name)[1]
 
         # Use the url to extract the extension,
@@ -392,15 +390,17 @@ class FileDownload(Widget):
         self.filename = Path(self.filename).with_suffix(ext)
         filepath = Path(self.mod_dir) / self.filename
         asset_dir = os.path.split(os.path.split(filepath)[0])[1]
-        self.post_message(UpdateLog(f"Asset dir: `{asset_dir}`"))
+        # self.post_message(UpdateLog(f"Asset dir: `{asset_dir}`"))
 
         length = int(response.getheader("Content-Length", 0))
-        self.post_message(
-            self.FileDownloadProgress(
-                self.url, self.worker_num, filesize=length, bytes_complete=0
+        # Reduce message traffic for small file sizes
+        if length > self.chunk_size:
+            self.post_message(
+                self.FileDownloadProgress(
+                    self.url, self.worker_num, filesize=length, bytes_complete=0
+                )
             )
-        )
-        self.post_message(UpdateLog(f"URL Filesize: `{length}`"))
+        # self.post_message(UpdateLog(f"URL Filesize: `{length}`"))
 
         temp_path = filepath.with_suffix(".tmp")
 
@@ -418,14 +418,16 @@ class FileDownload(Widget):
                 while data:
                     if bytes_read > length:
                         bytes_read = length
-                    self.post_message(
-                        self.FileDownloadProgress(
-                            self.url,
-                            self.worker_num,
-                            filesize=length,
-                            bytes_complete=bytes_read,
+                    # Reduce message traffic for small file sizes
+                    if length > self.chunk_size:
+                        self.post_message(
+                            self.FileDownloadProgress(
+                                self.url,
+                                self.worker_num,
+                                filesize=length,
+                                bytes_complete=bytes_read,
+                            )
                         )
-                    )
                     outfile.write(data)
                     data = response.read(self.chunk_size)
                     bytes_read += self.chunk_size

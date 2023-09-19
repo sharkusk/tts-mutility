@@ -952,8 +952,11 @@ class AssetList:
     def find_asset(self, url, trail=None, max_matches=20):
         sha_match = ""
         name_matches = []
+        trail_matches = []
         fuzzy_matches = []
         total_matches = 0
+
+        trail_name = self.get_asset_trail_name(trail)
 
         with sqlite3.connect(self.db_path) as db:
             content_name = get_content_name(url)
@@ -1049,17 +1052,107 @@ class AssetList:
                         fuzzy_matches.append((result[0], result[1]))
                         total_matches += 1
 
+            if trail_name != "":
+                cursor = db.execute(
+                    """
+                    SELECT asset_url, asset_content_name
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + trail_name + "%",),
+                )
+                results = cursor.fetchall()
+                for result in results:
+                    if total_matches > max_matches:
+                        break
+                    if (
+                        result[0] != url
+                        and result[0] != sha_match
+                        and result[0] not in name_matches
+                        and result[0] not in fuzzy_matches
+                    ):
+                        trail_matches.append((result[0], result[1]))
+                        total_matches += 1
+
+                cursor = db.execute(
+                    """
+                    SELECT asset_url, asset_content_name
+                    FROM tts_assets
+                    WHERE tts_assets.id IN (SELECT asset_id_fk FROM tts_mod_assets
+                                    WHERE mod_asset_trail LIKE ?)
+                    """,
+                    ("%" + trail_name + "%",),
+                )
+                results = cursor.fetchall()
+                for result in results:
+                    if total_matches > max_matches:
+                        break
+                    if (
+                        result[0] != url
+                        and result[0] != sha_match
+                        and result[0] not in name_matches
+                        and result[0] not in fuzzy_matches
+                        and result[0] not in trail_matches
+                    ):
+                        trail_matches.append((result[0], result[1]))
+                        total_matches += 1
+
+                # If our trail_name is more than one word, strip out the last as it
+                # is likely a count or some other thing that will throw off a match
+                if len(trail_matches) == 0 and trail_name.count(" ") > 0:
+                    trail_name = trail_name[: trail_name.find(" ")]
+
+                    cursor = db.execute(
+                        """
+                        SELECT asset_url, asset_content_name
+                        FROM tts_assets
+                        WHERE tts_assets.id IN (SELECT asset_id_fk FROM tts_mod_assets
+                                        WHERE mod_asset_trail LIKE ?)
+                        """,
+                        ("%" + trail_name + "%",),
+                    )
+                    results = cursor.fetchall()
+                    for result in results:
+                        if total_matches > max_matches:
+                            break
+                        if (
+                            result[0] != url
+                            and result[0] != sha_match
+                            and result[0] not in name_matches
+                            and result[0] not in fuzzy_matches
+                            and result[0] not in trail_matches
+                        ):
+                            trail_matches.append((result[0], result[1]))
+                            total_matches += 1
+
         matches = []
         if sha_match != "":
             matches += [(sha_match, "SHA1")]
 
         matches += [(url, "Exact Name") for url in name_matches]
         matches += [(url, "Fuzzy Match") for url in fuzzy_matches]
+        matches += [(url, "Trail Match") for url in trail_matches]
 
         return matches
 
-    async def find_asset_a(self, url, trail=None):
-        matches = []
+    def get_asset_trail_name(self, trail):
+        trail_name = ""
+        # Disable, generates too many matches
+        if False and trail is not None:
+            if type(trail) is list:
+                trail = trail_to_trailstring(trail)
+            end = trail.rfind('"')
+            start = trail.rfind('"', 0, end)
+            if start != -1 and end != -1:
+                trail_name = trail[start + 1 : end]
+                # Remove GUID if found
+                if "(" in trail_name:
+                    trail_name = trail_name[: trail_name.rfind("(")]
+            trail_name = trail_name.strip()
+        return trail_name
+
+    async def find_asset_a(self, url, trail=None) -> bool:
+        trail_name = self.get_asset_trail_name(trail)
 
         async with aiosqlite.connect(self.db_path) as db:
             content_name = get_content_name(url)
@@ -1073,8 +1166,8 @@ class AssetList:
                     (url,),
                 ) as cursor:
                     result = await cursor.fetchone()
-                    if result is not None:
-                        content_name = result[0]
+                    if result is not None and result[0] != "":
+                        return True
 
             if content_name == "":
                 if "=" in url:
@@ -1095,8 +1188,7 @@ class AssetList:
                 ) as cursor:
                     async for result in cursor:
                         if result[0] != url:
-                            matches.append((result[0], "sha1"))
-                            break
+                            return True
 
             if content_name != "":
                 async with db.execute(
@@ -1109,8 +1201,7 @@ class AssetList:
                 ) as cursor:
                     async for result in cursor:
                         if result[0] != url:
-                            matches.append((result[0], "Exact Name"))
-                            break
+                            return True
 
                 # Ignore the extension for the fuuzzy searches
                 content_name, ext = os.path.splitext(content_name)
@@ -1124,8 +1215,7 @@ class AssetList:
                 ) as cursor:
                     async for result in cursor:
                         if result[0] != url:
-                            matches.append((result[0], "Fuzzy Recode"))
-                            break
+                            return True
 
                 async with db.execute(
                     """
@@ -1137,10 +1227,40 @@ class AssetList:
                 ) as cursor:
                     async for result in cursor:
                         if result[0] != url:
-                            matches.append((result[0], "Fuzzy Name"))
-                            break
+                            return True
 
-        return matches
+            if trail_name != "":
+                # If our trail_name is more than one word, strip out the last as it
+                # is likely a count or some other thing that will throw off a match
+                if trail_name.count(" ") > 0:
+                    trail_name = trail_name[: trail_name.find(" ")]
+
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE asset_content_name LIKE ?
+                    """,
+                    ("%" + trail_name + "%",),
+                ) as cursor:
+                    async for result in cursor:
+                        if result[0] != url:
+                            return True
+
+                async with db.execute(
+                    """
+                    SELECT asset_url
+                    FROM tts_assets
+                    WHERE tts_assets.id IN (SELECT asset_id_fk FROM tts_mod_assets
+                                    WHERE mod_asset_trail LIKE ?)
+                    """,
+                    ("%" + trail_name + "%",),
+                ) as cursor:
+                    async for result in cursor:
+                        if result[0] != url:
+                            return True
+
+        return False
 
     def get_asset(self, url: str, mod_filename: str = "") -> dict:
         asset = {}
