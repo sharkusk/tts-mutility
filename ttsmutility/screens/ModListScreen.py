@@ -248,29 +248,34 @@ class ModListScreen(Screen):
         words_to_move = [
             "scripted deal ",
             "scripted ",
+            "semi-scripted ",
+            "the ",
+            "a ",
             "wip ",
             "complete ",
             "gf9 ",
-            "epic ",
             "v2 automated ",
             "reiner knizia's ",
             "- ",
             "(remastered) ",
+            "improved ",
         ]
         if len(name) == 0:
             return name
 
-        if name[0] == "[":
+        while name[0] == "[":
             # Move [] to end of name
             e = name.find("]")
             name = (name[e + 1 :] + " " + name[0 : e + 1]).strip()
+        if name.find("the") == 0:
+            name = name.replace("the", "The")
         for to_move in words_to_move:
             if name.lower().find(to_move) == 0:
                 name = name[len(to_move) :] + ", " + name[: len(to_move)]
-        if name.find("the") == 0:
-            name = name.replace("the", "The")
         if name.find("TTS-") == 0:
             name = name[4:].strip()
+        if name.find("EPIC ") == 0:
+            name = name[5:] + ", EPIC"
         if name[0] == "+":
             name = name[1:].strip()
         if name[0] == '"':
@@ -752,7 +757,7 @@ class ModListScreen(Screen):
             self.update_dl_status(filename)
 
     def set_files_remaining(self, filename, url_completed, files_remaining, worker_num):
-        if url_completed is not None:
+        if url_completed is not None and url_completed in self.downloads:
             self.downloads.remove(url_completed)
         self.progress[filename] = self.ModDlProgress(files_remaining)
         if worker_num != -1:

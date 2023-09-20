@@ -76,7 +76,16 @@ class ModParser:
         for k, v in dic.items():
             if k in self.MOD_INFO_FIELDS:
                 if isinstance(v, str):
-                    self.mod_info[k] = v.strip()
+                    if k == "SaveName":
+                        # Save name can have malformed utf-8 characters
+                        try:
+                            self.mod_info[k] = (
+                                bytes(v, "cp1252").decode("utf-8").strip()
+                            )
+                        except (UnicodeEncodeError, UnicodeDecodeError):
+                            self.mod_info[k] = v.strip()
+                    else:
+                        self.mod_info[k] = v.strip()
                 elif isinstance(v, dict):
                     self.mod_info[k] = "-".join(v.values())
                 elif isinstance(v, list):
