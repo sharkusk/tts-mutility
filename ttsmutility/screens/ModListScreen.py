@@ -249,16 +249,17 @@ class ModListScreen(Screen):
             "scripted deal ",
             "scripted ",
             "semi-scripted ",
-            "the ",
-            "a ",
             "wip ",
             "complete ",
             "gf9 ",
             "v2 automated ",
             "reiner knizia's ",
-            "- ",
+            "betterized ",
             "(remastered) ",
             "improved ",
+            "- ",
+            "the ",
+            "a ",
         ]
         if len(name) == 0:
             return name
@@ -271,7 +272,7 @@ class ModListScreen(Screen):
             name = name.replace("the", "The")
         for to_move in words_to_move:
             if name.lower().find(to_move) == 0:
-                name = name[len(to_move) :] + ", " + name[: len(to_move)]
+                name = name[len(to_move) :] + ", " + name[: len(to_move)].strip()
         if name.find("TTS-") == 0:
             name = name[4:].strip()
         if name.find("EPIC ") == 0:
