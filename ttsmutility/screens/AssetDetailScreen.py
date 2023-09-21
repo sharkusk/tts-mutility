@@ -167,16 +167,18 @@ class AssetDetailScreen(ModalScreen):
 
         return asset_detail_md.format(**asset_detail)
 
-    def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
+    async def on_markdown_link_clicked(self, event: Markdown.LinkClicked):
         link = None
         if "//localhost/" in event.href:
             link = event.href.replace("//localhost/", "file:///")
         elif self.uri_copy in event.href:
-            self.asset_list.copy_asset(event.href.split(self.uri_copy)[1], self.url)
+            await self.asset_list.copy_asset(
+                event.href.split(self.uri_copy)[1], self.url
+            )
             self.post_message(self.CopyComplete(self.url))
             self.app.push_screen(InfoDialog("Copied asset. Restart to update mod."))
         elif self.uri_delete in event.href:
-            self.asset_list.delete_asset(self.url)
+            await self.asset_list.delete_asset(self.url)
             self.app.push_screen(InfoDialog("Deleted asset. Restart to update mod."))
         elif self.ad_uri_prefix in event.href:
             self.app.push_screen(

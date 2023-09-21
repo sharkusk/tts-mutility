@@ -890,53 +890,53 @@ class AssetList:
             )
             db.commit()
 
-    def copy_asset(self, src_url, dest_url):
+    async def copy_asset(self, src_url, dest_url):
         if src_url == dest_url:
             return
 
-        with sqlite3.connect(self.db_path) as db:
-            cursor = db.execute(
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
                 """
                 SELECT asset_path, asset_filename, asset_ext, asset_size, asset_content_name
                 FROM tts_assets
                 WHERE asset_url=?
                 """,
                 (src_url,),
-            )
-            result = cursor.fetchone()
-            # No match, or our src url is not on disk
-            if result is None or result[3] == 0:
-                self.post_message(
-                    UpdateLog(
-                        f"Cannot copy `{src_url}` because the asset does not exist."
+            ) as cursor:
+                result = await cursor.fetchone()
+                # No match, or our src url is not on disk
+                if result is None or result[3] == 0:
+                    self.post_message(
+                        UpdateLog(
+                            f"Cannot copy `{src_url}` because the asset does not exist."
+                        )
                     )
+                    return
+                src_path = result[0]
+                src_ext = result[2]
+                src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
+                    src_ext
                 )
-                return
-            src_path = result[0]
-            src_ext = result[2]
-            src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
-                src_ext
-            )
-            content_name = result[4]
+                content_name = result[4]
 
-            cursor = db.execute(
-                """
-                SELECT asset_filename, asset_content_name
-                FROM tts_assets
-                WHERE asset_url=?
-                """,
-                (dest_url,),
-            )
-            result = cursor.fetchone()
-            if result is None:
-                return
-            dest_filepath = (Path(self.mod_dir) / src_path / result[0]).with_suffix(
-                src_ext
-            )
-            dest_content_name = result[1]
+            async with db.execute(
+                    """
+                    SELECT asset_filename, asset_content_name
+                    FROM tts_assets
+                    WHERE asset_url=?
+                    """,
+                    (dest_url,),
+            ) as cursor:
+                result = await cursor.fetchone()
+                if result is None:
+                    return
+                dest_filepath = (Path(self.mod_dir) / src_path / result[0]).with_suffix(
+                    src_ext
+                )
+                dest_content_name = result[1]
 
             if content_name != "" and dest_content_name == "":
-                db.execute(
+                await db.execute(
                     """
                     UPDATE tts_assets
                     SET asset_content_name=?
@@ -944,7 +944,7 @@ class AssetList:
                     """,
                     (content_name, dest_url),
                 )
-                db.commit()
+                await db.commit()
 
         self.post_message(UpdateLog(f"Copying `{src_filepath}` to `{dest_filepath}`"))
         copy(src_filepath, dest_filepath)
@@ -1309,25 +1309,25 @@ class AssetList:
             asset["mods"] = sorted(mod_names)
         return asset
 
-    def delete_asset(self, url):
-        with sqlite3.connect(self.db_path) as db:
-            cursor = db.execute(
+    async def delete_asset(self, url):
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(
                 """
                 SELECT asset_path, asset_filename, asset_ext, asset_size
                 FROM tts_assets
                 WHERE asset_url=?
                 """,
                 (url,),
-            )
-            result = cursor.fetchone()
-            # No match, or our src url is not on disk
-            if result is None or result[3] == 0:
-                self.post_message(
-                    UpdateLog(
-                        f"Cannot delete `{url}` because the asset does not exist."
+            ) as cursor:
+                result = await cursor.fetchone()
+                # No match, or our src url is not on disk
+                if result is None or result[3] == 0:
+                    self.post_message(
+                        UpdateLog(
+                            f"Cannot delete `{url}` because the asset does not exist."
+                        )
                     )
-                )
-                return
+                    return
             src_path = result[0]
             src_ext = result[2]
             src_filepath = (Path(self.mod_dir) / src_path / result[1]).with_suffix(
