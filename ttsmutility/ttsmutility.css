@@ -52,6 +52,10 @@ TabPane {
     height: 1fr;
 }
 
+DataTableFilter {
+    height: 1fr;
+}
+
 AssetListScreen {
     height: 1fr;
 }
