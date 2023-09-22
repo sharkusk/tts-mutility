@@ -105,7 +105,7 @@ class TTSMutility(App):
     def compose(self) -> ComposeResult:
         yield Header()
         # Loading indicator causes poor scrolling performance on Textual > 0.31
-        # yield LoadingIndicator(id="loading")
+        yield LoadingIndicator(id="loading")
         yield Static(id="status")
 
     def write_log(self, output: str, prefix: str = "- ", suffix: str = "\n") -> None:
@@ -268,6 +268,8 @@ class TTSMutility(App):
         self.push_screen(name)
 
     def on_ttsmutility_init_complete(self):
+        li = next(self.query("#loading").results(LoadingIndicator))
+        li.remove()
         self.run_worker(
             self.backup.backup_daemon,
             thread=True,
