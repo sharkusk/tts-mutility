@@ -203,7 +203,8 @@ MarkdownFence {
 }
 
 #status {
-    height: 0.5fr;
+    content-align: center middle;
+    height: 1fr;
     text-align: center;
     width: 100%;
 }
