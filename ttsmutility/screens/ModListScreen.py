@@ -315,6 +315,13 @@ class ModListScreen(Screen):
                     > self.mods[mod_filename]["newest_asset"]
                 ):
                     b = " ✓"
+                elif (
+                    config.backup_read_only
+                    and self.backup_times[name] > self.mods[mod_filename]["epoch"]
+                ):
+                    # If we are using a read-only backup dir, we don't care about
+                    # when assets were last updated
+                    b = " ✓"
                 else:
                     b = "!"
             else:

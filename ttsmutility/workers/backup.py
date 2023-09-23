@@ -1,7 +1,9 @@
 import csv
+import datetime
 import io
 import os
 import os.path
+import time
 from pathlib import Path, PurePosixPath
 from queue import Empty, Queue
 from zipfile import ZipFile
@@ -189,7 +191,16 @@ class ModBackup(Widget):
 
 def unzip_backup(backup_path: Path, dest_path: Path) -> None:
     with ZipFile(backup_path, "r") as zf:
-        zf.extractall(dest_path)
+        infos = zf.infolist()
+        files_to_unzip = []
+        for info in infos:
+            filepath = dest_path / info.filename
+            if filepath.exists() and filepath.stat().st_mtime > time.mktime(
+                datetime.datetime(*info.date_time).timetuple()
+            ):
+                continue
+            files_to_unzip.append(info)
+        zf.extractall(dest_path, members=files_to_unzip)
         if "content_names.csv" in zf.namelist():
             urls = []
             content_names = []
