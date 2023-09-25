@@ -35,6 +35,7 @@ from ..workers.backup import unzip_backup
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
 from .ModExplorerScreen import ModExplorerScreen
+from .LoadingScreen import LoadingScreen
 
 
 class ModListScreen(Screen):
@@ -895,27 +896,37 @@ class ModListScreen(Screen):
         if row_key.value is not None:
             backup_name = Path(row_key.value).name
             if backup_name in self.backup_filenames:
-                unzip_backup(
-                    self.backup_filenames[backup_name], Path(self.mod_dir).parent
-                )
-                self.post_message(
-                    UpdateLog(
-                        f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.",
-                        flush=True,
-                    )
-                )
                 self.app.push_screen(
-                    InfoDialog(
-                        f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.  Restart to scan for new assets."
-                    )
+                    LoadingScreen(
+                        unzip_backup,
+                        (
+                            self.backup_filenames[backup_name],
+                            Path(self.mod_dir).parent,
+                            backup_name,
+                        ),
+                    ),
+                    callback=self.unzip_done,
                 )
-            else:
-                self.post_message(
-                    UpdateLog(
-                        f"Mod Backup ({backup_name}) cannot be unzipped (backup not found).",
-                        flush=True,
-                    )
+        else:
+            self.post_message(
+                UpdateLog(
+                    f"Mod Backup ({backup_name}) cannot be unzipped (backup not found).",
+                    flush=True,
                 )
+            )
+
+    def unzip_done(self, backup_name):
+        self.post_message(
+            UpdateLog(
+                f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.",
+                flush=True,
+            )
+        )
+        self.app.push_screen(
+            InfoDialog(
+                f"Mod Backup ({self.backup_filenames[backup_name]}) unzipped.  Restart to scan for new assets."
+            )
+        )
 
     def action_explore(self):
         row_key = self.get_current_row_key()

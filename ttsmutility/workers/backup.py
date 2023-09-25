@@ -189,7 +189,7 @@ class ModBackup(Widget):
         self.mod_filenames.task_done()
 
 
-def unzip_backup(backup_path: Path, dest_path: Path) -> None:
+def unzip_backup(backup_path: Path, dest_path: Path, backup_name) -> None:
     with ZipFile(backup_path, "r") as zf:
         infos = zf.infolist()
         files_to_unzip = []
@@ -214,3 +214,4 @@ def unzip_backup(backup_path: Path, dest_path: Path) -> None:
 
             asset_list = AssetList()
             asset_list.set_content_names(urls, content_names)
+    return backup_name

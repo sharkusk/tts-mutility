@@ -94,6 +94,14 @@ MarkdownFence {
     height: 1fr;
 }
 
+#busy_indicator {
+    width: 75%;
+    border: round $accent;
+    padding: 1;
+    text-align: center;
+    height: auto;
+}
+
 #ml_filter_center {
     visibility: hidden;
     height: 0;
