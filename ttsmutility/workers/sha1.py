@@ -55,13 +55,13 @@ class Sha1Scanner(TTSWorker):
             self.post_message(self.UpdateProgress(len(files), None))
 
             # Updating bar for every file can be very expensive, so scale it to
-            # a min of 100 times, but no more than every 10 files
+            # a min of 100 times, but no more than every 51 files
             if len(files) < 100:
                 update_amount = 1
             else:
                 update_amount = int(len(files) / 100)
-            if update_amount > 10:
-                update_amount = 1
+            if update_amount > 50:
+                update_amount = 51
 
             skip_update_amount = 1000
 

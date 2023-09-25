@@ -493,10 +493,8 @@ class AssetListScreen(Widget):
 
         try:
             me = self.query_one(ModExplorer)
+            node = me.find_node(trailstring_to_trail(trail))
+            me.jump_to_node(node)
         except NoMatches:
             container = self.query_one(Container)
             await container.mount(ModExplorer(mod_filepath, id="mod_explorer"))
-            me = self.query_one(ModExplorer)
-
-        node = me.find_node(trailstring_to_trail(trail))
-        me.jump_to_node(node)

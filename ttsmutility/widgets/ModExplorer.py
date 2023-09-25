@@ -2,14 +2,15 @@ import json
 from webbrowser import open as open_url
 
 from rich.highlighter import ReprHighlighter
-from rich.text import Text
 from rich.syntax import Syntax
-from textual.app import ComposeResult
+from rich.text import Text
+from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
 from ..dialogs.InfoDialog import TextDialog
+from ..screens.LoadingScreen import LoadingScreen
 
 
 class ModExplorer(Widget):
@@ -22,9 +23,6 @@ class ModExplorer(Widget):
         self.start_node = None
         self.text_values = []
         super().__init__(**kwargs)
-
-    def compose(self) -> ComposeResult:
-        yield Tree("Root")
 
     def add_json(self, name: str, node: TreeNode, json_data: object) -> None:
         """Adds JSON data to a node.
@@ -113,12 +111,18 @@ class ModExplorer(Widget):
         self.call_after_refresh(self.update_scroll)
 
     def update_scroll(self):
-        tree = self.query_one(Tree)
+        try:
+            tree = self.query_one(Tree)
+        except NoMatches:
+            return
         line = tree.cursor_line
         tree.scroll_to_line(line)
 
-    def find_node(self, trail: list, expand: bool = True) -> TreeNode:
-        tree = self.query_one(Tree)
+    def find_node(self, trail: list, expand: bool = True) -> None | TreeNode:
+        try:
+            tree = self.query_one(Tree)
+        except NoMatches:
+            return None
         node = tree.root.children[0]
         if expand:
             node.expand()
@@ -143,22 +147,32 @@ class ModExplorer(Widget):
         if self.json_data is None:
             with open(self.json_path, encoding="utf-8") as data_file:
                 self.json_data = json.load(data_file)
-        tree = self.query_one(Tree)
-        tree.auto_expand = True
-        tree.show_root = False
-        json_node = tree.root.add("ROOT")
-        self.add_json(str(self.json_path), json_node, self.json_data)
+        self.app.push_screen(
+            LoadingScreen(
+                self.load_tree,
+                (self.json_data,),
+            ),
+            callback=self.tree_loaded,
+        )
 
+    def tree_loaded(self, tree):
+        self.mount(tree)
         if len(self.trail) > 0:
             self.start_node = self.find_node(self.trail)
         else:
             self.start_node = tree.root.children[0]
             self.start_node.expand()
-
         self.call_after_refresh(self.jump_to_node, self.start_node)
-
         tree.action_link_clicked = self.action_link_clicked
         tree.action_text_clicked = self.action_text_clicked
+
+    def load_tree(self, json_data) -> None:
+        tree = Tree("Root")
+        tree.auto_expand = True
+        tree.show_root = False
+        json_node = tree.root.add("ROOT")
+        self.add_json(str(self.json_path), json_node, json_data)
+        return tree
 
     def action_link_clicked(self, url: str):
         open_url(url)
