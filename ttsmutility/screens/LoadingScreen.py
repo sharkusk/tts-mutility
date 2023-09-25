@@ -5,7 +5,7 @@ from textual.widgets import LoadingIndicator
 
 
 class LoadingScreen(ModalScreen[int]):
-    def __init__(self, busy_work, args):
+    def __init__(self, busy_work, *args):
         super().__init__()
         self.busy_work = busy_work
         self.busy_work_args = args

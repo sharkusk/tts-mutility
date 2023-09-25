@@ -150,7 +150,7 @@ class ModExplorer(Widget):
         self.app.push_screen(
             LoadingScreen(
                 self.load_tree,
-                (self.json_data,),
+                self.json_data,
             ),
             callback=self.tree_loaded,
         )

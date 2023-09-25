@@ -899,11 +899,9 @@ class ModListScreen(Screen):
                 self.app.push_screen(
                     LoadingScreen(
                         unzip_backup,
-                        (
-                            self.backup_filenames[backup_name],
-                            Path(self.mod_dir).parent,
-                            backup_name,
-                        ),
+                        self.backup_filenames[backup_name],
+                        Path(self.mod_dir).parent,
+                        backup_name,
                     ),
                     callback=self.unzip_done,
                 )
