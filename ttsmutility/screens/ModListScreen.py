@@ -1,5 +1,6 @@
 import csv
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
@@ -34,8 +35,8 @@ from ..widgets.DataTableFilter import DataTableFilter
 from ..workers.backup import unzip_backup
 from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
-from .ModExplorerScreen import ModExplorerScreen
 from .LoadingScreen import LoadingScreen
+from .ModExplorerScreen import ModExplorerScreen
 
 
 class ModListScreen(Screen):
@@ -114,6 +115,7 @@ class ModListScreen(Screen):
         self.mod_dir = config.tts_mods_dir
         self.save_dir = config.tts_saves_dir
         self.num_dl_threads = int(config.num_download_threads)
+        self.last_dl_update_time = 0.0
 
         for i in range(self.num_dl_threads):
             fd = FileDownload()
@@ -730,13 +732,24 @@ class ModListScreen(Screen):
         if filename not in self.status:
             return
 
-        table = self.query_one(DataTable)
+        cur_time = time.time()
+        if cur_time > (self.last_dl_update_time + 0.5):
+            do_update = True
+            self.last_dl_update_time = cur_time
+        else:
+            do_update = False
 
         stat_message = ""
         if self.status[filename].download == "Queued":
-            stat_message += "DLoad-Q"
+            stat_message += "Q"
+            do_update = True
+        elif self.status[filename].download == "Done":
+            stat_message += "✓"
+            do_update = True
         elif self.status[filename].download == "Running":
             stat_message += f"{self.progress[filename].files_remaining}->"
+            if self.progress[filename].files_remaining == 0:
+                do_update = True
             for i, dl_stat in enumerate(self.dl_worker_status):
                 if dl_stat.filename == filename:
                     if dl_stat.filesize == 0:
@@ -748,11 +761,15 @@ class ModListScreen(Screen):
                         stat_message += chart_chars[index]
                     stat_message += "▏"
 
-        try:
-            table.update_cell(filename, "dl_status", stat_message, update_width=True)
-        except (CellDoesNotExist, KeyError):
-            # This cell may be currently filtered, so ignore any errors
-            pass
+        if do_update:
+            try:
+                table = self.query_one(DataTable)
+                table.update_cell(
+                    filename, "dl_status", stat_message, update_width=True
+                )
+            except (CellDoesNotExist, KeyError):
+                # This cell may be currently filtered, so ignore any errors
+                pass
 
     def set_dl_progress(self, filename, url, worker_num, filesize, bytes_complete):
         if self.status[filename].download != "Running":
@@ -773,7 +790,7 @@ class ModListScreen(Screen):
             if self.status[filename].download == "Queued":
                 self.status[filename].download = "Running"
             if files_remaining == 0:
-                self.status[filename].download = ""
+                self.status[filename].download = "Done"
         self.update_dl_status(filename)
 
     def dl_urls(self, urls, trails, mod_filename="") -> None:

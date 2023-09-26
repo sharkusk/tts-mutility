@@ -95,7 +95,7 @@ MarkdownFence {
 }
 
 #busy_indicator {
-    width: 75%;
+    width: 25%;
     border: round $accent;
     padding: 1;
     text-align: center;
