@@ -25,11 +25,11 @@ from ..widgets.DataTableFilter import DataTableFilter
 class AssetListScreen(Widget):
     BINDINGS = [
         ("/", "filter", "Filter"),
-        ("d", "download_asset", "Download Asset"),
-        ("r", "missing_report", "Missing Report"),
-        ("i", "ignore_missing", "Ignore Missing"),
-        ("a", "all_nodes", "Show All Nodes"),
+        ("d", "download_asset", "Download"),
+        ("i", "ignore_missing", "Ignore"),
+        ("a", "all_nodes", "Toggle All"),
         ("e", "explore", "Explore"),
+        ("m", "missing_report", "Missing Report"),
     ]
 
     class AssetSelected(Message):

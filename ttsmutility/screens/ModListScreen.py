@@ -11,8 +11,9 @@ from aiopath import AsyncPath
 from rich.markdown import Markdown
 from textual import work
 from textual.actions import SkipAction
-from textual.app import ComposeResult
+from textual.app import ComposeResult, App
 from textual.binding import Binding
+from textual.command import Hit, Hits, Provider
 from textual.containers import Center
 from textual.coordinate import Coordinate
 from textual.events import Key
@@ -37,6 +38,64 @@ from ..workers.downloader import FileDownload
 from .DebugScreen import DebugScreen
 from .LoadingScreen import LoadingScreen
 from .ModExplorerScreen import ModExplorerScreen
+
+
+class ModListCommands(Provider):
+    ML_COMMANDS = {
+        "View Log": ("Open Log in External Viewer", "action_view_log"),
+        "Open Config": (
+            "Open Config file in External Viewer",
+            "action_open_config",
+        ),
+        "Download All": (
+            "Attept to download all mising assets",
+            "action_download_all",
+        ),
+        "Backup All": ("Backup all mods needing a backup", "action_backup_all"),
+        "Scan SHA1s": ("Calculate SHA1 values for all assets", "action_scan_sha1"),
+        "Show SHA1 Mistmatches": (
+            "Show SteamCloud SHA-1 assets that don't match their SHA1 vales",
+            "action_sha1_mismatches",
+        ),
+        "Save ContentNames": (
+            "Saves asset content names to csv file in backup directory",
+            "action_content_name_report",
+        ),
+        "Load ContentNames": (
+            "Loads asset content names from csv file in backup directory",
+            "action_content_name_load",
+        ),
+        "Show All Missing": (
+            "Shows list of all missing assets",
+            "action_missing_assets",
+        ),
+        "Fetch ContentNames": (
+            "Attempt to get content names for all assets",
+            "action_scan_names",
+        ),
+    }
+
+    async def startup(self) -> None:
+        """Called once when the command palette is opened, prior to searching."""
+        app = self.app
+        self.cmd_screen = app.get_screen("mod_list")
+        pass
+
+    async def search(self, query: str) -> Hits:
+        """Search for Python files."""
+        matcher = self.matcher(query)
+
+        for command in self.ML_COMMANDS.keys():
+            score = matcher.match(command)
+            if score > 0:
+                help, func_name = self.ML_COMMANDS[command]
+                func = getattr(self.cmd_screen, func_name)
+                yield Hit(
+                    score,
+                    matcher.highlight(command),
+                    func,
+                    help=help,
+                )
 
 
 class ModListScreen(Screen):
@@ -70,27 +129,17 @@ class ModListScreen(Screen):
     class ModDlProgress:
         files_remaining: int
 
+    COMMANDS = App.COMMANDS | {ModListCommands}
+
     BINDINGS = [
         Binding("f1", "help", "Help"),
         Binding("ctrl+q", "app.quit", "Quit"),
         Binding("/", "filter", "Filter"),
-        Binding("ctrl+l", "view_log", "View Log", show=False),
-        Binding("ctrl+o", "open_config", "Open Config", show=False),
-        Binding("ctrl+a", "download_all", "Download All Missing Assets", show=False),
-        Binding("ctrl+d", "download_assets", "Download Missing Assets", show=False),
-        Binding("ctrl+b", "backup_mod", "Backup mod to zip", show=False),
-        Binding("ctrl+w", "backup_all", "Backup all mods", show=False),
-        Binding("ctrl+r", "mod_refresh", "Refresh Mod", show=False),
-        Binding("ctrl+l", "view_log", "View Log", show=False),
-        Binding("ctrl+o", "open_config", "Open Config", show=False),
-        Binding("ctrl+s", "scan_sha1", "Compute SHA1s", show=False),
-        Binding("ctrl+p", "sha1_mismatches", "Show SHA1 Mismatches", show=False),
-        Binding("ctrl+n", "content_name_report", "Save Content Names", show=False),
-        Binding("ctrl+f", "content_name_load", "Load Content Names", show=False),
-        Binding("ctrl+u", "unzip", "Unzip Backup", show=False),
-        Binding("m", "missing_assets", "Show All Missing Assets", show=True),
-        Binding("y", "scan_names", "Scan Names", show=True),
-        Binding("e", "explore", "Explore Mod", show=True),
+        Binding("d", "download_assets", "Download"),
+        Binding("b", "backup_mod", "Backup"),
+        Binding("r", "mod_refresh", "Refresh"),
+        Binding("u", "unzip", "Unzip"),
+        Binding("e", "explore", "Explore", show=True),
     ]
 
     def __init__(self) -> None:

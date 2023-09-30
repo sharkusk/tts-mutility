@@ -27,9 +27,9 @@ from .AssetListScreen import AssetListScreen
 class ModDetailScreen(Screen):
     BINDINGS = [
         ("escape", "exit", "OK"),
-        ("b", "bgg_lookup", "BGG Lookup"),
-        ("n", "bgg_lookup_input", "BGG Lookup (Edit)"),
-        ("ctrl+r", "refresh_mod_details", "Reload BGG/Steam"),
+        ("b", "bgg_lookup", "BGG"),
+        ("n", "bgg_lookup_input", "BGG (Edit)"),
+        ("ctrl+r", "refresh_mod_details", "Refresh"),
     ]
 
     class BggIdUpdated(Message):

@@ -27,27 +27,29 @@ Welcome to {APPLICATION_TITLE} Help! {APPLICATION_TITLE} was built with [Textual
 | `esc` | Close Filter Bar / Background Task Window |
 | `ctrl+q` | Quit the application |
 | `enter` | Select Mod |
+| `ctrl-\\` | Command Pallet |
 
 | Key | Mod Command |
 | -- | -- |
-| `Ctrl+d` | Download Missing Assets from Mod |
-| `Ctrl+a` | Download Missing Assets from ALL Displayed Mods |
-| `Ctrl+b` | Create zip backup of Mod |
-| `Ctrl+w` | Backup of ALL Mods (if needed) |
-| `Ctrl+u` | Unzip mod backup |
-| `Ctrl+r` | Force refresh Mod |
-| `y` | Download Content Names |
-| `m` | Show all missing assets (for all mods) |
+| `d` | Download Missing Assets from Mod |
+| `b` | Create zip backup of Mod |
+| `u` | Unzip mod backup |
+| `r` | Refresh Mod |
 
-| Key | General Command |
+The following commands are available from the command pallet:
+
+| Command | Description |
 | -- | -- |
-| `F1` | This help |
-| `ctrl+l` | View log |
-| `ctrl+o` | Open Config |
-| `ctrl+s` | Compute SHA1s |
-| `ctrl+p` | Show SHA1 Mismatches |
-| `ctrl+n` | Save Content Names to .csv |
-| `ctrl+f` | Load Content Names from .csv |
+| View Log | Open Log in External Viewer |
+| Open Config | Open Config file in External Viewer |
+| Download All | Download all mising assets from all mods |
+| Backup All | Backup all mods needing a backup |
+| Scan SHA1s | Calculate SHA1 values for all assets |
+| Show SHA1 Mistmatches | Show SteamCloud SHA-1 assets that don't match their SHA1 vales |
+| Save ContentNames | Saves asset content names to csv file in backup directory |
+| Load ContentNames | Loads asset content names from csv file in backup directory |
+| Show All Missing | Shows list of all missing assets |
+| Fetch ContentNames | Attempt to get content names for all assets |
 
 """
 """The main help text for the application."""
