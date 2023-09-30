@@ -59,6 +59,7 @@ class AssetListScreen(Widget):
         self.current_row = 0
         self.url_width = 40
         self.al_id = al_id
+        self.explore = False
 
         config = load_config()
         self.mod_dir = config.tts_mods_dir
@@ -288,6 +289,11 @@ class AssetListScreen(Widget):
             trail = trail.replace(x, y)
         return trail
 
+    async def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted):
+        if event.row_key.value is not None:
+            if self.explore:
+                self.app.call_after_refresh(self.action_explore)
+
     def on_data_table_row_selected(self, event: DataTable.RowSelected):
         if event.row_key.value is not None:
             if self.all_nodes and "#" in event.row_key.value:
@@ -498,3 +504,4 @@ class AssetListScreen(Widget):
         except NoMatches:
             container = self.query_one(Container)
             await container.mount(ModExplorer(mod_filepath, id="mod_explorer"))
+            self.explore = True
