@@ -244,6 +244,7 @@ class ModListScreen(Screen):
             "size": True,
             "total_assets": True,
             "missing_assets": True,
+            "invalid_assets": True,
             "min_players": True,
             "max_players": True,
             "backup": True,
@@ -262,6 +263,7 @@ class ModListScreen(Screen):
         table.add_column("Size", key="size", width=12)
         table.add_column("Assets", key="total_assets")
         table.add_column("Missing", key="missing_assets")
+        table.add_column("Invalid", key="invalid_assets")
         table.add_column("MinP", key="min_players")
         table.add_column("MaxP", key="max_players")
         table.add_column("BGG", key="bgg")
@@ -420,6 +422,7 @@ class ModListScreen(Screen):
             sizeof_fmt(mod["size"]),
             mod["total_assets"],
             mod["missing_assets"],
+            mod["invalid_assets"],
             mod["min_players"],
             mod["max_players"],
             " ✓ " if mod["bgg_id"] is not None else "",
@@ -458,7 +461,7 @@ class ModListScreen(Screen):
         else:
             table.cursor_coordinate = Coordinate(0, 0)
 
-    def update_counts(self, mod_filename, total_assets, missing_assets, size):
+    def update_counts(self, mod_filename, total_assets, missing_assets, invalid_assets, size):
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
@@ -475,19 +478,21 @@ class ModListScreen(Screen):
         # and what is shown on the table...
         self.mods[row_key]["total_assets"] = total_assets
         self.mods[row_key]["missing_assets"] = missing_assets
+        self.mods[row_key]["invalid_assets"] = missing_assets
         self.mods[row_key]["size"] = size
 
         try:
             table.update_cell(row_key, "name", name)
             table.update_cell(row_key, "total_assets", total_assets)
             table.update_cell(row_key, "missing_assets", missing_assets)
+            table.update_cell(row_key, "invalid_assets", invalid_assets)
             table.update_cell(row_key, "size", sizeof_fmt(size))
         except CellDoesNotExist:
             # This can happen if some of our mods are filtered and an
             # asset is shared with a filtered one that isn't being displayed.
             pass
 
-    async def update_counts_a(self, mod_filename, total_assets, missing_assets, size):
+    async def update_counts_a(self, mod_filename, total_assets, missing_assets, invalid_assets, size):
         asset_list = AssetList()
         infected_mods = await asset_list.get_mods_using_asset_a(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
@@ -504,12 +509,14 @@ class ModListScreen(Screen):
         # and what is shown on the table...
         self.mods[row_key]["total_assets"] = total_assets
         self.mods[row_key]["missing_assets"] = missing_assets
+        self.mods[row_key]["invalid_assets"] = missing_assets
         self.mods[row_key]["size"] = sizeof_fmt(size)
 
         try:
             table.update_cell(row_key, "name", name)
             table.update_cell(row_key, "total_assets", total_assets)
             table.update_cell(row_key, "missing_assets", missing_assets)
+            table.update_cell(row_key, "invalid_assets", invalid_assets)
             table.update_cell(row_key, "size", sizeof_fmt(size))
         except CellDoesNotExist:
             # This can happen if some of our mods are filtered and an

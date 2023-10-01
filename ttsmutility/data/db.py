@@ -3,7 +3,7 @@ import sys
 from contextlib import closing
 from pathlib import Path
 
-DB_SCHEMA_VERSION = 4
+DB_SCHEMA_VERSION = 5
 
 
 def update_db_schema(db_path: Path) -> int:
@@ -56,6 +56,17 @@ def update_db_schema(db_path: Path) -> int:
                         tts_mod_assets
                     ADD
                         mod_asset_ignore_missing INT2 DEFAULT 0
+                    """,
+                )
+                updated = True
+
+            if result[0] <= 4:
+                cursor.execute(
+                    """
+                    ALTER TABLE
+                        tts_mods
+                    ADD
+                        mod_invalid_assets INT NOT NULL DEFAULT -1
                     """,
                 )
                 updated = True
@@ -124,6 +135,7 @@ def create_new_db(db_path: Path) -> int:
                 mod_size            INT             NOT NULL    DEFAULT -1,
                 mod_total_assets    INT             NOT NULL    DEFAULT -1,
                 mod_missing_assets  INT             NOT NULL    DEFAULT -1,
+                mod_invalid_assets  INT             NOT NULL    DEFAULT -1,
                 mod_max_asset_mtime TIMESTAMP                   DEFAULT 0
                 )
             """

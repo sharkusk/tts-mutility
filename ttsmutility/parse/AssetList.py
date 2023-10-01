@@ -224,6 +224,22 @@ class AssetList:
                     """,
                     (asset["url"],),
                 )
+            else:
+                await db.execute(
+                    """
+                    UPDATE tts_mods
+                    SET mod_invalid_assets=-1
+                    WHERE id IN (
+                        SELECT mod_id_fk
+                        FROM tts_mod_assets
+                        WHERE asset_id_fk IN (
+                            SELECT id FROM tts_assets
+                            WHERE asset_url=?
+                        )
+                    )
+                    """,
+                    (asset["url"],),
+                )
             await db.commit()
 
     async def get_missing_assets(self, mod_filename: str) -> list:
@@ -638,7 +654,7 @@ class AssetList:
                         """
                         UPDATE tts_mods
                         SET mod_total_assets=-1, mod_missing_assets=-1,
-                            mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
+                            mod_size=-1, mod_invalid_assets=-1, mod_max_asset_mtime=UNIXEPOCH()
                         WHERE mod_filename=?
                         """,
                         (mod_filename,),
@@ -883,7 +899,7 @@ class AssetList:
             db.execute(
                 """
                 UPDATE tts_mods
-                SET mod_missing_assets=-1
+                SET mod_missing_assets=-1, mod_invalid_assets=-1
                 WHERE mod_filename=?
                 """,
                 (mod_filename,),
@@ -920,12 +936,12 @@ class AssetList:
                 content_name = result[4]
 
             async with db.execute(
-                    """
+                """
                     SELECT asset_filename, asset_content_name
                     FROM tts_assets
                     WHERE asset_url=?
                     """,
-                    (dest_url,),
+                (dest_url,),
             ) as cursor:
                 result = await cursor.fetchone()
                 if result is None:

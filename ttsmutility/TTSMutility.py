@@ -241,6 +241,7 @@ class TTSMutility(App):
                 event.mod_filename,
                 event.counts["total"],
                 event.counts["missing"],
+                event.counts["invalid"],
                 event.counts["size"],
             )
         if False:

@@ -49,7 +49,7 @@ class ModList:
                 """
                 SELECT mod_filename
                 FROM tts_mods
-                WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1)""",
+                WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1 OR mod_invalid_assets=-1)""",
             )
             result = cursor.fetchall()
             # Results are returned as a list of tuples, unzip to a list of mod_filenames
@@ -82,7 +82,7 @@ class ModList:
             db.executemany(
                 """
                 UPDATE tts_mods
-                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
+                SET mod_total_assets=-1, mod_missing_assets=-1, mod_invalid_assets=-1, mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
                 WHERE mod_filename=?
                 """,
                 result,
@@ -107,7 +107,7 @@ class ModList:
                 """
                 SELECT mod_filename
                 FROM tts_mods
-                WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1)""",
+                WHERE (mod_total_assets=-1 OR mod_missing_assets=-1 OR mod_size=-1 or mod_invalid_assets=-1)""",
             ) as cursor:
                 result = await cursor.fetchall()
             # Results are returned as a list of tuples, unzip to a list of mod_filenames
@@ -140,7 +140,7 @@ class ModList:
             await db.executemany(
                 """
                 UPDATE tts_mods
-                SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
+                SET mod_total_assets=-1, mod_missing_assets=-1, mod_invalid_assets=-1, mod_size=-1, mod_max_asset_mtime=UNIXEPOCH()
                 WHERE mod_filename=?
                 """,
                 result,
@@ -157,7 +157,7 @@ class ModList:
         with sqlite3.connect(self.db_path) as db:
             cursor = db.execute(
                 """
-                SELECT mod_total_assets, mod_missing_assets, mod_size
+                SELECT mod_total_assets, mod_missing_assets, mod_size, mod_invalid_assets
                 FROM tts_mods
                 WHERE mod_filename=?
                 """,
@@ -169,11 +169,14 @@ class ModList:
             counts["total"] = result[0]
             counts["missing"] = result[1]
             counts["size"] = result[2]
+            counts["invalid"] = result[3]
 
         if counts["total"] == -1:
             counts["total"] = self._count_total_assets(mod_filename)
         if counts["missing"] == -1:
             counts["missing"] = self._count_missing_assets(mod_filename)
+        if counts["invalid"] == -1:
+            counts["invalid"] = self._count_invalid_assets(mod_filename)
         if counts["size"] == -1:
             counts["size"] = self._calc_asset_size(mod_filename)
 
@@ -184,7 +187,7 @@ class ModList:
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
                 """
-                SELECT mod_total_assets, mod_missing_assets, mod_size
+                SELECT mod_total_assets, mod_missing_assets, mod_size, mod_invalid_assets
                 FROM tts_mods
                 WHERE mod_filename=?
                 """,
@@ -196,11 +199,14 @@ class ModList:
                 counts["total"] = result[0]
                 counts["missing"] = result[1]
                 counts["size"] = result[2]
+                counts["invalid"] = result[3]
 
         if counts["total"] == -1:
             counts["total"] = await self._count_total_assets_a(mod_filename)
         if counts["missing"] == -1:
             counts["missing"] = await self._count_missing_assets_a(mod_filename)
+        if counts["invalid"] == -1:
+            counts["invalid"] = await self._count_invalid_assets_a(mod_filename)
         if counts["size"] == -1:
             counts["size"] = await self._calc_asset_size_a(mod_filename)
 
@@ -368,6 +374,58 @@ class ModList:
             await db.commit()
         return result[0]
 
+    def _count_invalid_assets(self, filename: str) -> int:
+        with sqlite3.connect(self.db_path) as db:
+            query = """
+            SELECT COUNT(asset_id_fk)
+            FROM tts_mod_assets
+                WHERE (
+                    mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+                    AND
+                    asset_id_fk IN (SELECT id FROM tts_assets WHERE asset_dl_status!='')
+                    AND
+                    mod_asset_ignore_missing=0
+                )
+            """
+            cursor = db.execute(query, (filename,))
+            result = cursor.fetchone()
+            db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_invalid_assets=?
+                WHERE mod_filename=?
+                """,
+                (result[0], filename),
+            )
+            db.commit()
+        return result[0]
+
+    async def _count_invalid_assets_a(self, filename: str) -> int:
+        async with aiosqlite.connect(self.db_path) as db:
+            query = """
+            SELECT COUNT(asset_id_fk)
+            FROM tts_mod_assets
+                WHERE (
+                    mod_id_fk=(SELECT id FROM tts_mods WHERE mod_filename=?)
+                    AND
+                    asset_id_fk IN (SELECT id FROM tts_assets WHERE asset_dl_status!='')
+                    AND
+                    mod_asset_ignore_missing=0
+                )
+            """
+            async with db.execute(query, (filename,)) as cursor:
+                result = await cursor.fetchone()
+            await db.execute(
+                """
+                UPDATE tts_mods
+                SET mod_invalid_assets=?
+                WHERE mod_filename=?
+                """,
+                (result[0], filename),
+            )
+            await db.commit()
+        return result[0]
+
     def get_mod_details(self, filename: str) -> dict:
         with sqlite3.connect(self.db_path) as db:
             # Now that all mods are in the db, extract the data...
@@ -375,7 +433,7 @@ class ModList:
                 """
                 SELECT
                     mod_filename, mod_name, mod_mtime, mod_size,
-                    mod_total_assets, mod_missing_assets, mod_epoch,
+                    mod_total_assets, mod_missing_assets, mod_invalid_assets, mod_epoch,
                     mod_version, mod_game_mode, mod_game_type,
                     mod_game_complexity, mod_min_players, mod_max_players,
                     mod_min_play_time, mod_max_play_time, mod_bgg_id,
@@ -601,13 +659,14 @@ class ModList:
                 db.executemany(
                     """
                     INSERT INTO tts_mods
-                        (mod_filename, mod_total_assets, mod_missing_assets, mod_size)
+                        (mod_filename, mod_total_assets, mod_missing_assets, mod_invalid_assets, mod_size)
                     VALUES
-                        (?, -1, -1, -1)
+                        (?, -1, -1, -1, -1)
                     ON CONFLICT (mod_filename)
                     DO UPDATE SET
                         mod_total_assets=excluded.mod_total_assets,
                         mod_missing_assets=excluded.mod_missing_assets,
+                        mod_invalid_assets=excluded.mod_invalid_assets,
                         mod_size=excluded.mod_size
                     """,
                     mod_list,
@@ -628,7 +687,7 @@ class ModList:
                     """
                     SELECT
                         mod_filename, mod_name, mod_mtime, mod_size,
-                        mod_total_assets, mod_missing_assets, mod_epoch,
+                        mod_total_assets, mod_missing_assets, mod_invalid_assets, mod_epoch,
                         mod_version, mod_game_mode, mod_game_type,
                         mod_game_complexity, mod_min_players, mod_max_players,
                         mod_min_play_time, mod_max_play_time, mod_bgg_id,
