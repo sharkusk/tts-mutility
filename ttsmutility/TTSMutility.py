@@ -227,7 +227,11 @@ class TTSMutility(App):
         if self.is_screen_installed("mod_list"):
             screen = self.get_screen("mod_list")
             screen.update_counts(
-                mod_filename, counts["total"], counts["missing"], counts["size"]
+                mod_filename,
+                counts["total"],
+                counts["missing"],
+                counts["invalid"],
+                counts["size"],
             )
 
         if self.is_screen_installed("mod_details"):

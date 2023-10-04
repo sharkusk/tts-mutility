@@ -113,7 +113,7 @@ class ModParser:
             if k == "AudioLibrary":
                 for elem in v:
                     # Found mod that has an empty audio library, skip it
-                    if isinstance(elem, dict):
+                    if isinstance(elem, dict) and len(elem) > 0:
                         try:
                             # It appears that AudioLibrary items are mappings of form
                             # “Item1” → URL, “Item2” → audio title.
