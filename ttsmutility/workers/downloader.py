@@ -458,17 +458,14 @@ class FileDownload(Widget):
                 os.remove(temp_path)
             return msg
 
-        # We are all good!
-        if filepath.exists():
-            # There may be an old file around, delete it.
-            os.remove(filepath)
-
         file_ext = detect_file_type(temp_path)
         if file_ext != "":
             filepath = filepath.with_suffix(file_ext)
             self.filename = self.filename.with_suffix(file_ext)
 
+        # We are all good!
         if filepath.exists():
+            # There may be an old file around, delete it.
             os.remove(filepath)
 
         os.rename(temp_path, filepath)
