@@ -468,6 +468,9 @@ class FileDownload(Widget):
             filepath = filepath.with_suffix(file_ext)
             self.filename = self.filename.with_suffix(file_ext)
 
+        if filepath.exists():
+            os.remove(filepath)
+
         os.rename(temp_path, filepath)
 
         return None
