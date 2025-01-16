@@ -185,6 +185,7 @@ class ModParser:
                     "paste.ee",
                     "drive.google.com",
                     "steamuserimages-a.akamaihd.net",
+                    "steamusercontent-a.akamaihd.net",
                 ]
                 # Check for TTS virus signature
                 if v.find("tcejbo gninwapS") != -1 and v.find(" " * 200) != 1:

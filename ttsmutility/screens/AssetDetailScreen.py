@@ -21,7 +21,8 @@ class AssetDetailScreen(ModalScreen):
             self.url = url
 
     BINDINGS = [
-        ("escape", "app.pop_screen", "OK"),
+        ("escape", "app.pop_screen", "Exit to Main"),
+        ("q", "app.pop_screen", "OK"),
     ]
 
     def __init__(self, url: str, mod_filename: str = "", trail: str = "") -> None:

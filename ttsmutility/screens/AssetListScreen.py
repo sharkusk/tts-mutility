@@ -272,8 +272,9 @@ class AssetListScreen(Widget):
         replacements = [
             ("http://", ""),
             ("https://", ""),
-            ("cloud-3.steamusercontent.com/ugc", ".steamuser."),
-            ("www.dropbox.com/s", ".dropbox."),
+            ("cloud-3.steamusercontent.com/ugc", "/steam/"),
+            ("steamusercontent-a.akamaihd.net/ugc", "/steam/"),
+            ("www.dropbox.com/s", "/dropbox/"),
         ]
         for x, y in replacements:
             url = url.replace(x, y)
