@@ -118,6 +118,11 @@ class ModParser:
                             # It appears that AudioLibrary items are mappings of form
                             # “Item1” → URL, “Item2” → audio title.
                             url = elem["Item1"].strip()
+                            if "//cloud-3.steamusercontent.com/ugc/" in url:
+                                url = url.replace(
+                                    "//cloud-3.steamusercontent.com/ugc/",
+                                    "//steamusercontent-a.akamaihd.net/ugc/",
+                                )
                             recode = recodeURL(url)
                             if recode in done and not all_nodes:
                                 continue
@@ -153,6 +158,11 @@ class ModParser:
                 # Deck art URLs can contain metadata in curly braces
                 # (yikes).
                 v = re.sub(r"{.*}", "", v).strip()
+                if "//cloud-3.steamusercontent.com/ugc/" in v:
+                    v = v.replace(
+                        "//cloud-3.steamusercontent.com/ugc/",
+                        "//steamusercontent-a.akamaihd.net/ugc/",
+                    )
                 recode = recodeURL(v)
                 if recode in done and not all_nodes:
                     continue
@@ -216,6 +226,11 @@ class ModParser:
                                 break
 
                     if valid_url:
+                        if "//cloud-3.steamusercontent.com/ugc/" in url:
+                            url = url.replace(
+                                "//cloud-3.steamusercontent.com/ugc/",
+                                "//steamusercontent-a.akamaihd.net/ugc/",
+                            )
                         recode = recodeURL(url)
                         if recode in done and not all_nodes:
                             continue
