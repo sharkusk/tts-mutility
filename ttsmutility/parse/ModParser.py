@@ -17,6 +17,19 @@ class IllegalSavegameException(ValueError):
         super().__init__("not a Tabletop Simulator savegame")
 
 
+def fix_steamusercontent_url(url):
+    if "//cloud-3.steamusercontent.com/ugc/" in url:
+        url = url.replace(
+            "https://cloud-3.steamusercontent.com/ugc/",
+            "https://steamusercontent-a.akamaihd.net/ugc/",
+        )
+        url = url.replace(
+            "http://cloud-3.steamusercontent.com/ugc/",
+            "https://steamusercontent-a.akamaihd.net/ugc/",
+        )
+    return url
+
+
 class ModParser:
     # These names are redundant, so don't keep them in our trail
     NAMES_TO_IGNORE = [
@@ -118,11 +131,7 @@ class ModParser:
                             # It appears that AudioLibrary items are mappings of form
                             # “Item1” → URL, “Item2” → audio title.
                             url = elem["Item1"].strip()
-                            if "//cloud-3.steamusercontent.com/ugc/" in url:
-                                url = url.replace(
-                                    "//cloud-3.steamusercontent.com/ugc/",
-                                    "//steamusercontent-a.akamaihd.net/ugc/",
-                                )
+                            url = fix_steamusercontent_url(url)
                             recode = recodeURL(url)
                             if recode in done and not all_nodes:
                                 continue
@@ -158,11 +167,7 @@ class ModParser:
                 # Deck art URLs can contain metadata in curly braces
                 # (yikes).
                 v = re.sub(r"{.*}", "", v).strip()
-                if "//cloud-3.steamusercontent.com/ugc/" in v:
-                    v = v.replace(
-                        "//cloud-3.steamusercontent.com/ugc/",
-                        "//steamusercontent-a.akamaihd.net/ugc/",
-                    )
+                v = fix_steamusercontent_url(v)
                 recode = recodeURL(v)
                 if recode in done and not all_nodes:
                     continue
@@ -226,11 +231,7 @@ class ModParser:
                                 break
 
                     if valid_url:
-                        if "//cloud-3.steamusercontent.com/ugc/" in url:
-                            url = url.replace(
-                                "//cloud-3.steamusercontent.com/ugc/",
-                                "//steamusercontent-a.akamaihd.net/ugc/",
-                            )
+                        url = fix_steamusercontent_url(url)
                         recode = recodeURL(url)
                         if recode in done and not all_nodes:
                             continue
