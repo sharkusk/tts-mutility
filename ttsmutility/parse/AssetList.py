@@ -161,7 +161,7 @@ class AssetList:
 
     async def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10.0) as db:
             if asset["filename"] is None or asset["filename"] == "":
                 await db.execute(
                     """
@@ -881,9 +881,9 @@ class AssetList:
             )
             db.commit()
 
-    def set_ignore(self, mod_filename, url, ignore):
-        with sqlite3.connect(self.db_path) as db:
-            db.execute(
+    async def set_ignore(self, mod_filename, url, ignore):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
                 """
                 UPDATE tts_mod_assets
                 SET mod_asset_ignore_missing=?
@@ -896,7 +896,7 @@ class AssetList:
                 """,
                 (1 if ignore else 0, url, mod_filename),
             )
-            db.execute(
+            await db.execute(
                 """
                 UPDATE tts_mods
                 SET mod_missing_assets=-1, mod_invalid_assets=-1
@@ -904,7 +904,7 @@ class AssetList:
                 """,
                 (mod_filename,),
             )
-            db.commit()
+            await db.commit()
 
     async def copy_asset(self, src_url, dest_url):
         if src_url == dest_url:

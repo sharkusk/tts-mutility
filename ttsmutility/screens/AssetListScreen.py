@@ -356,7 +356,7 @@ class AssetListScreen(Widget):
 
         self.app.push_screen(InfoDialog(f"Saved missing asset report to '{outname}'."))
 
-    def action_ignore_missing(self):
+    async def action_ignore_missing(self):
         if self.all_nodes:
             return
 
@@ -367,7 +367,7 @@ class AssetListScreen(Widget):
         self.assets[row_key]["ignore_missing"] = not self.assets[row_key][
             "ignore_missing"
         ]
-        asset_list.set_ignore(
+        await asset_list.set_ignore(
             self.mod_filename, row_key.value, self.assets[row_key]["ignore_missing"]
         )
         self.updated_counts = True
