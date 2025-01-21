@@ -73,6 +73,23 @@ options:
 ### Explorer Tree View
 ![tree](https://github.com/sharkusk/tts-mutility/assets/4368882/46112527-eee7-4239-bbd5-6e69f8db7bf9)
 
+# Transitioning To The New Steam Cloud URLs
+
+## Background
+
+Recently TTS changed the URLs used to download assets from the steam cloud. The new URL is used by TTS whenever downloading assets from Steam Cloud servers, even if the original mod still uses the old URLs. Unfortunately, TTS encodes the URL into the asset filename. So, TTS will check if a cached asset exists for both the new and old filename, and only download the asset if necessary. This mix of old and new URLs and filenames makes things a bit of a mess when managing and backing up mods.
+
+When scanning a new or modified mod, tts-mutility automatically converts all URLs to the new scheme. Original URLs can still be viewed in the explore window.
+
+## Recommendation
+
+1. [optional] Use the "backup original filename" command from tts-mutility's power shell.
+1. Rename all cached assets to use filenames based on the new URL scheme.
+1. Modify the backup.csv file created in step 1 with new URL scheme (search/replace).
+1. Run tts-mutility with --force-refresh option to rescan all mods and apply new URL scheme
+1. [optional] Use the "restore original filenames" command to restore original filenames
+
+Please note, this will flag all mods using renamed assets (likely most of them) to require a new backup.
 
 # ttscleaner.py - TTS Script Virus Removal Tool
 
