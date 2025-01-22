@@ -127,16 +127,16 @@ class Sha1Scanner(TTSWorker):
                     hexdigest = digest.hexdigest()
                     sha1 = hexdigest.upper()
 
-                update_progress = i % skip_update_amount == 0
+                update_progress = skip_update_amount
 
                 if update_sha1 or update_steam_sha1:
                     await asset_list.sha1_scan_done(
                         str(asset_path), sha1, steam_sha1, mtime
                     )
-                    update_progress = i % update_amount == 0
+                    update_progress = update_amount
 
-                if update_progress:
-                    self.post_message(self.UpdateProgress(None, update_amount))
+                if i % update_progress == 0:
+                    self.post_message(self.UpdateProgress(None, update_progress))
                     self.post_message(
                         self.UpdateStatus(
                             f"Computing SHA1s for {dir_name} ({i}/{len(files)})"

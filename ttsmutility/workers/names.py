@@ -103,7 +103,7 @@ class NameScanner(TTSWorker):
                     content_name = "(paste.ee tell no names)"
                     to_search = ["obj file: '", "mtllib "]
                     lines = response.iter_lines()
-                    for i, line in enumerate(lines):
+                    for j, line in enumerate(lines):
                         line = line.decode("utf-8")
                         start_offset = 0
                         end_offset = 0
@@ -121,7 +121,7 @@ class NameScanner(TTSWorker):
                             cd_name_count += 1
                             break
                         # Only search the first few lines
-                        if i >= 5:
+                        if j >= 5:
                             break
                 self.post_message(
                     self.UpdateStatus(
