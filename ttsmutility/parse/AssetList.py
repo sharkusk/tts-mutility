@@ -243,7 +243,7 @@ class AssetList:
             await db.commit()
 
     async def get_missing_assets(self, mod_filename: str) -> list:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             async with db.execute(
                 """
                 SELECT
@@ -686,7 +686,7 @@ class AssetList:
 
     async def get_mods_using_asset_a(self, url: str) -> list:
         results = []
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             async with db.execute(
                 """
                 SELECT mod_filename, mod_name
@@ -799,7 +799,7 @@ class AssetList:
             # TODO: Not needed yet
             return assets
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             db.row_factory = asset_factory
             async with db.execute(
                 (
@@ -882,7 +882,7 @@ class AssetList:
             db.commit()
 
     async def set_ignore(self, mod_filename, url, ignore):
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             await db.execute(
                 """
                 UPDATE tts_mod_assets
@@ -910,7 +910,7 @@ class AssetList:
         if src_url == dest_url:
             return
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             async with db.execute(
                 """
                 SELECT asset_path, asset_filename, asset_ext, asset_size, asset_content_name
@@ -1170,7 +1170,7 @@ class AssetList:
     async def find_asset_a(self, url, trail=None) -> bool:
         trail_name = self.get_asset_trail_name(trail)
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             content_name = get_content_name(url)
             if content_name == "":
                 async with db.execute(
@@ -1326,7 +1326,7 @@ class AssetList:
         return asset
 
     async def delete_asset(self, url):
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             async with db.execute(
                 """
                 SELECT asset_path, asset_filename, asset_ext, asset_size

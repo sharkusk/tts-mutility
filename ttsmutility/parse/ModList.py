@@ -102,7 +102,7 @@ class ModList:
         return sorted(combined)
 
     async def get_mods_needing_asset_refresh_a(self):
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=10) as db:
             async with db.execute(
                 """
                 SELECT mod_filename
