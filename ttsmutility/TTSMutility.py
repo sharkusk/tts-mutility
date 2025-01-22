@@ -73,10 +73,10 @@ class TTSMutility(App):
         else:
             self.force_refresh = False
 
-        if cli_args.overwrite_log:
-            log_flags = "w"
-        else:
+        if cli_args.append_log:
             log_flags = "a"
+        else:
+            log_flags = "w"
 
         if cli_args.log:
             self.f_log = open(config.log_path, log_flags, encoding="utf-8")
@@ -592,9 +592,9 @@ def get_args() -> Namespace:
     )
 
     parser.add_argument(
-        "--overwrite-log",
-        help="Overwrite the existing log (don't append)",
-        dest="overwrite_log",
+        "--append-log",
+        help="Append to existing log (no not overwrite)",
+        dest="append_log",
         action="store_true",
     )
 

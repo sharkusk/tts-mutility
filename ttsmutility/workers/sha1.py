@@ -90,59 +90,58 @@ class Sha1Scanner(TTSWorker):
                 asset_path = pathlib.Path(dir_name) / filename
 
                 filestem = pathlib.Path(filename).stem
-
-                steam_sha1 = ""
-                if "httpcloud3steamusercontent" in filestem:
-                    hexdigest = os.path.splitext(filestem)[0][-40:]
-                    steam_sha1 = hexdigest.upper()
-
-                mtime = os.path.getmtime(filepath)
                 if filestem not in assets:
-                    # Skip this filepath since it doesn't exist in our DB
-                    skip = True
-                elif (
-                    assets[filestem]["sha1_mtime"] == 0
-                    or assets[filestem]["sha1"] is None
-                    or assets[filestem]["sha1"] == ""
-                    or assets[filestem]["sha1"] == "0"
-                ):
-                    skip = False
-                elif mtime > assets[filestem]["sha1_mtime"]:
-                    skip = False
-                elif steam_sha1 != "" and assets[filestem]["steam_sha1"] == "":
-                    skip = False
-                else:
-                    skip = True
-
-                i += 1
-                if skip:
-                    if (i % skip_update_amount) == 0:
-                        self.post_message(self.UpdateProgress(None, skip_update_amount))
-                        self.post_message(
-                            self.UpdateStatus(
-                                f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
-                            )
-                        )
                     continue
 
-                if (i % update_amount) == 0:
+                update_steam_sha1 = False
+                update_sha1 = False
+
+                steam_sha1 = ""
+                if (
+                    filestem.find("httpcloud3steamusercontent") == 0
+                    or filestem.find("httpssteamusercontentaakamaihdnetugc") == 0
+                ):
+                    hexdigest = os.path.splitext(filestem)[0][-40:]
+                    steam_sha1 = hexdigest.upper()
+                    if steam_sha1 != assets[filestem]["steam_sha1"]:
+                        update_steam_sha1 = True
+
+                sha1 = assets[filestem]["sha1"]
+
+                mtime = os.path.getmtime(filepath)
+                if (
+                    assets[filestem]["sha1_mtime"] == 0
+                    or sha1 is None
+                    or sha1 == ""
+                    or sha1 == "0"
+                ):
+                    update_sha1 = True
+                elif mtime > assets[filestem]["sha1_mtime"]:
+                    update_sha1 = True
+
+                i += 1
+
+                if update_sha1:
+                    with open(filepath, "rb") as f:
+                        digest = hashlib.file_digest(f, "sha1")
+                    hexdigest = digest.hexdigest()
+                    sha1 = hexdigest.upper()
+
+                update_progress = i % skip_update_amount == 0
+
+                if update_sha1 or update_steam_sha1:
+                    await asset_list.sha1_scan_done(
+                        str(asset_path), sha1, steam_sha1, mtime
+                    )
+                    update_progress = i % update_amount == 0
+
+                if update_progress:
                     self.post_message(self.UpdateProgress(None, update_amount))
                     self.post_message(
                         self.UpdateStatus(
                             f"Computing SHA1s for {dir_name} ({i}/{len(files)})"
                         )
                     )
-
-                sha1 = ""
-
-                with open(filepath, "rb") as f:
-                    digest = hashlib.file_digest(f, "sha1")
-                hexdigest = digest.hexdigest()
-                sha1 = hexdigest.upper()
-
-                await asset_list.sha1_scan_done(
-                    str(asset_path), sha1, steam_sha1, mtime
-                )
 
         self.post_message(UpdateLog("SHA1 scan complete."))
         self.post_message(self.UpdateStatus("SHA1 scan complete."))
