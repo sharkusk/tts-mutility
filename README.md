@@ -83,11 +83,11 @@ When scanning a new or modified mod, tts-mutility automatically converts all URL
 
 ## Recommendation
 
-1. [optional] Use the "backup original filename" command from tts-mutility's power shell.
-1. Rename all cached assets to use filenames based on the new URL scheme.
-1. Modify the backup.csv file created in step 1 with new URL scheme (search/replace).
+1. [optional] Use the "Save Content Names" command from tts-mutility's command palette.
+1. Rename all cached assets to use filenames based on the new URL scheme (use regular expression so only matching string from start of filename matches). (`^httpscloud3steamusercontentcomugc` -> `httpssteamusercontentaakamaihdnetugc`)
+1. [optional] Modify the content_names.csv file created in step 1 with new URL scheme (search/replace). (`https://cloud-3.steamusercontent.com/ugc/` -> `https://steamusercontent-a.akamaihd.net/ugc/`)
 1. Run tts-mutility with --force-refresh option to rescan all mods and apply new URL scheme
-1. [optional] Use the "restore original filenames" command to restore original filenames
+1. [optional] Use the "Load Content Names" command to restore original filenames
 
 Please note, this will flag all mods using renamed assets (likely most of them) to require a new backup.
 
