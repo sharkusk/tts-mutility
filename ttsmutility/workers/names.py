@@ -1,3 +1,4 @@
+import site
 from urllib.parse import urlparse
 from pathlib import Path
 
@@ -43,6 +44,8 @@ class NameScanner(TTSWorker):
 
         url_name_count = 0
         cd_name_count = 0
+
+        sites_with_no_context_disposition = []
 
         self.post_message(UpdateLog(f"R {len(urls)} missing names to be scanned."))
         self.post_message(self.UpdateProgress(advance_amount=1))
@@ -129,13 +132,24 @@ class NameScanner(TTSWorker):
                     )
                 )
                 continue
+            elif domain in sites_with_no_context_disposition:
+                self.post_message(
+                    self.UpdateStatus(
+                        f"Scanning {i}/{len(urls)} missing names.\n{url} -> (Site does not support context disposition)"
+                    )
+                )
+                continue
             else:
                 fetch_url = url
+
+            # Trim any junk at the end of steam urls
+            if "steamuser" in fetch_url:
+                if fetch_url[-1] != "/":
+                    fetch_url = fetch_url[0 : fetch_url.rfind("/") + 1]
 
             # Some links are missing the http:// portion of the address
             if not urlparse(fetch_url).scheme:
                 fetch_url = "http://" + fetch_url
-
             try:
                 with requests.get(
                     url=fetch_url, headers=headers, allow_redirects=True, stream=True
@@ -166,6 +180,8 @@ class NameScanner(TTSWorker):
                                 f"Scanning {i}/{len(urls)} missing names.\n{url} -> (No Content-Disposition)"
                             )
                         )
+                        if "steamuser" not in domain:
+                            sites_with_no_context_disposition.append(domain)
                         continue
             except Exception as error:
                 # Can be caused by local file urls or embedded <dlc>
