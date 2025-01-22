@@ -27,7 +27,7 @@ class Sha1Scanner(TTSWorker):
     def compose(self) -> ComposeResult:
         return []
 
-    def scan_sha1s(self) -> None:
+    async def scan_sha1s(self) -> None:
         filepath = None
         mtime = 0
         skip = False
@@ -140,7 +140,9 @@ class Sha1Scanner(TTSWorker):
                 hexdigest = digest.hexdigest()
                 sha1 = hexdigest.upper()
 
-                asset_list.sha1_scan_done(str(asset_path), sha1, steam_sha1, mtime)
+                await asset_list.sha1_scan_done(
+                    str(asset_path), sha1, steam_sha1, mtime
+                )
 
         self.post_message(UpdateLog("SHA1 scan complete."))
         self.post_message(self.UpdateStatus("SHA1 scan complete."))

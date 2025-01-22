@@ -95,14 +95,14 @@ class AssetList:
             sha1s = reduce(operator.ior, results, {})
             return sha1s
 
-    def sha1_scan_done(
+    async def sha1_scan_done(
         self, filepath: str, sha1: str, steam_sha1: str, sha1_mtime: float
     ) -> None:
         path, filename = os.path.split(filepath)
         if filename != "":
             filename, _ = os.path.splitext(filename)
-        with sqlite3.connect(self.db_path) as db:
-            db.execute(
+        async with aiosqlite.connect(self.db_path, timeout=10.0) as db:
+            await db.execute(
                 """
                 UPDATE tts_assets
                 SET asset_sha1=?, asset_steam_sha1=?, asset_sha1_mtime=?
@@ -110,7 +110,7 @@ class AssetList:
                 """,
                 (sha1, steam_sha1, sha1_mtime, filename, path),
             )
-            db.commit()
+            await db.commit()
 
     def get_sha1_mismatches(self):
         assets = []
