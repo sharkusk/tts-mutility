@@ -23,7 +23,7 @@ def make_safe_filename(filename):
 
 def get_steam_sha1_from_url(url):
     hexdigest = ""
-    if "steamusercontent" in url or "steamuserimages" in url:
+    if "steamuser" in url:
         if url[-1] == "/":
             hexdigest = os.path.splitext(url)[0][-41:-1]
         else:

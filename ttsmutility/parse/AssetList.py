@@ -314,6 +314,63 @@ class AssetList:
                 asset_paths = []
                 asset_filenames = set()
 
+            def clean_db_path(path, files):
+                cursor = db.execute(
+                    """
+                    SELECT asset_filename, asset_ext
+                    FROM tts_assets
+                    WHERE asset_path=?
+                    """,
+                    (path,),
+                )
+                results = cursor.fetchall()
+                if len(results) > 0:
+                    db_names, db_exts = list(zip(*results))
+                    db_files = set(map(str.__add__, db_names, db_exts))
+
+                    # Cleanup stale assets in the DB that don't have a file on the
+                    # disk and are not associated with a Mod
+                    stale_assets = list(set(db_files).difference(files))
+
+                    # Need to remove the extensions since DB stores filename without them
+                    stale_assets = [os.path.splitext(x)[0] for x in stale_assets]
+
+                    self.post_message(
+                        UpdateLog(
+                            f"Found {len(stale_assets)} assets referenced in DB for '{path}' that don't exist."
+                        )
+                    )
+
+                    total_stale_assets = 0
+                    # There is a max of 999 sqlite parameters so step through if there are more
+                    for i in range(0, len(stale_assets), 999):
+                        end = i + 999
+                        if end > len(stale_assets):
+                            end = len(stale_assets)
+
+                        cursor = db.execute(
+                            """
+                            DELETE FROM tts_assets
+                            WHERE asset_filename IN (%s) AND
+                                NOT EXISTS (SELECT 1 FROM tts_mod_assets
+                                    WHERE tts_mod_assets.asset_id_fk = tts_assets.id)
+                            """
+                            % ",".join("?" * (end - i)),
+                            stale_assets[i:end],
+                        )
+                        total_stale_assets += cursor.rowcount
+
+                    self.post_message(
+                        UpdateLog(
+                            f"Removed {total_stale_assets} unreferenced assets from '{path}' in DB."
+                        )
+                    )
+
+            if clean_db:
+                # Assets that never got downloaded and don't have an extension can get
+                # entered into the DB without a path. Make sure we clean these as well.
+                clean_db_path("", [])
+
             assets = []
             for root, dirnames, files in os.walk(self.mod_dir, topdown=True):
                 new_count = 0
@@ -331,56 +388,7 @@ class AssetList:
                 yield path, new_count, 0, files_in_path
 
                 if clean_db:
-                    cursor = db.execute(
-                        """
-                        SELECT asset_filename, asset_ext
-                        FROM tts_assets
-                        WHERE asset_path=?
-                        """,
-                        (path,),
-                    )
-                    results = cursor.fetchall()
-                    if len(results) > 0:
-                        db_names, db_exts = list(zip(*results))
-                        db_files = set(map(str.__add__, db_names, db_exts))
-
-                        # Cleanup stale assets in the DB that don't have a file on the
-                        # disk and are not associated with a Mod
-                        stale_assets = list(set(db_files).difference(files))
-
-                        # Need to remove the extensions since DB stores filename without them
-                        stale_assets = [os.path.splitext(x)[0] for x in stale_assets]
-
-                        self.post_message(
-                            UpdateLog(
-                                f"Found {len(stale_assets)} assets referenced in DB for '{path}' that don't exist."
-                            )
-                        )
-
-                        total_stale_assets = 0
-                        # There is a max of 999 sqlite parameters so step through if there are more
-                        for i in range(0, len(stale_assets), 999):
-                            end = i + 999
-                            if end > len(stale_assets):
-                                end = len(stale_assets)
-
-                            cursor = db.execute(
-                                """
-                                DELETE FROM tts_assets
-                                WHERE asset_filename IN (%s) AND
-                                    NOT EXISTS (SELECT 1 FROM tts_mod_assets
-                                        WHERE tts_mod_assets.asset_id_fk = tts_assets.id)
-                                """
-                                % ",".join("?" * (end - i)),
-                                stale_assets[i:end],
-                            )
-                            total_stale_assets += cursor.rowcount
-
-                        self.post_message(
-                            UpdateLog(
-                                f"Removed {total_stale_assets} unreferenced assets from {path} in DB."
-                            )
-                        )
+                    clean_db_path(path, files)
 
                 new_files = set(files).difference(asset_filenames)
                 old_count = len(files) - len(new_files)
@@ -593,132 +601,134 @@ class AssetList:
 
         new_asset_count = 0
 
-        if len(mod_assets) > 0:
-            with sqlite3.connect(self.db_path) as db:
+        with sqlite3.connect(self.db_path) as db:
+            if len(mod_assets) == 0:
+                filenames = []
+                urls = []
+                trails = []
+            else:
                 filenames, urls, trails = zip(*mod_assets)
 
-                # Combine the URLs/filenames from the mod with
-                # what is already in the DB (from filesystem scan
-                # and possible previous mod scan)
+            # Combine the URLs/filenames from the mod with
+            # what is already in the DB (from filesystem scan
+            # and possible previous mod scan)
 
-                # Since the filesystem is scanned before the mods
-                # are processed, filenames may exist in the DB
-                # before the associated URLs are discovered in the mod
-                # file.  Therefore, when we conflict on the filename,
-                # we still need to update the URL.
-                cursor = db.executemany(
-                    """
-                    INSERT INTO tts_assets
-                        (asset_url, asset_filename)
-                    VALUES
-                        (?, ?)
-                    ON CONFLICT (asset_filename)
-                    DO UPDATE SET
-                        asset_url=excluded.asset_url;
-                    """,
-                    tuple(zip(urls, filenames)),
-                )
-                new_asset_count += cursor.rowcount
+            # Since the filesystem is scanned before the mods
+            # are processed, filenames may exist in the DB
+            # before the associated URLs are discovered in the mod
+            # file.  Therefore, when we conflict on the filename,
+            # we still need to update the URL.
+            cursor = db.executemany(
+                """
+                INSERT INTO tts_assets
+                    (asset_url, asset_filename)
+                VALUES
+                    (?, ?)
+                ON CONFLICT (asset_filename)
+                DO UPDATE SET
+                    asset_url=excluded.asset_url;
+                """,
+                tuple(zip(urls, filenames)),
+            )
+            new_asset_count += cursor.rowcount
 
-                trailstrings = [trail_to_trailstring(trail) for trail in trails]
-                cursor = db.executemany(
-                    """
-                    INSERT INTO tts_mod_assets
-                        (asset_id_fk, mod_id_fk, mod_asset_trail)
-                    VALUES (
-                        (SELECT tts_assets.id FROM tts_assets
-                        WHERE asset_filename=?),
-                        (SELECT tts_mods.id FROM tts_mods
-                        WHERE mod_filename=?),
-                        ?)
-                    ON CONFLICT (asset_id_fk, mod_id_fk)
-                    DO UPDATE SET
-                        mod_asset_trail=excluded.mod_asset_trail
-                    """,
-                    tuple(
-                        zip(filenames, [mod_filename] * len(filenames), trailstrings)
-                    ),
-                )
-                # new_asset_trails = cursor.rowcount
+            trailstrings = [trail_to_trailstring(trail) for trail in trails]
+            cursor = db.executemany(
+                """
+                INSERT INTO tts_mod_assets
+                    (asset_id_fk, mod_id_fk, mod_asset_trail)
+                VALUES (
+                    (SELECT tts_assets.id FROM tts_assets
+                    WHERE asset_filename=?),
+                    (SELECT tts_mods.id FROM tts_mods
+                    WHERE mod_filename=?),
+                    ?)
+                ON CONFLICT (asset_id_fk, mod_id_fk)
+                DO UPDATE SET
+                    mod_asset_trail=excluded.mod_asset_trail
+                """,
+                tuple(zip(filenames, [mod_filename] * len(filenames), trailstrings)),
+            )
+            # new_asset_trails = cursor.rowcount
 
-                # Detect assets that are no longer included in the mod
+            # Detect assets that are no longer included in the mod
+            cursor = db.execute(
+                """
+                SELECT asset_url
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            results = cursor.fetchall()
+
+            removed_assets = list(
+                set(list(zip(*results))[0]).symmetric_difference(set(urls))
+            )
+            removed_asset_count = len(removed_assets)
+            cursor = db.executemany(
+                """
+                DELETE FROM tts_mod_assets
+                WHERE
+                    asset_id_fk = (SELECT tts_assets.id FROM tts_assets
+                                    WHERE asset_url=?)
+                AND
+                    mod_id_fk = (SELECT tts_mods.id FROM tts_mods
+                                    WHERE mod_filename=?)
+                """,
+                tuple(zip(removed_assets, [mod_filename] * len(removed_assets))),
+            )
+
+            deleted_files = []
+            if force_file_check:
                 cursor = db.execute(
                     """
-                    SELECT asset_url
-                    FROM tts_assets
-                        INNER JOIN tts_mod_assets
-                            ON tts_mod_assets.asset_id_fk=tts_assets.id
-                        INNER JOIN tts_mods
-                            ON tts_mod_assets.mod_id_fk=tts_mods.id
+                    SELECT
+                        asset_path, asset_filename, asset_ext
+                    FROM
+                        tts_assets
+                    WHERE asset_url IN ({0})
+                    """.format(
+                        ",".join("?" for _ in urls)
+                    ),
+                    urls,
+                )
+                results = cursor.fetchall()
+                for path, filename, ext in results:
+                    if (
+                        not (Path(self.mod_dir) / path / filename)
+                        .with_suffix(ext)
+                        .exists()
+                    ):
+                        deleted_files.append(filename)
+
+            if len(deleted_files) > 0:
+                cursor = db.execute(
+                    """
+                    UPDATE tts_assets
+                    SET asset_sha1="", asset_mtime=0, asset_size=0
+                    WHERE asset_filename IN ({0})
+                    """.format(
+                        ",".join("?" for _ in deleted_files)
+                    ),
+                    deleted_files,
+                )
+
+            if new_asset_count > 0 or removed_asset_count > 0:
+                db.execute(
+                    """
+                    UPDATE tts_mods
+                    SET mod_total_assets=-1, mod_missing_assets=-1,
+                        mod_size=-1, mod_invalid_assets=-1, mod_max_asset_mtime=UNIXEPOCH()
                     WHERE mod_filename=?
                     """,
                     (mod_filename,),
                 )
-                results = cursor.fetchall()
-
-                removed_assets = list(
-                    set(list(zip(*results))[0]).symmetric_difference(set(urls))
-                )
-                removed_asset_count = len(removed_assets)
-                cursor = db.executemany(
-                    """
-                    DELETE FROM tts_mod_assets
-                    WHERE
-                        asset_id_fk = (SELECT tts_assets.id FROM tts_assets
-                                        WHERE asset_url=?)
-                    AND
-                        mod_id_fk = (SELECT tts_mods.id FROM tts_mods
-                                        WHERE mod_filename=?)
-                    """,
-                    tuple(zip(removed_assets, [mod_filename] * len(removed_assets))),
-                )
-
-                deleted_files = []
-                if force_file_check:
-                    cursor = db.execute(
-                        """
-                        SELECT
-                            asset_path, asset_filename, asset_ext
-                        FROM
-                            tts_assets
-                        WHERE asset_url IN ({0})
-                        """.format(
-                            ",".join("?" for _ in urls)
-                        ),
-                        urls,
-                    )
-                    results = cursor.fetchall()
-                    for path, filename, ext in results:
-                        if (
-                            not (Path(self.mod_dir) / path / filename)
-                            .with_suffix(ext)
-                            .exists()
-                        ):
-                            deleted_files.append(filename)
-
-                if len(deleted_files) > 0:
-                    cursor = db.execute(
-                        """
-                        UPDATE tts_assets
-                        SET asset_sha1="", asset_mtime=0, asset_size=0
-                        WHERE asset_filename IN ({0})
-                        """.format(
-                            ",".join("?" for _ in deleted_files)
-                        ),
-                        deleted_files,
-                    )
-
-                if new_asset_count > 0 or removed_asset_count > 0:
-                    db.execute(
-                        """
-                        UPDATE tts_mods
-                        SET mod_total_assets=-1, mod_missing_assets=-1,
-                            mod_size=-1, mod_invalid_assets=-1, mod_max_asset_mtime=UNIXEPOCH()
-                        WHERE mod_filename=?
-                        """,
-                        (mod_filename,),
-                    )
-                db.commit()
+            db.commit()
         return new_asset_count
 
     def get_mods_using_asset(self, url: str) -> list:
