@@ -282,12 +282,19 @@ class AssetList:
                 urls.append((result[0], trailstring_to_trail(result[4])))
         return urls
 
-    def scan_cached_assets(self):
+    def scan_cached_assets(self, clean_db=False):
         scan_time = time.time()
         new_count = 0
 
         with sqlite3.connect(self.db_path) as db:
-            ignore_paths = ["Mods", "Workshop"]
+            ignore_paths = [
+                "Mods",
+                "Workshop",
+                "Images Raw",
+                "Models Raw",
+                "Text",
+                "Translations",
+            ]
             ignore_files = ["sha1-verified", "sha1-verified.txt"]
 
             cursor = db.execute(
@@ -322,6 +329,58 @@ class AssetList:
                 files_in_path = len(files)
 
                 yield path, new_count, 0, files_in_path
+
+                if clean_db:
+                    cursor = db.execute(
+                        """
+                        SELECT asset_filename, asset_ext
+                        FROM tts_assets
+                        WHERE asset_path=?
+                        """,
+                        (path,),
+                    )
+                    results = cursor.fetchall()
+                    if len(results) > 0:
+                        db_names, db_exts = list(zip(*results))
+                        db_files = set(map(str.__add__, db_names, db_exts))
+
+                        # Cleanup stale assets in the DB that don't have a file on the
+                        # disk and are not associated with a Mod
+                        stale_assets = list(set(db_files).difference(files))
+
+                        # Need to remove the extensions since DB stores filename without them
+                        stale_assets = [os.path.splitext(x)[0] for x in stale_assets]
+
+                        self.post_message(
+                            UpdateLog(
+                                f"Found {len(stale_assets)} assets referenced in DB for '{path}' that don't exist."
+                            )
+                        )
+
+                        total_stale_assets = 0
+                        # There is a max of 999 sqlite parameters so step through if there are more
+                        for i in range(0, len(stale_assets), 999):
+                            end = i + 999
+                            if end > len(stale_assets):
+                                end = len(stale_assets)
+
+                            cursor = db.execute(
+                                """
+                                DELETE FROM tts_assets
+                                WHERE asset_filename IN (%s) AND
+                                    NOT EXISTS (SELECT 1 FROM tts_mod_assets
+                                        WHERE tts_mod_assets.asset_id_fk = tts_assets.id)
+                                """
+                                % ",".join("?" * (end - i)),
+                                stale_assets[i:end],
+                            )
+                            total_stale_assets += cursor.rowcount
+
+                        self.post_message(
+                            UpdateLog(
+                                f"Removed {total_stale_assets} unreferenced assets from {path} in DB."
+                            )
+                        )
 
                 new_files = set(files).difference(asset_filenames)
                 old_count = len(files) - len(new_files)

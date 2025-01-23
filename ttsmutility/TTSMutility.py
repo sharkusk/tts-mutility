@@ -92,6 +92,7 @@ class TTSMutility(App):
             config_override(cli_args.config_file)
 
         self.force_md_update = cli_args.force_md_update
+        self.clean_db = cli_args.clean_db
 
         self.write_log(f"\n# TTSMutility v{__version__}", prefix="")
         self.write_log(
@@ -142,8 +143,12 @@ class TTSMutility(App):
             self.write_log(f"Using DB schema version {db_schema}.")
 
         self.post_message(self.InitProcessing("Loading Workshop Mods"))
-        mod_list = ModList.ModList(max_mods=self.max_mods)
-        mod_list.get_mods(parse_only=True, force_refresh=self.force_refresh)
+        mod_list = ModList.ModList(
+            post_message=self.post_message, max_mods=self.max_mods
+        )
+        mod_list.get_mods(
+            parse_only=True, force_refresh=self.force_refresh, clean_db=self.clean_db
+        )
         self.write_log("Loaded Mods.")
 
         mod_asset_list = AssetList.AssetList(post_message=self.post_message)
@@ -158,7 +163,7 @@ class TTSMutility(App):
                 new_assets,
                 scanned_assets,
                 assets_in_path,
-            ) in mod_asset_list.scan_cached_assets():
+            ) in mod_asset_list.scan_cached_assets(clean_db=self.clean_db):
                 if path != prev_path:
                     if prev_path != "":
                         self.write_log(f"Found {new_assets} new assets.")
@@ -616,6 +621,13 @@ def get_args() -> Namespace:
         "--force-steam-md-update",
         help="Reload steam meta data, do not use cached version",
         dest="force_md_update",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--clean-db",
+        help="Remove stale assets and deleted mods from the DB",
+        dest="clean_db",
         action="store_true",
     )
 

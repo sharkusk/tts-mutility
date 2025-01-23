@@ -8,6 +8,7 @@ from pathlib import Path
 import aiosqlite
 
 from ..data.config import load_config
+from ..utility.messages import UpdateLog
 
 
 def mod_factory(cursor, row):
@@ -16,7 +17,7 @@ def mod_factory(cursor, row):
 
 
 class ModList:
-    def __init__(self, max_mods=-1) -> None:
+    def __init__(self, max_mods=-1, post_message=None) -> None:
         config = load_config()
         self.db_path = Path(config.db_path)
         self.mod_dir = Path(config.tts_mods_dir)
@@ -24,6 +25,10 @@ class ModList:
         self.recurse_save_dir = config.recurse_save_dir
         self.scan_ts_saves = config.scan_ts_saves
         self.max_mods = max_mods
+        if post_message is None:
+            self.post_message = lambda x: None
+        else:
+            self.post_message = post_message
 
     def _get_mod_path(self, filename: str) -> str:
         if "Workshop" in filename:
@@ -432,7 +437,7 @@ class ModList:
             cursor = db.execute(
                 """
                 SELECT
-                    mod_filename, mod_name, mod_mtime, mod_size,
+                    id, mod_filename, mod_name, mod_mtime, mod_size,
                     mod_total_assets, mod_missing_assets, mod_invalid_assets, mod_epoch,
                     mod_version, mod_game_mode, mod_game_type,
                     mod_game_complexity, mod_min_players, mod_max_players,
@@ -579,7 +584,11 @@ class ModList:
             db.commit()
 
     def get_mods(
-        self, parse_only=False, force_refresh=False, include_deleted=False
+        self,
+        parse_only=False,
+        force_refresh=False,
+        include_deleted=False,
+        clean_db=False,
     ) -> dict:
         mods_on_disk = []  # Mods that exist in the filesystem
         mod_list = []
@@ -681,12 +690,12 @@ class ModList:
                     (scan_time,),
                 )
 
-            if parse_only is False:
+            if parse_only is False or clean_db is True:
                 # Now that all mods are in the db, extract the data...
                 cursor = db.execute(
                     """
                     SELECT
-                        mod_filename, mod_name, mod_mtime, mod_size,
+                        id, mod_filename, mod_name, mod_mtime, mod_size,
                         mod_total_assets, mod_missing_assets, mod_invalid_assets, mod_epoch,
                         mod_version, mod_game_mode, mod_game_type,
                         mod_game_complexity, mod_min_players, mod_max_players,
@@ -701,6 +710,28 @@ class ModList:
                 for mod in results:
                     filename = mod["filename"]
                     if filename not in mods_on_disk and not include_deleted:
+                        if clean_db:
+                            # We need to enable this for the cascade delete to work
+                            db.execute(
+                                """
+                                PRAGMA foreign_keys = ON;
+                                """
+                            )
+                            cursor = db.execute(
+                                """
+                                DELETE
+                                FROM tts_mods
+                                WHERE mod_filename=?
+                                """,
+                                (filename,),
+                            )
+                            self.post_message(
+                                UpdateLog(
+                                    (
+                                        f"Deleted mod: ({mod['id']}) {filename}, rows removed: {cursor.rowcount}"
+                                    )
+                                )
+                            )
                         continue
                     mods[filename] = mod
                     mods[filename]["deleted"] = filename not in mods_on_disk
