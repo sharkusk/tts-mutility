@@ -202,6 +202,8 @@ class ModParser:
                     "steamuserimages-a.akamaihd.net",
                     "steamusercontent-a.akamaihd.net",
                 ]
+                found_in_lua = set()
+
                 # Check for TTS virus signature
                 if v.find("tcejbo gninwapS") != -1 and v.find(" " * 200) != 1:
                     # Don't add these to the set, report all infected objects/trails...
@@ -233,7 +235,27 @@ class ModParser:
                     if valid_url:
                         url = fix_steamusercontent_url(url)
                         recode = recodeURL(url)
+                        found_in_lua.add(recode)
                         if recode in done and not all_nodes:
                             continue
                         done.add(recode)
                         yield (newtrail, url)
+
+                # Find the following partial steamcloud URLs like these
+                # /1829024930083879990/CF9BBACECA692BC033B2CAFDAA26A65807FDC49E/
+                # 1829024930083879990/CF9BBACECA692BC033B2CAFDAA26A65807FDC49E/
+
+                partial_steam_url_matches = re.findall(r"\d{19}/\w{40}/", v)
+                for url in partial_steam_url_matches:
+                    url = "https://steamusercontent-a.akamaihd.net/ugc/" + url
+                    recode = recodeURL(url)
+                    # We are likely going to find multiple copies of the same steamcloud URL
+                    # since this will also match fully formed URLS detected above.  So, lets
+                    # ignore the ones we have seen already in this luascript segement.
+                    if recode in found_in_lua:
+                        continue
+                    found_in_lua.add(recode)
+                    if recode in done and not all_nodes:
+                        continue
+                    done.add(recode)
+                    yield (newtrail, url)

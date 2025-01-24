@@ -609,6 +609,25 @@ class AssetList:
             else:
                 filenames, urls, trails = zip(*mod_assets)
 
+            # Detect assets that are currently in the mod
+            cursor = db.execute(
+                """
+                SELECT asset_url
+                FROM tts_assets
+                    INNER JOIN tts_mod_assets
+                        ON tts_mod_assets.asset_id_fk=tts_assets.id
+                    INNER JOIN tts_mods
+                        ON tts_mod_assets.mod_id_fk=tts_mods.id
+                WHERE mod_filename=?
+                """,
+                (mod_filename,),
+            )
+            results = cursor.fetchall()
+            if len(results) > 0:
+                mod_urls = set(list(zip(*results))[0])
+            else:
+                mod_urls = set()
+
             # Combine the URLs/filenames from the mod with
             # what is already in the DB (from filesystem scan
             # and possible previous mod scan)
@@ -630,7 +649,6 @@ class AssetList:
                 """,
                 tuple(zip(urls, filenames)),
             )
-            new_asset_count += cursor.rowcount
 
             trailstrings = [trail_to_trailstring(trail) for trail in trails]
             cursor = db.executemany(
@@ -649,27 +667,13 @@ class AssetList:
                 """,
                 tuple(zip(filenames, [mod_filename] * len(filenames), trailstrings)),
             )
-            # new_asset_trails = cursor.rowcount
 
-            # Detect assets that are no longer included in the mod
-            cursor = db.execute(
-                """
-                SELECT asset_url
-                FROM tts_assets
-                    INNER JOIN tts_mod_assets
-                        ON tts_mod_assets.asset_id_fk=tts_assets.id
-                    INNER JOIN tts_mods
-                        ON tts_mod_assets.mod_id_fk=tts_mods.id
-                WHERE mod_filename=?
-                """,
-                (mod_filename,),
-            )
-            results = cursor.fetchall()
+            new_assets = list(set(urls) - mod_urls)
+            new_asset_count = len(new_assets)
 
-            removed_assets = list(
-                set(list(zip(*results))[0]).symmetric_difference(set(urls))
-            )
+            removed_assets = list(mod_urls - set(urls))
             removed_asset_count = len(removed_assets)
+
             cursor = db.executemany(
                 """
                 DELETE FROM tts_mod_assets

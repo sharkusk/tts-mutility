@@ -364,7 +364,8 @@ class ModListScreen(Screen):
             name = Path(mod_filename).name
             if name in self.backup_times:
                 if (
-                    self.backup_times[name] > self.mods[mod_filename]["epoch"]
+                    self.backup_times[name] > self.mods[mod_filename]["mtime"]
+                    and self.backup_times[name] > self.mods[mod_filename]["epoch"]
                     and self.backup_times[name]
                     > self.mods[mod_filename]["newest_asset"]
                 ):
@@ -374,9 +375,16 @@ class ModListScreen(Screen):
                     and self.backup_times[name] > self.mods[mod_filename]["epoch"]
                 ):
                     # If we are using a read-only backup dir, we don't care about
-                    # when assets were last updated
+                    # when assets were last updated or if the local mod timestamp is older
+                    # than the backup
                     b = " ✓"
                 else:
+                    self.post_message(
+                        UpdateLog(
+                            f"BT: {self.backup_times[name]}, MT: {self.mods[mod_filename]['epoch']}, AT: {self.mods[mod_filename]['newest_asset']}",
+                            flush=True,
+                        )
+                    )
                     b = "!"
             else:
                 b = "✘"
@@ -461,7 +469,9 @@ class ModListScreen(Screen):
         else:
             table.cursor_coordinate = Coordinate(0, 0)
 
-    def update_counts(self, mod_filename, total_assets, missing_assets, invalid_assets, size):
+    def update_counts(
+        self, mod_filename, total_assets, missing_assets, invalid_assets, size
+    ):
         asset_list = AssetList()
         infected_mods = asset_list.get_mods_using_asset(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
@@ -492,7 +502,9 @@ class ModListScreen(Screen):
             # asset is shared with a filtered one that isn't being displayed.
             pass
 
-    async def update_counts_a(self, mod_filename, total_assets, missing_assets, invalid_assets, size):
+    async def update_counts_a(
+        self, mod_filename, total_assets, missing_assets, invalid_assets, size
+    ):
         asset_list = AssetList()
         infected_mods = await asset_list.get_mods_using_asset_a(INFECTION_URL)
         self.infected_filenames = [mod_filename for mod_filename, _ in infected_mods]
