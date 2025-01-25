@@ -43,19 +43,27 @@ After the first run a config file (`configuration.json`) is created in the xdg c
 ## Commandline options
 
 ```
-usage: ttsmutility [-h] [-v] [-m MAX_MODS] [--no-log] [--overwrite-log] [--force-refresh] [--skip-asset-scan]
+usage: ttsmutility [-h] [-v] [--no-log] [--append-log] [--force-refresh] [--skip-asset-scan] [--force-steam-md-update] [--clean-db] [-c CONFIG_FILE]
+                   [-s SAVES_DIR] [-m MODS_DIR]
 
 TTSMutility - Tabletop Simulator Mod and Save Utility
 
 options:
   -h, --help            show this help message and exit
   -v, --version         Show version information.
-  -m MAX_MODS, --max-mods MAX_MODS
-                        Limit number of mods (for faster debuggin)
   --no-log              Disable logging (logfile path specified in config file)
-  --overwrite-log       Overwrite the existing log (don't append)
+  --append-log          Append to existing log (no not overwrite)
   --force-refresh       Re-process all mod files (useful if bug fix requires a rescan)
   --skip-asset-scan     Do not scan filesystem for new assets during init
+  --force-steam-md-update
+                        Reload steam meta data, do not use cached version
+  --clean-db            Remove stale assets and deleted mods from the DB
+  -c CONFIG_FILE, --config_file CONFIG_FILE
+                        Override default config file path (including filename)
+  -s SAVES_DIR, --saves_dir SAVES_DIR
+                        Absolute path to the TTS directory that contains the 'Saves' subdir
+  -m MODS_DIR, --mods_dir MODS_DIR
+                        Absolute path to the TTS Mods directory that contains the 'Workshop' subdir
 ```
 
 ## Additional ttsmutility Screenshots
