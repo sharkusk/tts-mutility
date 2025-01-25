@@ -64,6 +64,7 @@ class FileDownload(Widget):
             "application/binary",
             "application/octet-stream",
             "application/vnd.unity",
+            "binary/octet-stream",
         ),
         "image": (
             "image/jpeg",

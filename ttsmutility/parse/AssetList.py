@@ -161,7 +161,7 @@ class AssetList:
 
     async def download_done(self, asset: dict) -> None:
         # Don't overwrite the calculated filepath with something that is empty
-        async with aiosqlite.connect(self.db_path, timeout=10.0) as db:
+        async with aiosqlite.connect(self.db_path, timeout=15.0) as db:
             if asset["filename"] is None or asset["filename"] == "":
                 await db.execute(
                     """
@@ -205,14 +205,14 @@ class AssetList:
                     ),
                 )
 
-            # dl_status is empty if the download was succesfull
+            # dl_status is empty if the download was successful
             if asset["dl_status"] == "":
                 # Set mod asset counts containing this asset to -1
                 # to represent an update to the system
                 await db.execute(
                     """
                     UPDATE tts_mods
-                    SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1
+                    SET mod_total_assets=-1, mod_missing_assets=-1, mod_invalid_assets=-1, mod_size=-1
                     WHERE id IN (
                         SELECT mod_id_fk
                         FROM tts_mod_assets
@@ -728,6 +728,15 @@ class AssetList:
                     UPDATE tts_mods
                     SET mod_total_assets=-1, mod_missing_assets=-1,
                         mod_size=-1, mod_invalid_assets=-1, mod_max_asset_mtime=UNIXEPOCH()
+                    WHERE mod_filename=?
+                    """,
+                    (mod_filename,),
+                )
+            else:
+                db.execute(
+                    """
+                    UPDATE tts_mods
+                    SET mod_total_assets=-1, mod_missing_assets=-1, mod_size=-1, mod_invalid_assets=-1
                     WHERE mod_filename=?
                     """,
                     (mod_filename,),
