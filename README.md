@@ -32,11 +32,13 @@ NOTE: Pip also supports installing directly from a zip file.  So, instead of the
 
 Once installed the app can be run by typing:
 
-```$ ttsmutility```
+```$ ttsmutility -m [tts mods directory containing 'Workshop'] -s [tts directory containing 'Saves']```
 
-## Configuring ttsmutility Paths
+These directories only need to be specified one time, as they will be saved to a configuration file.
 
-After the first run a config file (`configuration.json`) is created in the xdg config directory.  This is typically `~/.config/ttsmutility` (Linux) or `C:\Users\[username]\.config\ttsmutility` (Windows).  TTS paths can be configured there accordingly.
+## Configuring other ttsmutility Options
+
+After the first run a config file (`configuration.json`) is created in the xdg config directory.  This is typically `~/.config/ttsmutility` (Linux) or `C:\Users\[username]\.config\ttsmutility` (Windows).  Various options can be configured by modifying the .conf file (e.g. number of download threads).
 
 ## Commandline options
 

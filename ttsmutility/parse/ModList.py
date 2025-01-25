@@ -17,14 +17,13 @@ def mod_factory(cursor, row):
 
 
 class ModList:
-    def __init__(self, max_mods=-1, post_message=None) -> None:
+    def __init__(self, post_message=None) -> None:
         config = load_config()
         self.db_path = Path(config.db_path)
         self.mod_dir = Path(config.tts_mods_dir)
         self.save_dir = Path(config.tts_saves_dir)
         self.recurse_save_dir = config.recurse_save_dir
         self.scan_ts_saves = config.scan_ts_saves
-        self.max_mods = max_mods
         if post_message is None:
             self.post_message = lambda x: None
         else:
@@ -650,9 +649,6 @@ class ModList:
                 ):
                     if skip_mod(f):
                         continue
-
-                    if self.max_mods != -1 and i >= self.max_mods:
-                        break
 
                     mods_on_disk.append(f)
 

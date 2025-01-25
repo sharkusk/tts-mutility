@@ -58,9 +58,12 @@ class TTSMutility(App):
         self.progress_total = 100
         self.progress_advance = 0
         config = load_config()
+        if cli_args.mods_dir is not None:
+            config.tts_mods_dir = cli_args.mods_dir
+        if cli_args.saves_dir is not None:
+            config.tts_saves_dir = cli_args.saves_dir
         # Update config file in case some settings have been added
         save_config(config)
-        self.max_mods = cli_args.max_mods
         self.start_time = time.time()
         self.sha1 = Sha1Scanner()
         self.backup = ModBackup()
@@ -143,9 +146,7 @@ class TTSMutility(App):
             self.write_log(f"Using DB schema version {db_schema}.")
 
         self.post_message(self.InitProcessing("Loading Workshop Mods"))
-        mod_list = ModList.ModList(
-            post_message=self.post_message, max_mods=self.max_mods
-        )
+        mod_list = ModList.ModList(post_message=self.post_message)
         mod_list.get_mods(
             parse_only=True, force_refresh=self.force_refresh, clean_db=self.clean_db
         )
@@ -582,14 +583,6 @@ def get_args() -> Namespace:
     )
 
     parser.add_argument(
-        "-m",
-        "--max-mods",
-        help="Limit number of mods (for faster debuggin)",
-        default=-1,
-        type=int,
-    )
-
-    parser.add_argument(
         "--no-log",
         help="Disable logging (logfile path specified in config file)",
         dest="log",
@@ -635,6 +628,20 @@ def get_args() -> Namespace:
         "-c",
         "--config_file",
         help="Override default config file path (including filename)",
+        type=file_path,
+    )
+
+    parser.add_argument(
+        "-s",
+        "--saves_dir",
+        help="Absolute path to the TTS directory that contains the 'Saves' subdir",
+        type=file_path,
+    )
+
+    parser.add_argument(
+        "-m",
+        "--mods_dir",
+        help="Absolute path to the TTS Mods directory that contains the 'Workshop' subdir",
         type=file_path,
     )
 
